@@ -8,24 +8,10 @@ namespace LogsPlatform.Tests.Infrastructure;
 [Collection("Database")]
 public class LogsPlatformDbContextTests
 {
-    private const string TestConnectionString =
-        "Server=(localdb)\\mssqllocaldb;Database=LogsPlatformTests;Trusted_Connection=True;";
-
-    private static LogsPlatformDbContext CreateContext()
-    {
-        var options = new DbContextOptionsBuilder<LogsPlatformDbContext>()
-            .UseSqlServer(TestConnectionString)
-            .Options;
-        var context = new LogsPlatformDbContext(options);
-        context.Database.EnsureDeleted();
-        context.Database.Migrate();
-        return context;
-    }
-
     [Fact]
     public async Task CanInsertAndRetrieveApplicationWithEnvironment()
     {
-        using var context = CreateContext();
+        using var context = TestDatabase.CreateContext();
 
         var application = new Application
         {
@@ -39,7 +25,7 @@ public class LogsPlatformDbContextTests
         await context.SaveChangesAsync();
 
         using var readContext = new LogsPlatformDbContext(
-            new DbContextOptionsBuilder<LogsPlatformDbContext>().UseSqlServer(TestConnectionString).Options);
+            new DbContextOptionsBuilder<LogsPlatformDbContext>().UseSqlServer(TestDatabase.ConnectionString).Options);
 
         var loaded = await readContext.Applications
             .Include(a => a.Environments)
