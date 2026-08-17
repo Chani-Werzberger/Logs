@@ -9,16 +9,23 @@ namespace LogsPlatform.Web.Controllers;
 [Route("api/v1/admin/applications/{appId:int}/environments")]
 public class EnvironmentsController : ControllerBase
 {
+    private readonly IApplicationRepository _applications;
     private readonly IAppEnvironmentRepository _environments;
 
-    public EnvironmentsController(IAppEnvironmentRepository environments)
+    public EnvironmentsController(IApplicationRepository applications, IAppEnvironmentRepository environments)
     {
+        _applications = applications;
         _environments = environments;
     }
 
     [HttpPost]
     public async Task<ActionResult<EnvironmentResponse>> Create(int appId, CreateEnvironmentRequest request)
     {
+        if (await _applications.GetByIdAsync(appId) is null)
+        {
+            return NotFound(new { message = $"Application {appId} not found." });
+        }
+
         var environment = await _environments.AddAsync(new AppEnvironment
         {
             ApplicationId = appId,

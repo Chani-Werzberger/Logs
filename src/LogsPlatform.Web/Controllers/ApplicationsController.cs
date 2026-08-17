@@ -2,6 +2,8 @@ using LogsPlatform.Domain.Entities;
 using LogsPlatform.Domain.Repositories;
 using LogsPlatform.Web.Contracts;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Data.SqlClient;
+using Microsoft.EntityFrameworkCore;
 
 namespace LogsPlatform.Web.Controllers;
 
@@ -19,15 +21,22 @@ public class ApplicationsController : ControllerBase
     [HttpPost]
     public async Task<ActionResult<ApplicationResponse>> Create(CreateApplicationRequest request)
     {
-        var application = await _applications.AddAsync(new Application
+        try
         {
-            Name = request.Name,
-            Description = request.Description,
-            CreatedAt = DateTime.UtcNow
-        });
+            var application = await _applications.AddAsync(new Application
+            {
+                Name = request.Name,
+                Description = request.Description,
+                CreatedAt = DateTime.UtcNow
+            });
 
-        var response = new ApplicationResponse(application.Id, application.Name, application.Description, application.CreatedAt);
-        return CreatedAtAction(nameof(GetById), new { id = application.Id }, response);
+            var response = new ApplicationResponse(application.Id, application.Name, application.Description, application.CreatedAt);
+            return CreatedAtAction(nameof(GetById), new { id = application.Id }, response);
+        }
+        catch (DbUpdateException ex) when (ex.InnerException is SqlException { Number: 2601 or 2627 })
+        {
+            return Conflict(new { message = $"An application named '{request.Name}' already exists." });
+        }
     }
 
     [HttpGet("{id:int}")]

@@ -34,4 +34,17 @@ public class ApplicationsControllerTests : IClassFixture<TestWebApplicationFacto
         var fetched = await getResponse.Content.ReadFromJsonAsync<ApplicationResponse>();
         Assert.Equal(created.Id, fetched!.Id);
     }
+
+    [Fact]
+    public async Task Create_DuplicateName_Returns409Conflict()
+    {
+        var client = _factory.CreateClient();
+        var request = new CreateApplicationRequest("DuplicateNameTest", null);
+
+        var first = await client.PostAsJsonAsync("/api/v1/admin/applications", request);
+        Assert.Equal(HttpStatusCode.Created, first.StatusCode);
+
+        var second = await client.PostAsJsonAsync("/api/v1/admin/applications", request);
+        Assert.Equal(HttpStatusCode.Conflict, second.StatusCode);
+    }
 }

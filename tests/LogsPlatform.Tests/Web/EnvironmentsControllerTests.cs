@@ -60,4 +60,16 @@ public class EnvironmentsControllerTests : IClassFixture<TestWebApplicationFacto
         Assert.DoesNotContain(environments, e => e.Id == secondEnv!.Id);
         Assert.DoesNotContain(environments, e => e.ApplicationId == secondApp.Id);
     }
+
+    [Fact]
+    public async Task Create_UnknownApplicationId_Returns404NotFound()
+    {
+        var client = _factory.CreateClient();
+
+        var response = await client.PostAsJsonAsync(
+            "/api/v1/admin/applications/999999/environments",
+            new CreateEnvironmentRequest("Production", true));
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
 }
