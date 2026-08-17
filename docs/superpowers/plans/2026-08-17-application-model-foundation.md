@@ -1162,6 +1162,108 @@ Keep this as 2-3 commits (error handling; UTC conversion; test dedup) rather tha
 
 ---
 
+### Task 9: Fix `UtcDateTimeConverter`'s silent `DateTimeKind.Unspecified` shift
+
+**Added post-final-review-rerun (2026-08-17), per the whole-branch reviewer's Important finding #2 and the human's decision to fix it now** rather than after ingested-event timestamps (a core feature of a log platform) start flowing through this same model-wide conversion.
+
+**The bug:** `DateTime.ToUniversalTime()` treats `DateTimeKind.Unspecified` as **local time** and applies the machine's UTC offset. `System.Text.Json` deserializes a timestamp with no `Z`/offset suffix (e.g. `"2026-08-17T10:00:00"`) as `Kind.Unspecified`. Today this is harmless because `Application.CreatedAt` is the only `DateTime` in the model and it's always assigned `DateTime.UtcNow` (already `Kind.Utc`, so the conversion is a no-op) — but the read side (`DateTime.SpecifyKind(fromProvider, DateTimeKind.Utc)`) unconditionally *asserts* everything in the column is UTC, while the write side only *sometimes* makes that true. The first `Unspecified` value written through this model-wide convention gets silently shifted by the local UTC offset and then relabeled UTC on the way back out — wrong data, no exception, no warning.
+
+**Files:**
+- Modify: `src/LogsPlatform.Infrastructure/UtcDateTimeConverter.cs`
+- Modify: `tests/LogsPlatform.Tests/Infrastructure/LogsPlatformDbContextTests.cs` (add the round-trip test)
+
+**Interfaces:**
+- Consumes: nothing new.
+- Produces: the same `UtcDateTimeConverter`, now with a write-side policy that doesn't corrupt `Unspecified` input — this is the exact converter every future entity's `DateTime`/timestamp properties will inherit via `ConfigureConventions`, so getting the policy right here matters more than usual.
+
+- [ ] **Step 1: Write the failing test**
+
+```csharp
+// Add to tests/LogsPlatform.Tests/Infrastructure/LogsPlatformDbContextTests.cs
+[Fact]
+public async Task UnspecifiedDateTime_RoundTripsWithoutLocalOffsetShift()
+{
+    using var context = TestDatabase.CreateContext();
+
+    // Simulates a timestamp deserialized from JSON with no "Z"/offset suffix —
+    // Kind.Unspecified, NOT Kind.Local. The bug this test guards against:
+    // ToUniversalTime() would (wrongly) treat this as local time and shift it
+    // by the machine's UTC offset before storing it.
+    var unspecified = new DateTime(2026, 1, 1, 12, 0, 0, DateTimeKind.Unspecified);
+    var application = new Application
+    {
+        Name = "UtcConversionTest",
+        CreatedAt = unspecified
+    };
+
+    context.Applications.Add(application);
+    await context.SaveChangesAsync();
+
+    using var readContext = new LogsPlatformDbContext(
+        new DbContextOptionsBuilder<LogsPlatformDbContext>().UseSqlServer(TestDatabase.ConnectionString).Options);
+
+    var loaded = await readContext.Applications.FirstAsync(a => a.Name == "UtcConversionTest");
+
+    Assert.Equal(DateTimeKind.Utc, loaded.CreatedAt.Kind);
+    Assert.Equal(unspecified.Year, loaded.CreatedAt.Year);
+    Assert.Equal(unspecified.Month, loaded.CreatedAt.Month);
+    Assert.Equal(unspecified.Day, loaded.CreatedAt.Day);
+    Assert.Equal(unspecified.Hour, loaded.CreatedAt.Hour);
+    Assert.Equal(unspecified.Minute, loaded.CreatedAt.Minute);
+    // Clock components must be unchanged — only the Kind label should differ.
+    // If ToUniversalTime() shifted this by the local UTC offset, Hour (or Day, near
+    // midnight) would differ from the original Unspecified value.
+}
+```
+
+This uses `readContext` — a second, freshly-constructed `LogsPlatformDbContext` pointed at `TestDatabase.ConnectionString` directly (not `TestDatabase.CreateContext()`, which calls `EnsureDeleted()`+`Migrate()` and would wipe the row this test just wrote) — the same "second context, no reset" pattern already used by `CanInsertAndRetrieveApplicationWithEnvironment` earlier in this same file. `DbContextOptionsBuilder` and `LogsPlatformDbContext` are already `using`-imported at the top of this file from that earlier test.
+
+- [ ] **Step 2: Run test to verify it fails**
+
+Run: `dotnet test --filter UnspecifiedDateTime_RoundTripsWithoutLocalOffsetShift`
+Expected: FAIL — on any machine whose local UTC offset isn't exactly `+00:00`, `loaded.CreatedAt.Hour` (or `.Day`) differs from `unspecified.Hour`/`.Day`, because `ToUniversalTime()` shifted it.
+
+- [ ] **Step 3: Fix the converter's write-side policy**
+
+```csharp
+// src/LogsPlatform.Infrastructure/UtcDateTimeConverter.cs
+using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
+
+namespace LogsPlatform.Infrastructure;
+
+public class UtcDateTimeConverter : ValueConverter<DateTime, DateTime>
+{
+    public UtcDateTimeConverter() : base(
+        toProvider => toProvider.Kind == DateTimeKind.Local
+            ? toProvider.ToUniversalTime()
+            : DateTime.SpecifyKind(toProvider, DateTimeKind.Utc),
+        fromProvider => DateTime.SpecifyKind(fromProvider, DateTimeKind.Utc))
+    {
+    }
+}
+```
+
+The policy: `Kind.Local` genuinely needs offset conversion (it's a real local-time value from somewhere, e.g. `DateTime.Now`). `Kind.Utc` and `Kind.Unspecified` are both treated as "already the correct instant, just relabel it" — matching the read side's own assumption that every value in this column represents UTC. This makes the two halves of the converter consistent with each other, instead of the write side silently reinterpreting ambiguous input.
+
+- [ ] **Step 4: Run test to verify it passes**
+
+Run: `dotnet test --filter UnspecifiedDateTime_RoundTripsWithoutLocalOffsetShift`
+Expected: PASS.
+
+- [ ] **Step 5: Run the full suite**
+
+Run: `dotnet test`
+Expected: all tests pass, including `PostThenGet_CreatedAtRoundTripsAsUtc` from Task 8 (still uses `Kind.Utc` input, unaffected by this change) and the new test above.
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add src/LogsPlatform.Infrastructure/UtcDateTimeConverter.cs tests/LogsPlatform.Tests/Infrastructure/LogsPlatformDbContextTests.cs
+git commit -m "Fix UtcDateTimeConverter: stop silently shifting DateTimeKind.Unspecified values"
+```
+
+---
+
 ## Self-Review Notes
 
 - **Spec coverage:** This plan covers the `Application`/`AppEnvironment` slice of `05-מודל-נתונים.md` section 2 and the corresponding two endpoints of `07-Ingestion-ו-API.md` section 5. It does **not** yet cover Module/ScreenService/ProcessNode/Operation/Customer/AppUser/LogSource/ApiKey/AppVersion/Deployment, `IsActive` soft-delete semantics (not applicable to `Application`/`AppEnvironment` per the data model), or any Blazor UI — those are the next plan(s) in the M1 milestone, following the exact same pattern established here (entity → repository interface → `DbContext` mapping/migration → repository implementation → DI wiring → controller, each test-first).
