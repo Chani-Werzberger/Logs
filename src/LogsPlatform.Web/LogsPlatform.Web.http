@@ -1,0 +1,6 @@
+@LogsPlatform.Web_HostAddress = http://localhost:5201
+
+GET {{LogsPlatform.Web_HostAddress}}/api/v1/admin/applications
+Accept: application/json
+
+###

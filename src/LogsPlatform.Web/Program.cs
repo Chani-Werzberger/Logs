@@ -1,0 +1,34 @@
+using LogsPlatform.Domain.Repositories;
+using LogsPlatform.Infrastructure;
+using LogsPlatform.Infrastructure.Repositories;
+using Microsoft.EntityFrameworkCore;
+
+var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddControllers();
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
+
+builder.Services.AddDbContext<LogsPlatformDbContext>(options =>
+    options.UseSqlServer(builder.Configuration.GetConnectionString("LogsPlatformDb")
+        ?? throw new InvalidOperationException("Missing ConnectionStrings:LogsPlatformDb configuration.")));
+
+builder.Services.AddScoped<IApplicationRepository, ApplicationRepository>();
+builder.Services.AddScoped<IAppEnvironmentRepository, AppEnvironmentRepository>();
+
+var app = builder.Build();
+
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
+}
+
+app.UseHttpsRedirection();
+app.MapControllers();
+
+app.Run();
+
+public partial class Program
+{
+} // exposes Program for WebApplicationFactory<Program> in tests
