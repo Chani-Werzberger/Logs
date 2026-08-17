@@ -5,7 +5,9 @@ namespace LogsPlatform.Infrastructure;
 public class UtcDateTimeConverter : ValueConverter<DateTime, DateTime>
 {
     public UtcDateTimeConverter() : base(
-        toProvider => toProvider.ToUniversalTime(),
+        toProvider => toProvider.Kind == DateTimeKind.Local
+            ? toProvider.ToUniversalTime()
+            : DateTime.SpecifyKind(toProvider, DateTimeKind.Utc),
         fromProvider => DateTime.SpecifyKind(fromProvider, DateTimeKind.Utc))
     {
     }
