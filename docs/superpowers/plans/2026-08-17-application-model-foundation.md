@@ -522,7 +522,7 @@ git commit -m "Implement ApplicationRepository and AppEnvironmentRepository"
 
 **Files:**
 - Modify: `src/LogsPlatform.Web/Program.cs`
-- Modify: `src/LogsPlatform.Web/LogsPlatform.Web.csproj` (add `Microsoft.EntityFrameworkCore.SqlServer` package + `UserSecretsId`)
+- Modify: `src/LogsPlatform.Web/LogsPlatform.Web.csproj` (add `Microsoft.EntityFrameworkCore.SqlServer` + `Swashbuckle.AspNetCore` packages + `UserSecretsId`)
 
 **Interfaces:**
 - Consumes: `LogsPlatformDbContext` (Task 3), `IApplicationRepository`/`ApplicationRepository`, `IAppEnvironmentRepository`/`AppEnvironmentRepository` (Task 2/4).
@@ -530,9 +530,12 @@ git commit -m "Implement ApplicationRepository and AppEnvironmentRepository"
 
 **Why this comes before the controllers:** `WebApplicationFactory<Program>`-based tests boot the *whole* `Program.cs` DI container. If the controllers in Task 6 existed before DI is wired, their tests would fail on every run with a DI resolution error, not just conditionally — wiring DI first means Task 6's tests pass cleanly the first time.
 
-- [ ] **Step 1: Add the SQL Server package and enable User Secrets**
+> **Correction (post-Task 5):** Task 1's `dotnet new webapi` on this machine's net10.0 SDK scaffolds `Program.cs` using the newer built-in minimal OpenAPI support (`builder.Services.AddOpenApi()` / `app.MapOpenApi()`, backed by the `Microsoft.AspNetCore.OpenApi` package already referenced from Task 1) — not the older `AddSwaggerGen()`/`UseSwagger()`/`UseSwaggerUI()` pattern this plan originally specified in Step 3 below, which requires `Swashbuckle.AspNetCore` and doesn't compile without it. Task 5's implementer added `Swashbuckle.AspNetCore` (resolved to `10.2.3`, unpinned — no reason to pin a dev-only Swagger UI package to an exact version) to make the plan's originally-specified `Program.cs` code build as written, rather than switching to the newer built-in `AddOpenApi()`/`MapOpenApi()` pattern. Both are valid; Swashbuckle was kept because it also serves an interactive Swagger UI page (useful for manual testing), not just a raw OpenAPI JSON document. **Step 1 below now includes installing this package.**
+
+- [ ] **Step 1: Add the SQL Server package, the Swagger UI package, and enable User Secrets**
 
 ```bash
+dotnet add src/LogsPlatform.Web/LogsPlatform.Web.csproj package Swashbuckle.AspNetCore
 dotnet add src/LogsPlatform.Web/LogsPlatform.Web.csproj package Microsoft.EntityFrameworkCore.SqlServer --version 8.0.10
 cd src/LogsPlatform.Web && dotnet user-secrets init && cd ../..
 ```
