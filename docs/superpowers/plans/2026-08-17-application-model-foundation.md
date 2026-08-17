@@ -12,6 +12,8 @@
 
 > **Correction (post-Task 6):** `Microsoft.AspNetCore.Mvc.Testing` pinned at `8.0.10` (from Task 1) does **not** work for `WebApplicationFactory<Program>`-based tests once the app actually starts serializing JSON responses under `net10.0` — `TestServer`'s in-memory `ResponseBodyPipeWriter` doesn't implement `PipeWriter.UnflushedBytes`, which .NET 10's `System.Text.Json` pipe-writer serialization path requires, so every controller response failed with `500 InternalServerError`. Task 6's implementer bumped it to `10.0.1` (verified to exist on NuGet, matching the `Microsoft.AspNetCore.OpenApi` `10.0.1` pin already used in `LogsPlatform.Web.csproj`). **This does not conflict with the EF Core `8.0.10` pin above** — `Mvc.Testing` is an ASP.NET Core test-hosting package that must track the target *runtime* version (`net10.0`), while the EF Core packages are a separate axis pinned for cross-project *data-access* consistency; the two rules govern different package families and both still hold. Also: the brief's `TestWebApplicationFactory.cs` code was missing `using Microsoft.Extensions.DependencyInjection.Extensions;` (required for `IServiceCollection.RemoveAll<T>()`) — added as part of the file, no separate correction needed since it's a same-file compile fix, not a package/version decision.
 
+> **⚠️ SUPERSEDING correction (post-Task 7) — read this if you are using this plan as a template for a future entity:** the `8.0.10` EF Core pin mandated above is **no longer current**. Task 7 upgraded EF Core from `8.0.10` to **`10.0.11`** across all three projects (Infrastructure, Web, Tests) — deliberately, because EF Core 8 reaches end of support ~November 2026, ~3 months after this plan was written, and the upgrade was cheap while only one migration existed. **Every EF Core package reference anywhere below that still literally says `8.0.10` (Task 1 Steps 3-4, Task 3's design-time factory discussion, Task 5 Step 1) is a historical record of what that task actually did at the time — not current guidance.** For any new EF Core package addition from this point forward: run `dotnet package search Microsoft.EntityFrameworkCore.SqlServer --exact-match --format json` (not `--version "10.*"` — that flag doesn't exist on this CLI build) and use the latest stable `10.x.y` returned, matching whatever `10.0.11` has since become. **Also:** the `dotnet-ef` global tool install command in Task 3 Step 5 (`dotnet tool install --global dotnet-ef --version 8.*`) is likewise superseded — installing `dotnet-ef` 8.x against a 10.0.11 model will not work correctly. Use `dotnet tool update --global dotnet-ef` with no version constraint (or match it explicitly to the resolved EF Core version) instead.
+
 ## Global Constraints
 
 - Target framework: `net10.0` everywhere (see correction note above), `<Nullable>enable</Nullable>`, `<ImplicitUsings>enable</ImplicitUsings>` in every `.csproj`.
@@ -334,6 +336,8 @@ public class LogsPlatformDbContextFactory : IDesignTimeDbContextFactory<LogsPlat
 
 - [ ] **Step 5: Install the EF Core CLI tool (once per machine) and generate the migration**
 
+> ⚠️ **Historical — see the "SUPERSEDING correction (post-Task 7)" note near the top of this document.** The `--version 8.*` below is what Task 1-era EF Core actually used; as of Task 7 the solution runs EF Core 10.0.11 and this command would install the wrong tool version. Use `dotnet tool update --global dotnet-ef` (no version pin) instead if running this step fresh today.
+
 ```bash
 dotnet tool install --global dotnet-ef --version 8.* 2>/dev/null || dotnet tool update --global dotnet-ef --version 8.*
 dotnet ef migrations add InitialCreate \
@@ -535,6 +539,8 @@ git commit -m "Implement ApplicationRepository and AppEnvironmentRepository"
 > **Correction (post-Task 5):** Task 1's `dotnet new webapi` on this machine's net10.0 SDK scaffolds `Program.cs` using the newer built-in minimal OpenAPI support (`builder.Services.AddOpenApi()` / `app.MapOpenApi()`, backed by the `Microsoft.AspNetCore.OpenApi` package already referenced from Task 1) — not the older `AddSwaggerGen()`/`UseSwagger()`/`UseSwaggerUI()` pattern this plan originally specified in Step 3 below, which requires `Swashbuckle.AspNetCore` and doesn't compile without it. Task 5's implementer added `Swashbuckle.AspNetCore` (resolved to `10.2.3`, unpinned — no reason to pin a dev-only Swagger UI package to an exact version) to make the plan's originally-specified `Program.cs` code build as written, rather than switching to the newer built-in `AddOpenApi()`/`MapOpenApi()` pattern. Both are valid; Swashbuckle was kept because it also serves an interactive Swagger UI page (useful for manual testing), not just a raw OpenAPI JSON document. **Step 1 below now includes installing this package.**
 
 - [ ] **Step 1: Add the SQL Server package, the Swagger UI package, and enable User Secrets**
+
+> ⚠️ **Historical — see the "SUPERSEDING correction (post-Task 7)" note near the top of this document.** `--version 8.0.10` below is what Task 5 actually used at the time; as of Task 7 the solution runs EF Core 10.0.11. Use `10.0.11` (or whatever `dotnet package search` resolves to) if running this step fresh today.
 
 ```bash
 dotnet add src/LogsPlatform.Web/LogsPlatform.Web.csproj package Swashbuckle.AspNetCore
