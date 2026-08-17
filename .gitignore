@@ -1,0 +1,19 @@
+# Claude Code local settings (machine-specific, not shared)
+.claude/settings.local.json
+
+# .NET
+bin/
+obj/
+*.user
+*.suo
+.vs/
+
+# Secrets — never commit real connection strings / API keys
+appsettings.Development.json
+appsettings.*.local.json
+*.pfx
+*.key
+
+# OS
+.DS_Store
+Thumbs.db
