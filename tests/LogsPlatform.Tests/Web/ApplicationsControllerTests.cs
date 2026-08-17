@@ -47,4 +47,20 @@ public class ApplicationsControllerTests : IClassFixture<TestWebApplicationFacto
         var second = await client.PostAsJsonAsync("/api/v1/admin/applications", request);
         Assert.Equal(HttpStatusCode.Conflict, second.StatusCode);
     }
+
+    [Fact]
+    public async Task PostThenGet_CreatedAtRoundTripsAsUtc()
+    {
+        var client = _factory.CreateClient();
+
+        var createResponse = await client.PostAsJsonAsync(
+            "/api/v1/admin/applications",
+            new CreateApplicationRequest("UtcRoundTripTest", null));
+        var created = await createResponse.Content.ReadFromJsonAsync<ApplicationResponse>();
+
+        var getResponse = await client.GetAsync($"/api/v1/admin/applications/{created!.Id}");
+        var fetched = await getResponse.Content.ReadFromJsonAsync<ApplicationResponse>();
+
+        Assert.Equal(DateTimeKind.Utc, fetched!.CreatedAt.Kind);
+    }
 }

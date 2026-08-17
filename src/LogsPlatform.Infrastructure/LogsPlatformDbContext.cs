@@ -12,6 +12,11 @@ public class LogsPlatformDbContext : DbContext
     public DbSet<Application> Applications => Set<Application>();
     public DbSet<AppEnvironment> AppEnvironments => Set<AppEnvironment>();
 
+    protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
+    {
+        configurationBuilder.Properties<DateTime>().HaveConversion<UtcDateTimeConverter>();
+    }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<Application>(entity =>
