@@ -34,8 +34,9 @@
 
 - [ ] **Step 1: Create the solution and project files**
 
+Run these from the repository root of the current working tree (the worktree root if you're in one — do not hardcode a path to any other checkout):
+
 ```bash
-cd "/c/Users/חני/Documents/מגה טק/לוגים"
 dotnet new sln -n LogsPlatform
 dotnet new classlib -n LogsPlatform.Domain -o src/LogsPlatform.Domain
 dotnet new classlib -n LogsPlatform.Infrastructure -o src/LogsPlatform.Infrastructure
