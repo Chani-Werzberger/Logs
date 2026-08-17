@@ -6,11 +6,13 @@
 
 **Architecture:** Modular Monolith per `מסמכי-אפיון/04-ארכיטקטורה.md` — one ASP.NET Core process (`LogsPlatform.Web`) hosting the API, backed by `LogsPlatform.Domain` (entities + repository interfaces, zero external dependencies) and `LogsPlatform.Infrastructure` (EF Core `DbContext` + repository implementations), against one SQL Server database. `LogsPlatform.Analysis` and `LogsPlatform.Client` are not created yet — YAGNI until the plans that need them (M2/M4).
 
-**Tech Stack:** .NET 8 (LTS), ASP.NET Core Web API (Controllers), EF Core 8 + SQL Server provider, SQL Server LocalDB for dev/test, xUnit + `Microsoft.AspNetCore.Mvc.Testing` for tests.
+**Tech Stack:** .NET 10 (LTS — see note below), ASP.NET Core Web API (Controllers), EF Core matching the installed SDK + SQL Server provider, SQL Server LocalDB for dev/test, xUnit + `Microsoft.AspNetCore.Mvc.Testing` for tests.
+
+> **Correction (post-Task 1):** this plan originally specified .NET 8. Task 1's implementer reported the dev machine has only the .NET 9 and .NET 10 SDKs installed (no .NET 8 SDK), and `dotnet new` defaulted every project to `net10.0`. Verified via `dotnet --list-sdks`/`--list-runtimes`: SDKs are 9.0.308 and 10.0.101; the .NET 8 *runtime* (8.0.22) is present but its SDK is not. .NET 10 is the current LTS (Microsoft's even-numbered-version-is-LTS cadence), so rather than fight the environment by forcing `net8.0` (untested restore risk with no SDK for it), **the target framework for this entire project is `net10.0`**. Every EF Core / ASP.NET Core package version referenced below should track whatever version `dotnet add package <name>` resolves to by default on this machine (it will pick the version matching the installed SDK) rather than the literal `8.0.10` pins written before this correction — those pins predate discovering the installed SDK version and are superseded by this note wherever they conflict.
 
 ## Global Constraints
 
-- Target framework: `net8.0` everywhere, `<Nullable>enable</Nullable>`, `<ImplicitUsings>enable</ImplicitUsings>` in every `.csproj`.
+- Target framework: `net10.0` everywhere (see correction note above), `<Nullable>enable</Nullable>`, `<ImplicitUsings>enable</ImplicitUsings>` in every `.csproj`.
 - **Naming collision rule** (from `05-מודל-נתונים.md`): entity names that collide with common BCL types get a disambiguating name — `AppEnvironment` not `Environment` (collides with `System.Environment`), `AppVersion` not `Version` (collides with `System.Version`), `ProcessNode` not `Process` (collides with `System.Diagnostics.Process`). Apply this to every future entity too.
 - No connection strings or secrets in any file that gets committed. Connection string lives in User Secrets (`dotnet user-secrets`) for `LogsPlatform.Web`, referenced by config key `ConnectionStrings:LogsPlatformDb`.
 - Repository interfaces live in `LogsPlatform.Domain`, implementations in `LogsPlatform.Infrastructure` (Dependency Inversion — per `04-ארכיטקטורה.md` section 3).
