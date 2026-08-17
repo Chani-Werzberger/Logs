@@ -860,6 +860,302 @@ git commit -m "Add Applications and Environments admin API controllers"
 
 ---
 
+### Task 7: EF Core 8.0.10 → 10.x upgrade
+
+**Added post-final-review (2026-08-17), per the whole-branch reviewer's Important finding #7 and the human's explicit decision to act on it now** while only one migration exists, rather than after the next plan generates ~11 more against EF Core 8 (which reaches end of support ~November 2026, about 3 months out).
+
+**Files:**
+- Modify: `src/LogsPlatform.Infrastructure/LogsPlatform.Infrastructure.csproj` (bump `Microsoft.EntityFrameworkCore.SqlServer`, `Microsoft.EntityFrameworkCore.Design`)
+- Modify: `src/LogsPlatform.Web/LogsPlatform.Web.csproj` (bump `Microsoft.EntityFrameworkCore.SqlServer`; remove unused `Microsoft.AspNetCore.OpenApi` — dead since Task 5 switched to Swashbuckle)
+- Modify: `tests/LogsPlatform.Tests/LogsPlatform.Tests.csproj` (bump `Microsoft.EntityFrameworkCore.SqlServer`)
+- Delete + regenerate: `src/LogsPlatform.Infrastructure/Migrations/*` (only `InitialCreate` exists — full regenerate is cheap and correct at this stage, not an incremental migration)
+- Verify/fix if needed: `tests/LogsPlatform.Tests/Web/TestWebApplicationFactory.cs` (`RemoveAll<DbContextOptions<LogsPlatformDbContext>>()` — the reviewer flagged this may not fully override the original registration under EF Core 9/10's `IDbContextOptionsConfiguration<T>` model)
+
+**Interfaces:**
+- Consumes: nothing new — this is a version bump across the same surface built in Tasks 1-6.
+- Produces: the same `LogsPlatformDbContext`/repositories/controllers, now running on EF Core 10.x everywhere, with a regenerated `InitialCreate` migration whose `ProductVersion` annotation reflects the new version.
+
+- [ ] **Step 1: Determine the current stable EF Core 10.x version**
+
+```bash
+dotnet package search Microsoft.EntityFrameworkCore.SqlServer --version "10.*" --take 3
+```
+
+Use the latest stable (non-preview) `10.x.y` version returned for every bump below — do not guess a version number.
+
+- [ ] **Step 2: Bump the SQL Server + Design packages in all three projects to that version**
+
+```bash
+dotnet add src/LogsPlatform.Infrastructure/LogsPlatform.Infrastructure.csproj package Microsoft.EntityFrameworkCore.SqlServer --version <resolved-10.x>
+dotnet add src/LogsPlatform.Infrastructure/LogsPlatform.Infrastructure.csproj package Microsoft.EntityFrameworkCore.Design --version <resolved-10.x>
+dotnet add src/LogsPlatform.Web/LogsPlatform.Web.csproj package Microsoft.EntityFrameworkCore.SqlServer --version <resolved-10.x>
+dotnet add tests/LogsPlatform.Tests/LogsPlatform.Tests.csproj package Microsoft.EntityFrameworkCore.SqlServer --version <resolved-10.x>
+```
+
+- [ ] **Step 3: Remove the now-doubly-unused `Microsoft.AspNetCore.OpenApi` package from Web**
+
+```bash
+dotnet remove src/LogsPlatform.Web/LogsPlatform.Web.csproj package Microsoft.AspNetCore.OpenApi
+```
+
+Confirm `Program.cs` calls neither `AddOpenApi()` nor `MapOpenApi()` before removing (Task 5 already switched to `AddSwaggerGen()`/`UseSwagger()`/`UseSwaggerUI()`) — if it still does for some reason, STOP and report NEEDS_CONTEXT rather than removing a package something still uses.
+
+- [ ] **Step 4: Regenerate the migration**
+
+```bash
+rm -rf src/LogsPlatform.Infrastructure/Migrations
+dotnet ef migrations add InitialCreate \
+  --project src/LogsPlatform.Infrastructure/LogsPlatform.Infrastructure.csproj \
+  --startup-project src/LogsPlatform.Infrastructure/LogsPlatform.Infrastructure.csproj
+```
+
+Expected: same table/index/FK shape as before (this is a version bump, not a schema change) — diff the new migration's `CreateTable`/`CreateIndex`/`AddForeignKey` calls against the old one (visible in `git diff` before you `rm`, or from memory of Task 3's migration) to confirm nothing about the schema itself changed, only the `ProductVersion` annotation and possibly generated code style.
+
+- [ ] **Step 5: Verify `TestWebApplicationFactory`'s DbContext override still works under EF Core 10**
+
+Run the full suite (`dotnet test`). Specifically check `EnvironmentsControllerTests.GetAll_ReturnsOnlyEnvironmentsScopedToRequestedApplication` and `ApplicationsControllerTests.PostThenGet_CreatesAndReturnsApplication` — both go through `TestWebApplicationFactory`. If either test fails with data appearing in/missing from the *dev* database (`LogsPlatformDev`) instead of the test database (`LogsPlatformTests`), that's the exact failure mode the reviewer warned about (`RemoveAll<DbContextOptions<T>>()` not fully overriding under the newer options-configuration model) — STOP and report BLOCKED with specifics rather than silently patching around it; this needs a considered fix (e.g. `services.Configure<DbContextOptions<LogsPlatformDbContext>>` review, or filtering the full `IDbContextOptionsConfiguration<LogsPlatformDbContext>` registration), not a guess.
+
+- [ ] **Step 6: Run the full test suite and confirm all tests still pass**
+
+Run: `dotnet test`
+Expected: same pass count as before this task (5/5 as of the final-review fix), 0 failures.
+
+- [ ] **Step 7: Commit**
+
+```bash
+git add src/LogsPlatform.Infrastructure/LogsPlatform.Infrastructure.csproj src/LogsPlatform.Web/LogsPlatform.Web.csproj tests/LogsPlatform.Tests/LogsPlatform.Tests.csproj src/LogsPlatform.Infrastructure/Migrations/
+git commit -m "Upgrade EF Core 8.0.10 -> 10.x across all projects; remove unused Microsoft.AspNetCore.OpenApi"
+```
+
+---
+
+### Task 8: Hardening fixes (UTC DateTime, constraint-violation error handling, test fixture dedup)
+
+**Added post-final-review (2026-08-17), per the whole-branch reviewer's findings and the human's decision to fix these now** rather than let them get replicated across 11 more entities by the next plan.
+
+**Files:**
+- Modify: `src/LogsPlatform.Infrastructure/LogsPlatformDbContext.cs` (UTC `DateTime` conversion)
+- Create: `src/LogsPlatform.Infrastructure/UtcDateTimeConverter.cs`
+- Modify: `src/LogsPlatform.Web/Controllers/ApplicationsController.cs` (409 on duplicate `Name`)
+- Modify: `src/LogsPlatform.Web/Controllers/EnvironmentsController.cs` (404 on unknown `appId`, requires injecting `IApplicationRepository` too)
+- Create: `tests/LogsPlatform.Tests/Infrastructure/TestDatabase.cs` (shared connection string + `CreateContext()` helper)
+- Modify: `tests/LogsPlatform.Tests/Infrastructure/LogsPlatformDbContextTests.cs`, `tests/LogsPlatform.Tests/Infrastructure/ApplicationRepositoryTests.cs` (use the shared helper instead of duplicated `TestConnectionString`/`CreateContext()`)
+- New tests for the two error-handling behaviors below.
+
+**Interfaces:**
+- Consumes: everything from Tasks 1-7.
+- Produces: the same public API surface, now with UTC-preserving timestamps and meaningful error responses instead of 500s for two specific, already-identified constraint violations; a de-duplicated test-infrastructure helper later entities' tests can reuse directly.
+
+- [ ] **Step 1: Write the failing tests for both error-handling behaviors**
+
+```csharp
+// Add to tests/LogsPlatform.Tests/Web/ApplicationsControllerTests.cs
+[Fact]
+public async Task Create_DuplicateName_Returns409Conflict()
+{
+    var client = _factory.CreateClient();
+    var request = new CreateApplicationRequest("DuplicateNameTest", null);
+
+    var first = await client.PostAsJsonAsync("/api/v1/admin/applications", request);
+    Assert.Equal(HttpStatusCode.Created, first.StatusCode);
+
+    var second = await client.PostAsJsonAsync("/api/v1/admin/applications", request);
+    Assert.Equal(HttpStatusCode.Conflict, second.StatusCode);
+}
+```
+
+```csharp
+// Add to tests/LogsPlatform.Tests/Web/EnvironmentsControllerTests.cs
+[Fact]
+public async Task Create_UnknownApplicationId_Returns404NotFound()
+{
+    var client = _factory.CreateClient();
+
+    var response = await client.PostAsJsonAsync(
+        "/api/v1/admin/applications/999999/environments",
+        new CreateEnvironmentRequest("Production", true));
+
+    Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+}
+```
+
+- [ ] **Step 2: Run both tests to verify they fail for the right reason**
+
+Run: `dotnet test --filter "Create_DuplicateName_Returns409Conflict|Create_UnknownApplicationId_Returns404NotFound"`
+Expected: both FAIL — actual status codes will be `500 InternalServerError` (unhandled `DbUpdateException`), not the asserted `409`/`404`.
+
+- [ ] **Step 3: Fix `ApplicationsController.Create` to return 409 on duplicate `Name`**
+
+Catch the unique-constraint violation and translate it. Use `DbUpdateException` (EF Core wraps SQL Server's unique-index violation in this type) — check for it specifically rather than swallowing all `DbUpdateException`s (a `Description` length overflow, for instance, is a different problem and should still surface as-is or as a 400, not silently become a 409). Implement this narrowly:
+
+```csharp
+[HttpPost]
+public async Task<ActionResult<ApplicationResponse>> Create(CreateApplicationRequest request)
+{
+    try
+    {
+        var application = await _applications.AddAsync(new Application
+        {
+            Name = request.Name,
+            Description = request.Description,
+            CreatedAt = DateTime.UtcNow
+        });
+
+        var response = new ApplicationResponse(application.Id, application.Name, application.Description, application.CreatedAt);
+        return CreatedAtAction(nameof(GetById), new { id = application.Id }, response);
+    }
+    catch (DbUpdateException ex) when (ex.InnerException is SqlException { Number: 2601 or 2627 })
+    {
+        return Conflict(new { message = $"An application named '{request.Name}' already exists." });
+    }
+}
+```
+
+(SQL Server error 2601 = duplicate key on a unique index, 2627 = duplicate key on a unique constraint — both indicate the `IX_Applications_Name` unique index from Task 3 was violated. Add `using Microsoft.Data.SqlClient;` for `SqlException`.)
+
+- [ ] **Step 4: Fix `EnvironmentsController.Create` to return 404 for an unknown `appId`**
+
+Check the parent `Application` exists before inserting — this needs `IApplicationRepository` injected alongside the existing `IAppEnvironmentRepository`:
+
+```csharp
+public class EnvironmentsController : ControllerBase
+{
+    private readonly IApplicationRepository _applications;
+    private readonly IAppEnvironmentRepository _environments;
+
+    public EnvironmentsController(IApplicationRepository applications, IAppEnvironmentRepository environments)
+    {
+        _applications = applications;
+        _environments = environments;
+    }
+
+    [HttpPost]
+    public async Task<ActionResult<EnvironmentResponse>> Create(int appId, CreateEnvironmentRequest request)
+    {
+        if (await _applications.GetByIdAsync(appId) is null)
+        {
+            return NotFound(new { message = $"Application {appId} not found." });
+        }
+
+        var environment = await _environments.AddAsync(new AppEnvironment
+        {
+            ApplicationId = appId,
+            Name = request.Name,
+            IsProduction = request.IsProduction
+        });
+
+        var response = new EnvironmentResponse(environment.Id, environment.ApplicationId, environment.Name, environment.IsProduction);
+        return CreatedAtAction(nameof(GetAll), new { appId }, response);
+    }
+
+    [HttpGet]
+    public async Task<ActionResult<IReadOnlyList<EnvironmentResponse>>> GetAll(int appId)
+    {
+        var environments = await _environments.GetByApplicationIdAsync(appId);
+        return environments
+            .Select(e => new EnvironmentResponse(e.Id, e.ApplicationId, e.Name, e.IsProduction))
+            .ToList();
+    }
+}
+```
+
+- [ ] **Step 5: Run the two new tests to verify they pass**
+
+Run: `dotnet test --filter "Create_DuplicateName_Returns409Conflict|Create_UnknownApplicationId_Returns404NotFound"`
+Expected: both PASS.
+
+- [ ] **Step 6: Fix the UTC `DateTime` round-trip**
+
+```csharp
+// src/LogsPlatform.Infrastructure/UtcDateTimeConverter.cs
+using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
+
+namespace LogsPlatform.Infrastructure;
+
+public class UtcDateTimeConverter : ValueConverter<DateTime, DateTime>
+{
+    public UtcDateTimeConverter() : base(
+        toProvider => toProvider.ToUniversalTime(),
+        fromProvider => DateTime.SpecifyKind(fromProvider, DateTimeKind.Utc))
+    {
+    }
+}
+```
+
+Add to `LogsPlatformDbContext`:
+
+```csharp
+protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
+{
+    configurationBuilder.Properties<DateTime>().HaveConversion<UtcDateTimeConverter>();
+}
+```
+
+This is a convention (applies to every `DateTime` property on every current and future entity), not a schema change — `datetime2` is unaffected, only the CLR-side `DateTimeKind` on read changes. Regenerate the migration once more after adding this (it may produce an empty/no-op migration, or none at all if EF doesn't consider a conversion-only change model-affecting — either is fine, just re-run Step 4's `dotnet ef migrations add` command with a name like `AddUtcDateTimeConversion` and check whether it generated any actual `Up()`/`Down()` operations).
+
+- [ ] **Step 7: Write a test proving `CreatedAt` round-trips as UTC**
+
+```csharp
+// Add to tests/LogsPlatform.Tests/Web/ApplicationsControllerTests.cs
+[Fact]
+public async Task PostThenGet_CreatedAtRoundTripsAsUtc()
+{
+    var client = _factory.CreateClient();
+
+    var createResponse = await client.PostAsJsonAsync(
+        "/api/v1/admin/applications",
+        new CreateApplicationRequest("UtcRoundTripTest", null));
+    var created = await createResponse.Content.ReadFromJsonAsync<ApplicationResponse>();
+
+    var getResponse = await client.GetAsync($"/api/v1/admin/applications/{created!.Id}");
+    var fetched = await getResponse.Content.ReadFromJsonAsync<ApplicationResponse>();
+
+    Assert.Equal(DateTimeKind.Utc, fetched!.CreatedAt.Kind);
+}
+```
+
+Run: `dotnet test --filter PostThenGet_CreatedAtRoundTripsAsUtc` — expected FAIL before Step 6, PASS after.
+
+- [ ] **Step 8: Extract the shared test-database helper**
+
+```csharp
+// tests/LogsPlatform.Tests/Infrastructure/TestDatabase.cs
+using LogsPlatform.Infrastructure;
+using Microsoft.EntityFrameworkCore;
+
+namespace LogsPlatform.Tests.Infrastructure;
+
+public static class TestDatabase
+{
+    public const string ConnectionString =
+        "Server=(localdb)\\mssqllocaldb;Database=LogsPlatformTests;Trusted_Connection=True;";
+
+    public static LogsPlatformDbContext CreateContext()
+    {
+        var options = new DbContextOptionsBuilder<LogsPlatformDbContext>()
+            .UseSqlServer(ConnectionString)
+            .Options;
+        var context = new LogsPlatformDbContext(options);
+        context.Database.EnsureDeleted();
+        context.Database.Migrate();
+        return context;
+    }
+}
+```
+
+Update `LogsPlatformDbContextTests.cs` and `ApplicationRepositoryTests.cs` to delete their private `TestConnectionString` constant and `CreateContext()` method, calling `TestDatabase.CreateContext()` instead.
+
+- [ ] **Step 9: Run the full suite one more time**
+
+Run: `dotnet test`
+Expected: all tests pass (existing tests unaffected by the refactor, both new error-handling tests pass, the new UTC round-trip test passes).
+
+- [ ] **Step 10: Commit**
+
+Keep this as 2-3 commits (error handling; UTC conversion; test dedup) rather than one, so each is independently reviewable/revertible — follow the pattern established in the final-review fix (`bd7c546`, `84a4ae1`).
+
+---
+
 ## Self-Review Notes
 
 - **Spec coverage:** This plan covers the `Application`/`AppEnvironment` slice of `05-מודל-נתונים.md` section 2 and the corresponding two endpoints of `07-Ingestion-ו-API.md` section 5. It does **not** yet cover Module/ScreenService/ProcessNode/Operation/Customer/AppUser/LogSource/ApiKey/AppVersion/Deployment, `IsActive` soft-delete semantics (not applicable to `Application`/`AppEnvironment` per the data model), or any Blazor UI — those are the next plan(s) in the M1 milestone, following the exact same pattern established here (entity → repository interface → `DbContext` mapping/migration → repository implementation → DI wiring → controller, each test-first).
