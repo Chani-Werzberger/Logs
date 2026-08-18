@@ -20,6 +20,8 @@ builder.Services.AddScoped<IApplicationRepository, ApplicationRepository>();
 builder.Services.AddScoped<IAppEnvironmentRepository, AppEnvironmentRepository>();
 builder.Services.AddScoped<IAppModuleRepository, AppModuleRepository>();
 builder.Services.AddScoped<IScreenServiceRepository, ScreenServiceRepository>();
+builder.Services.AddScoped<IProcessNodeRepository, ProcessNodeRepository>();
+builder.Services.AddScoped<IOperationRepository, OperationRepository>();
 
 var app = builder.Build();
 
