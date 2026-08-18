@@ -1,0 +1,37 @@
+@page "/admin/applications"
+@using LogsPlatform.Domain.Entities
+@using LogsPlatform.Domain.Repositories
+@inject IApplicationRepository ApplicationRepository
+@rendermode InteractiveServer
+
+<h1>Applications</h1>
+
+<h2>All Applications</h2>
+<table>
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>Description</th>
+            <th>Created At</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var application in _applications)
+        {
+            <tr>
+                <td>@application.Name</td>
+                <td>@application.Description</td>
+                <td>@application.CreatedAt</td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+@code {
+    private List<Application> _applications = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        _applications = (await ApplicationRepository.GetAllAsync()).ToList();
+    }
+}
