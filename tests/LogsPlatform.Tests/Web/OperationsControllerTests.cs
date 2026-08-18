@@ -87,6 +87,42 @@ public class OperationsControllerTests : IClassFixture<TestWebApplicationFactory
     }
 
     [Fact]
+    public async Task Rename_OperationBelongingToDifferentProcess_Returns404()
+    {
+        var client = _factory.CreateClient();
+        var processId1 = await CreateProcessAsync(client, "OperationRenameIdorTestApp1", "ModuleA", "ScreenServiceA", "ProcessA");
+        var processId2 = await CreateProcessAsync(client, "OperationRenameIdorTestApp2", "ModuleB", "ScreenServiceB", "ProcessB");
+
+        var createResponse = await client.PostAsJsonAsync(
+            $"/api/v1/admin/processes/{processId1}/operations",
+            new CreateOperationRequest("BelongsToProcess1", null));
+        var created = await createResponse.Content.ReadFromJsonAsync<OperationResponse>();
+
+        var crossParentRename = await client.PutAsJsonAsync(
+            $"/api/v1/admin/processes/{processId2}/operations/{created!.Id}",
+            new RenameOperationRequest("Hijacked", null));
+
+        Assert.Equal(HttpStatusCode.NotFound, crossParentRename.StatusCode);
+    }
+
+    [Fact]
+    public async Task Deactivate_OperationBelongingToDifferentProcess_Returns404()
+    {
+        var client = _factory.CreateClient();
+        var processId1 = await CreateProcessAsync(client, "OperationDeactivateIdorTestApp1", "ModuleA", "ScreenServiceA", "ProcessA");
+        var processId2 = await CreateProcessAsync(client, "OperationDeactivateIdorTestApp2", "ModuleB", "ScreenServiceB", "ProcessB");
+
+        var createResponse = await client.PostAsJsonAsync(
+            $"/api/v1/admin/processes/{processId1}/operations",
+            new CreateOperationRequest("BelongsToProcess1", null));
+        var created = await createResponse.Content.ReadFromJsonAsync<OperationResponse>();
+
+        var crossParentDeactivate = await client.DeleteAsync($"/api/v1/admin/processes/{processId2}/operations/{created!.Id}");
+
+        Assert.Equal(HttpStatusCode.NotFound, crossParentDeactivate.StatusCode);
+    }
+
+    [Fact]
     public async Task Rename_UpdatesNameAndDescription()
     {
         var client = _factory.CreateClient();

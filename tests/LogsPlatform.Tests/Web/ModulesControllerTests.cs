@@ -75,6 +75,42 @@ public class ModulesControllerTests : IClassFixture<TestWebApplicationFactory>
     }
 
     [Fact]
+    public async Task Rename_ModuleBelongingToDifferentApplication_Returns404()
+    {
+        var client = _factory.CreateClient();
+        var appId1 = await CreateApplicationAsync(client, "ModuleRenameIdorTestApp1");
+        var appId2 = await CreateApplicationAsync(client, "ModuleRenameIdorTestApp2");
+
+        var createResponse = await client.PostAsJsonAsync(
+            $"/api/v1/admin/applications/{appId1}/modules",
+            new CreateModuleRequest("BelongsToApp1", null));
+        var created = await createResponse.Content.ReadFromJsonAsync<ModuleResponse>();
+
+        var crossAppRename = await client.PutAsJsonAsync(
+            $"/api/v1/admin/applications/{appId2}/modules/{created!.Id}",
+            new RenameModuleRequest("Hijacked", null));
+
+        Assert.Equal(HttpStatusCode.NotFound, crossAppRename.StatusCode);
+    }
+
+    [Fact]
+    public async Task Deactivate_ModuleBelongingToDifferentApplication_Returns404()
+    {
+        var client = _factory.CreateClient();
+        var appId1 = await CreateApplicationAsync(client, "ModuleDeactivateIdorTestApp1");
+        var appId2 = await CreateApplicationAsync(client, "ModuleDeactivateIdorTestApp2");
+
+        var createResponse = await client.PostAsJsonAsync(
+            $"/api/v1/admin/applications/{appId1}/modules",
+            new CreateModuleRequest("BelongsToApp1", null));
+        var created = await createResponse.Content.ReadFromJsonAsync<ModuleResponse>();
+
+        var crossAppDeactivate = await client.DeleteAsync($"/api/v1/admin/applications/{appId2}/modules/{created!.Id}");
+
+        Assert.Equal(HttpStatusCode.NotFound, crossAppDeactivate.StatusCode);
+    }
+
+    [Fact]
     public async Task Rename_UpdatesNameAndDescription()
     {
         var client = _factory.CreateClient();

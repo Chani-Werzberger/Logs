@@ -77,6 +77,42 @@ public class ScreenServicesControllerTests : IClassFixture<TestWebApplicationFac
     }
 
     [Fact]
+    public async Task Rename_ScreenServiceBelongingToDifferentModule_Returns404()
+    {
+        var client = _factory.CreateClient();
+        var moduleId1 = await CreateModuleAsync(client, "ScreenServiceRenameIdorTestApp1", "ModuleA");
+        var moduleId2 = await CreateModuleAsync(client, "ScreenServiceRenameIdorTestApp2", "ModuleB");
+
+        var createResponse = await client.PostAsJsonAsync(
+            $"/api/v1/admin/modules/{moduleId1}/screen-services",
+            new CreateScreenServiceRequest("BelongsToModule1", "Screen", null));
+        var created = await createResponse.Content.ReadFromJsonAsync<ScreenServiceResponse>();
+
+        var crossModuleRename = await client.PutAsJsonAsync(
+            $"/api/v1/admin/modules/{moduleId2}/screen-services/{created!.Id}",
+            new RenameScreenServiceRequest("Hijacked", null));
+
+        Assert.Equal(HttpStatusCode.NotFound, crossModuleRename.StatusCode);
+    }
+
+    [Fact]
+    public async Task Deactivate_ScreenServiceBelongingToDifferentModule_Returns404()
+    {
+        var client = _factory.CreateClient();
+        var moduleId1 = await CreateModuleAsync(client, "ScreenServiceDeactivateIdorTestApp1", "ModuleA");
+        var moduleId2 = await CreateModuleAsync(client, "ScreenServiceDeactivateIdorTestApp2", "ModuleB");
+
+        var createResponse = await client.PostAsJsonAsync(
+            $"/api/v1/admin/modules/{moduleId1}/screen-services",
+            new CreateScreenServiceRequest("BelongsToModule1", "Screen", null));
+        var created = await createResponse.Content.ReadFromJsonAsync<ScreenServiceResponse>();
+
+        var crossModuleDeactivate = await client.DeleteAsync($"/api/v1/admin/modules/{moduleId2}/screen-services/{created!.Id}");
+
+        Assert.Equal(HttpStatusCode.NotFound, crossModuleDeactivate.StatusCode);
+    }
+
+    [Fact]
     public async Task Rename_UpdatesNameAndDescription()
     {
         var client = _factory.CreateClient();
