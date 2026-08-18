@@ -22,7 +22,15 @@ public class ApplicationRepository : IApplicationRepository
     public async Task<Application> AddAsync(Application application)
     {
         _context.Applications.Add(application);
-        await _context.SaveChangesAsync();
+        try
+        {
+            await _context.SaveChangesAsync();
+        }
+        catch
+        {
+            _context.Entry(application).State = EntityState.Detached;
+            throw;
+        }
         return application;
     }
 }

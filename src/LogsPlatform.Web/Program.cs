@@ -1,6 +1,7 @@
 using LogsPlatform.Domain.Repositories;
 using LogsPlatform.Infrastructure;
 using LogsPlatform.Infrastructure.Repositories;
+using LogsPlatform.Web.Components;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -8,6 +9,8 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+builder.Services.AddRazorComponents()
+    .AddInteractiveServerComponents();
 
 builder.Services.AddDbContext<LogsPlatformDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("LogsPlatformDb")
@@ -25,7 +28,11 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+app.UseStaticFiles();
+app.UseAntiforgery();
 app.MapControllers();
+app.MapRazorComponents<App>()
+    .AddInteractiveServerRenderMode();
 
 app.Run();
 

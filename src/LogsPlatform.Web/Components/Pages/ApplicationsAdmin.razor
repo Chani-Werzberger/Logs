@@ -1,0 +1,189 @@
+@* src/LogsPlatform.Web/Components/Pages/ApplicationsAdmin.razor *@
+@page "/admin/applications"
+@using LogsPlatform.Domain.Entities
+@using LogsPlatform.Domain.Repositories
+@using Microsoft.EntityFrameworkCore
+@using Microsoft.Data.SqlClient
+@inject IApplicationRepository ApplicationRepository
+@inject IAppEnvironmentRepository EnvironmentRepository
+@rendermode InteractiveServer
+
+<h1>Applications</h1>
+
+<h2>Create Application</h2>
+<EditForm Model="_newApplication" OnValidSubmit="CreateApplicationAsync">
+    <div>
+        <label>
+            Name:
+            <InputText @bind-Value="_newApplication.Name" required />
+        </label>
+    </div>
+    <div>
+        <label>
+            Description:
+            <InputText @bind-Value="_newApplication.Description" />
+        </label>
+    </div>
+    <button type="submit">Create</button>
+</EditForm>
+@if (_createError is not null)
+{
+    <p style="color:red">@_createError</p>
+}
+
+<h2>All Applications</h2>
+<table>
+    <thead>
+        <tr>
+            <th></th>
+            <th>Name</th>
+            <th>Description</th>
+            <th>Created At</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var application in _applications)
+        {
+            <tr>
+                <td>
+                    <button @onclick="() => ToggleExpandAsync(application.Id)">
+                        @(_expandedAppIds.Contains(application.Id) ? "-" : "+")
+                    </button>
+                </td>
+                <td>@application.Name</td>
+                <td>@application.Description</td>
+                <td>@application.CreatedAt</td>
+            </tr>
+            @if (_expandedAppIds.Contains(application.Id))
+            {
+                <tr>
+                    <td colspan="4">
+                        <h4>Environments</h4>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Is Production</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @if (_environmentsByAppId.TryGetValue(application.Id, out var environments))
+                                {
+                                    @foreach (var environment in environments)
+                                    {
+                                        <tr>
+                                            <td>@environment.Name</td>
+                                            <td>@environment.IsProduction</td>
+                                        </tr>
+                                    }
+                                }
+                            </tbody>
+                        </table>
+
+                        @if (_newEnvironmentModels.TryGetValue(application.Id, out var newEnvironment))
+                        {
+                            <EditForm Model="newEnvironment" OnValidSubmit="() => CreateEnvironmentAsync(application.Id)">
+                                <label>
+                                    Name:
+                                    <InputText @bind-Value="newEnvironment.Name" required />
+                                </label>
+                                <label>
+                                    Is Production:
+                                    <InputCheckbox @bind-Value="newEnvironment.IsProduction" />
+                                </label>
+                                <button type="submit">Add Environment</button>
+                            </EditForm>
+                        }
+                    </td>
+                </tr>
+            }
+        }
+    </tbody>
+</table>
+
+@code {
+    private List<Application> _applications = new();
+    private readonly NewApplicationModel _newApplication = new();
+    private string? _createError;
+
+    private readonly HashSet<int> _expandedAppIds = new();
+    private readonly Dictionary<int, List<AppEnvironment>> _environmentsByAppId = new();
+    private readonly Dictionary<int, NewEnvironmentModel> _newEnvironmentModels = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        _applications = (await ApplicationRepository.GetAllAsync()).ToList();
+    }
+
+    private async Task CreateApplicationAsync()
+    {
+        _createError = null;
+        try
+        {
+            await ApplicationRepository.AddAsync(new Application
+            {
+                Name = _newApplication.Name,
+                Description = _newApplication.Description,
+                CreatedAt = DateTime.UtcNow
+            });
+
+            _newApplication.Name = string.Empty;
+            _newApplication.Description = null;
+            _applications = (await ApplicationRepository.GetAllAsync()).ToList();
+        }
+        catch (DbUpdateException ex) when (ex.InnerException is SqlException { Number: 2601 or 2627 })
+        {
+            _createError = $"An application named '{_newApplication.Name}' already exists.";
+        }
+    }
+
+    private async Task ToggleExpandAsync(int applicationId)
+    {
+        if (_expandedAppIds.Contains(applicationId))
+        {
+            _expandedAppIds.Remove(applicationId);
+            return;
+        }
+
+        _expandedAppIds.Add(applicationId);
+
+        if (!_environmentsByAppId.ContainsKey(applicationId))
+        {
+            _environmentsByAppId[applicationId] =
+                (await EnvironmentRepository.GetByApplicationIdAsync(applicationId)).ToList();
+        }
+
+        if (!_newEnvironmentModels.ContainsKey(applicationId))
+        {
+            _newEnvironmentModels[applicationId] = new NewEnvironmentModel();
+        }
+    }
+
+    private async Task CreateEnvironmentAsync(int applicationId)
+    {
+        var model = _newEnvironmentModels[applicationId];
+
+        await EnvironmentRepository.AddAsync(new AppEnvironment
+        {
+            ApplicationId = applicationId,
+            Name = model.Name,
+            IsProduction = model.IsProduction
+        });
+
+        _newEnvironmentModels[applicationId] = new NewEnvironmentModel();
+        _environmentsByAppId[applicationId] =
+            (await EnvironmentRepository.GetByApplicationIdAsync(applicationId)).ToList();
+    }
+
+    private class NewApplicationModel
+    {
+        public string Name { get; set; } = string.Empty;
+        public string? Description { get; set; }
+    }
+
+    private class NewEnvironmentModel
+    {
+        public string Name { get; set; } = string.Empty;
+        public bool IsProduction { get; set; }
+    }
+}
