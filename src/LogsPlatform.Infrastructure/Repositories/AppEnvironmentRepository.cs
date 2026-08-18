@@ -25,7 +25,15 @@ public class AppEnvironmentRepository : IAppEnvironmentRepository
     public async Task<AppEnvironment> AddAsync(AppEnvironment environment)
     {
         _context.AppEnvironments.Add(environment);
-        await _context.SaveChangesAsync();
+        try
+        {
+            await _context.SaveChangesAsync();
+        }
+        catch
+        {
+            _context.Entry(environment).State = EntityState.Detached;
+            throw;
+        }
         return environment;
     }
 }

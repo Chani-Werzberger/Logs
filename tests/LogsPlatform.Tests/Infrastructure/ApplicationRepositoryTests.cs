@@ -1,5 +1,6 @@
 using LogsPlatform.Domain.Entities;
 using LogsPlatform.Infrastructure.Repositories;
+using Microsoft.EntityFrameworkCore;
 using Xunit;
 
 namespace LogsPlatform.Tests.Infrastructure;
@@ -38,5 +39,30 @@ public class ApplicationRepositoryTests
         var all = await repository.GetAllAsync();
 
         Assert.Equal(2, all.Count);
+    }
+
+    [Fact]
+    public async Task AddAsync_AfterDuplicateNameFailure_SubsequentUniqueNameStillSucceeds()
+    {
+        // Reproduces the exact Blazor-Server circuit-scoped-DbContext bug found in final review:
+        // a single DbContext instance (matching one Blazor circuit's lifetime) used across
+        // multiple sequential AddAsync calls, where an earlier failure must not poison later ones.
+        using var context = TestDatabase.CreateContext();
+        var repository = new ApplicationRepository(context);
+
+        await repository.AddAsync(new Application { Name = "CircuitTest1", CreatedAt = DateTime.UtcNow });
+
+        // Second insert with the same Name fails on the unique index -- on the SAME context/repository instance,
+        // simulating two form submissions on the same live Blazor circuit (no page reload in between).
+        await Assert.ThrowsAsync<DbUpdateException>(async () =>
+            await repository.AddAsync(new Application { Name = "CircuitTest1", CreatedAt = DateTime.UtcNow }));
+
+        // Before the fix: this next call would ALSO fail, because the rejected "CircuitTest1" from the
+        // previous call is still tracked as Added and gets re-sent alongside this genuinely new, unique row.
+        var created = await repository.AddAsync(new Application { Name = "CircuitTest2", CreatedAt = DateTime.UtcNow });
+
+        Assert.Equal("CircuitTest2", created.Name);
+        var all = await repository.GetAllAsync();
+        Assert.Contains(all, a => a.Name == "CircuitTest2");
     }
 }
