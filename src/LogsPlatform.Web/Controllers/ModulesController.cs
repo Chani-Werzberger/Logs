@@ -2,7 +2,6 @@ using LogsPlatform.Domain.Entities;
 using LogsPlatform.Domain.Repositories;
 using LogsPlatform.Web.Contracts;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 
 namespace LogsPlatform.Web.Controllers;
@@ -11,16 +10,23 @@ namespace LogsPlatform.Web.Controllers;
 [Route("api/v1/admin/applications/{appId:int}/modules")]
 public class ModulesController : ControllerBase
 {
+    private readonly IApplicationRepository _applications;
     private readonly IAppModuleRepository _modules;
 
-    public ModulesController(IAppModuleRepository modules)
+    public ModulesController(IApplicationRepository applications, IAppModuleRepository modules)
     {
+        _applications = applications;
         _modules = modules;
     }
 
     [HttpPost]
     public async Task<ActionResult<ModuleResponse>> Create(int appId, CreateModuleRequest request)
     {
+        if (await _applications.GetByIdAsync(appId) is null)
+        {
+            return NotFound(new { message = $"Application {appId} not found." });
+        }
+
         try
         {
             var module = await _modules.AddAsync(new AppModule
@@ -32,7 +38,7 @@ public class ModulesController : ControllerBase
 
             return CreatedAtAction(nameof(GetById), new { appId, id = module.Id }, ToResponse(module));
         }
-        catch (DbUpdateException ex) when (ex.InnerException is SqlException { Number: 2601 or 2627 })
+        catch (DbUpdateException ex) when (ex.IsUniqueViolation())
         {
             return Conflict(new { message = $"A module named '{request.Name}' already exists in this application." });
         }
@@ -64,7 +70,7 @@ public class ModulesController : ControllerBase
             var module = await _modules.RenameAsync(id, request.Name, request.Description);
             return ToResponse(module);
         }
-        catch (DbUpdateException ex) when (ex.InnerException is SqlException { Number: 2601 or 2627 })
+        catch (DbUpdateException ex) when (ex.IsUniqueViolation())
         {
             return Conflict(new { message = $"A module named '{request.Name}' already exists in this application." });
         }

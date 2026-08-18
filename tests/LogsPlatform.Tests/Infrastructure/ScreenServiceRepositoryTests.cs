@@ -104,4 +104,20 @@ public class ScreenServiceRepositoryTests
 
         Assert.Equal("UniqueService", created.Name);
     }
+
+    [Fact]
+    public async Task RenameAsync_ToExistingSiblingName_ThrowsAndSubsequentWriteStillSucceeds()
+    {
+        using var context = TestDatabase.CreateContext();
+        var moduleId = await CreateTestModuleAsync(context, "ScreenServiceRenameConflictTestApp", "Payments");
+        var repository = new ScreenServiceRepository(context);
+        await repository.AddAsync(new ScreenService { ModuleId = moduleId, Name = "Taken", Type = ScreenServiceType.Screen });
+        var toRename = await repository.AddAsync(new ScreenService { ModuleId = moduleId, Name = "ToRename", Type = ScreenServiceType.Screen });
+
+        await Assert.ThrowsAsync<DbUpdateException>(async () =>
+            await repository.RenameAsync(toRename.Id, "Taken", null));
+
+        var created = await repository.AddAsync(new ScreenService { ModuleId = moduleId, Name = "StillWorks", Type = ScreenServiceType.Screen });
+        Assert.Equal("StillWorks", created.Name);
+    }
 }

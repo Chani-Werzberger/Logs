@@ -93,6 +93,42 @@ public class ScreenServicesControllerTests : IClassFixture<TestWebApplicationFac
         Assert.Equal(HttpStatusCode.OK, renameResponse.StatusCode);
         var renamed = await renameResponse.Content.ReadFromJsonAsync<ScreenServiceResponse>();
         Assert.Equal("RenamedService", renamed!.Name);
+
+        var getResponse = await client.GetAsync($"/api/v1/admin/modules/{moduleId}/screen-services/{created.Id}");
+        var reloaded = await getResponse.Content.ReadFromJsonAsync<ScreenServiceResponse>();
+        Assert.Equal("RenamedService", reloaded!.Name);
+    }
+
+    [Fact]
+    public async Task Rename_DuplicateName_Returns409Conflict()
+    {
+        var client = _factory.CreateClient();
+        var moduleId = await CreateModuleAsync(client, "ScreenServiceRenameConflictControllerTestApp", "Payments");
+        await client.PostAsJsonAsync(
+            $"/api/v1/admin/modules/{moduleId}/screen-services",
+            new CreateScreenServiceRequest("Taken", "Screen", null));
+        var createResponse = await client.PostAsJsonAsync(
+            $"/api/v1/admin/modules/{moduleId}/screen-services",
+            new CreateScreenServiceRequest("ToRename", "Screen", null));
+        var created = await createResponse.Content.ReadFromJsonAsync<ScreenServiceResponse>();
+
+        var renameResponse = await client.PutAsJsonAsync(
+            $"/api/v1/admin/modules/{moduleId}/screen-services/{created!.Id}",
+            new RenameScreenServiceRequest("Taken", null));
+
+        Assert.Equal(HttpStatusCode.Conflict, renameResponse.StatusCode);
+    }
+
+    [Fact]
+    public async Task Create_UnknownModuleId_Returns404NotFound()
+    {
+        var client = _factory.CreateClient();
+
+        var response = await client.PostAsJsonAsync(
+            "/api/v1/admin/modules/999999/screen-services",
+            new CreateScreenServiceRequest("PaymentGateway", "Service", null));
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 
     [Fact]

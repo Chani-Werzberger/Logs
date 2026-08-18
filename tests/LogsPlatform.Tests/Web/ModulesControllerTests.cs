@@ -91,6 +91,38 @@ public class ModulesControllerTests : IClassFixture<TestWebApplicationFactory>
         Assert.Equal(HttpStatusCode.OK, renameResponse.StatusCode);
         var renamed = await renameResponse.Content.ReadFromJsonAsync<ModuleResponse>();
         Assert.Equal("RenamedModule", renamed!.Name);
+
+        var getResponse = await client.GetAsync($"/api/v1/admin/applications/{appId}/modules/{created.Id}");
+        var reloaded = await getResponse.Content.ReadFromJsonAsync<ModuleResponse>();
+        Assert.Equal("RenamedModule", reloaded!.Name);
+    }
+
+    [Fact]
+    public async Task Rename_DuplicateName_Returns409Conflict()
+    {
+        var client = _factory.CreateClient();
+        var appId = await CreateApplicationAsync(client, "ModuleRenameConflictControllerTestApp");
+        await client.PostAsJsonAsync($"/api/v1/admin/applications/{appId}/modules", new CreateModuleRequest("Taken", null));
+        var createResponse = await client.PostAsJsonAsync($"/api/v1/admin/applications/{appId}/modules", new CreateModuleRequest("ToRename", null));
+        var created = await createResponse.Content.ReadFromJsonAsync<ModuleResponse>();
+
+        var renameResponse = await client.PutAsJsonAsync(
+            $"/api/v1/admin/applications/{appId}/modules/{created!.Id}",
+            new RenameModuleRequest("Taken", null));
+
+        Assert.Equal(HttpStatusCode.Conflict, renameResponse.StatusCode);
+    }
+
+    [Fact]
+    public async Task Create_UnknownApplicationId_Returns404NotFound()
+    {
+        var client = _factory.CreateClient();
+
+        var response = await client.PostAsJsonAsync(
+            "/api/v1/admin/applications/999999/modules",
+            new CreateModuleRequest("Payments", null));
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 
     [Fact]

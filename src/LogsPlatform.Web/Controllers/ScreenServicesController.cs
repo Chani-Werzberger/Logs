@@ -2,7 +2,6 @@ using LogsPlatform.Domain.Entities;
 using LogsPlatform.Domain.Repositories;
 using LogsPlatform.Web.Contracts;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 
 namespace LogsPlatform.Web.Controllers;
@@ -11,16 +10,23 @@ namespace LogsPlatform.Web.Controllers;
 [Route("api/v1/admin/modules/{moduleId:int}/screen-services")]
 public class ScreenServicesController : ControllerBase
 {
+    private readonly IAppModuleRepository _modules;
     private readonly IScreenServiceRepository _screenServices;
 
-    public ScreenServicesController(IScreenServiceRepository screenServices)
+    public ScreenServicesController(IAppModuleRepository modules, IScreenServiceRepository screenServices)
     {
+        _modules = modules;
         _screenServices = screenServices;
     }
 
     [HttpPost]
     public async Task<ActionResult<ScreenServiceResponse>> Create(int moduleId, CreateScreenServiceRequest request)
     {
+        if (await _modules.GetByIdAsync(moduleId) is null)
+        {
+            return NotFound(new { message = $"Module {moduleId} not found." });
+        }
+
         if (!Enum.TryParse<ScreenServiceType>(request.Type, ignoreCase: true, out var type))
         {
             return BadRequest(new { message = $"Type must be 'Screen' or 'Service', got '{request.Type}'." });
@@ -38,7 +44,7 @@ public class ScreenServicesController : ControllerBase
 
             return CreatedAtAction(nameof(GetById), new { moduleId, id = screenService.Id }, ToResponse(screenService));
         }
-        catch (DbUpdateException ex) when (ex.InnerException is SqlException { Number: 2601 or 2627 })
+        catch (DbUpdateException ex) when (ex.IsUniqueViolation())
         {
             return Conflict(new { message = $"A screen/service named '{request.Name}' already exists in this module." });
         }
@@ -70,7 +76,7 @@ public class ScreenServicesController : ControllerBase
             var screenService = await _screenServices.RenameAsync(id, request.Name, request.Description);
             return ToResponse(screenService);
         }
-        catch (DbUpdateException ex) when (ex.InnerException is SqlException { Number: 2601 or 2627 })
+        catch (DbUpdateException ex) when (ex.IsUniqueViolation())
         {
             return Conflict(new { message = $"A screen/service named '{request.Name}' already exists in this module." });
         }

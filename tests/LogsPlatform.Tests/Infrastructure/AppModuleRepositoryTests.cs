@@ -99,4 +99,20 @@ public class AppModuleRepositoryTests
 
         Assert.Equal("UniqueModule", created.Name);
     }
+
+    [Fact]
+    public async Task RenameAsync_ToExistingSiblingName_ThrowsAndSubsequentWriteStillSucceeds()
+    {
+        using var context = TestDatabase.CreateContext();
+        var appId = await CreateTestApplicationAsync(context, "ModuleRenameConflictTestApp");
+        var repository = new AppModuleRepository(context);
+        await repository.AddAsync(new AppModule { ApplicationId = appId, Name = "Taken" });
+        var toRename = await repository.AddAsync(new AppModule { ApplicationId = appId, Name = "ToRename" });
+
+        await Assert.ThrowsAsync<DbUpdateException>(async () =>
+            await repository.RenameAsync(toRename.Id, "Taken", null));
+
+        var created = await repository.AddAsync(new AppModule { ApplicationId = appId, Name = "StillWorks" });
+        Assert.Equal("StillWorks", created.Name);
+    }
 }
