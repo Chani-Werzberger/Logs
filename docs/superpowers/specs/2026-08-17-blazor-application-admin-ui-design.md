@@ -80,6 +80,13 @@ User submits "Add Environment" for an expanded row
 
 **Decision:** no new automated UI-test framework for this task. Verification is manual, in an actual running browser, for each interaction path (create application, create duplicate application → see inline error, expand a row, add an environment) — treated as a required acceptance step per implementation task, the same way Task 6's `curl` smoke test was required, not optional. Adding bUnit (or a Playwright-based E2E layer) is noted as a future improvement once there's enough UI surface to justify the setup cost, not before.
 
+## Known Limitation (found in final review, documented not fixed)
+
+The page's repositories resolve `LogsPlatformDbContext` as `Scoped`, which in Blazor Server means one instance per browser circuit (page session), not per operation. Two consequences:
+
+1. **Fixed:** a failed `SaveChangesAsync` (e.g. the duplicate-name case) used to leave the rejected entity tracked, poisoning every subsequent save on the same circuit. Both repositories now detach the entity on failure (see `ApplicationRepository.AddAsync`/`AppEnvironmentRepository.AddAsync`).
+2. **Not fixed, deferred:** the shared context is not safe under concurrent operations on the same circuit (e.g., a double-click, or two near-simultaneous form submits) — `DbContext` is not thread-safe. The standard fix is `IDbContextFactory<LogsPlatformDbContext>`, creating a fresh context per operation instead of injecting the scoped one directly. Worth doing before this page's interaction surface grows (more forms, more concurrent-click opportunities) — not urgent for the current two-form scope.
+
 ## Open Question Resolved During Brainstorming
 
 - Navigation: single page with per-row expansion (not two separate pages) — user's explicit choice.
