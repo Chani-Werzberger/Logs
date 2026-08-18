@@ -13,5 +13,5 @@ Worktree: .worktrees/hierarchy-spine-a1
 - Task 3 review flagged (Important, but precedented): 3 of 5 AppModuleRepositoryTests re-query via GetByIdAsync on the SAME DbContext that just wrote, so FindAsync returns the tracked in-memory entity rather than proving a real DB round-trip -- e.g. a silently-removed SaveChangesAsync call wouldn't be caught. Checked: tests/LogsPlatform.Tests/Infrastructure/ApplicationRepositoryTests.cs:12-28 (already merged to main, Plan 1) uses the identical same-context-reload shape and was never flagged in that plan's reviews -- this is established project convention, not a Task-3-specific regression. Not fixed piecemeal here; worth the final reviewer deciding whether to tighten project-wide (would touch both this branch and already-shipped code on main).
 - [x] Task 4: ScreenServiceRepository implementation + tests (commits ecd0734..e479a38, review Approved, 21/21 tests)
 - [x] Task 5: DI wiring in Program.cs (commits bb6b20b..e9be899, review Approved, 21/21 tests)
-- [ ] Task 6: ModulesController + tests
+- [x] Task 6: ModulesController + tests (commits fc29007..c198e3f, review Approved, 26/26 tests, IDOR guards verified genuine)
 - [ ] Task 7: ScreenServicesController + tests
