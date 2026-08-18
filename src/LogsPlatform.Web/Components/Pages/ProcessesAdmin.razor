@@ -1,0 +1,183 @@
+@* src/LogsPlatform.Web/Components/Pages/ProcessesAdmin.razor *@
+@page "/admin/applications/{AppId:int}/modules/{ModuleId:int}/screen-services/{ScreenServiceId:int}/processes"
+@using LogsPlatform.Domain.Entities
+@using LogsPlatform.Domain.Repositories
+@using LogsPlatform.Web
+@using LogsPlatform.Web.Services
+@using Microsoft.EntityFrameworkCore
+@inject IProcessNodeRepository ProcessRepository
+@inject BreadcrumbBuilder BreadcrumbBuilder
+@rendermode InteractiveServer
+
+<p>
+    @for (var i = 0; i < _breadcrumb.Count; i++)
+    {
+        var segment = _breadcrumb[i];
+        <a href="@segment.Url">@segment.Label</a>
+        @if (i < _breadcrumb.Count - 1)
+        {
+            <text> &gt; </text>
+        }
+    }
+</p>
+
+<h1>Processes</h1>
+
+<h2>Create Process</h2>
+<EditForm Model="_newProcess" OnValidSubmit="CreateProcessAsync">
+    <div>
+        <label>
+            Name:
+            <InputText @bind-Value="_newProcess.Name" required />
+        </label>
+    </div>
+    <div>
+        <label>
+            Description:
+            <InputText @bind-Value="_newProcess.Description" />
+        </label>
+    </div>
+    <button type="submit">Create</button>
+</EditForm>
+@if (_createError is not null)
+{
+    <p style="color:red">@_createError</p>
+}
+
+<h2>All Processes</h2>
+<table>
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>Description</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var process in _processes)
+        {
+            <tr>
+                @if (_editingId == process.Id)
+                {
+                    <td colspan="2">
+                        <EditForm Model="_editModel" OnValidSubmit="() => SaveRenameAsync(process.Id)">
+                            <InputText @bind-Value="_editModel!.Name" required />
+                            <InputText @bind-Value="_editModel!.Description" />
+                            <button type="submit">Save</button>
+                            <button type="button" @onclick="CancelEdit">Cancel</button>
+                        </EditForm>
+                        @if (_editError is not null)
+                        {
+                            <p style="color:red">@_editError</p>
+                        }
+                    </td>
+                }
+                else
+                {
+                    <td>
+                        <a href="/admin/applications/@AppId/modules/@ModuleId/screen-services/@ScreenServiceId/processes/@process.Id/operations">@process.Name</a>
+                    </td>
+                    <td>@process.Description</td>
+                }
+                <td>
+                    @if (_editingId != process.Id)
+                    {
+                        <button @onclick="() => StartEdit(process)">Edit</button>
+                    }
+                    <button @onclick="() => DeactivateAsync(process.Id)">Deactivate</button>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+@code {
+    [Parameter] public int AppId { get; set; }
+    [Parameter] public int ModuleId { get; set; }
+    [Parameter] public int ScreenServiceId { get; set; }
+
+    private List<ProcessNode> _processes = new();
+    private List<BreadcrumbSegment> _breadcrumb = new();
+    private readonly NewProcessModel _newProcess = new();
+    private string? _createError;
+
+    private int? _editingId;
+    private EditProcessModel? _editModel;
+    private string? _editError;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _breadcrumb = await BreadcrumbBuilder.BuildAsync(AppId, ModuleId, ScreenServiceId);
+        _processes = (await ProcessRepository.GetByScreenServiceIdAsync(ScreenServiceId)).ToList();
+    }
+
+    private async Task CreateProcessAsync()
+    {
+        _createError = null;
+        try
+        {
+            await ProcessRepository.AddAsync(new ProcessNode
+            {
+                ScreenServiceId = ScreenServiceId,
+                Name = _newProcess.Name,
+                Description = _newProcess.Description
+            });
+
+            _newProcess.Name = string.Empty;
+            _newProcess.Description = null;
+            _processes = (await ProcessRepository.GetByScreenServiceIdAsync(ScreenServiceId)).ToList();
+        }
+        catch (DbUpdateException ex) when (ex.IsUniqueViolation())
+        {
+            _createError = $"A process named '{_newProcess.Name}' already exists.";
+        }
+    }
+
+    private void StartEdit(ProcessNode process)
+    {
+        _editingId = process.Id;
+        _editModel = new EditProcessModel { Name = process.Name, Description = process.Description };
+        _editError = null;
+    }
+
+    private void CancelEdit()
+    {
+        _editingId = null;
+        _editModel = null;
+        _editError = null;
+    }
+
+    private async Task SaveRenameAsync(int processId)
+    {
+        _editError = null;
+        try
+        {
+            await ProcessRepository.RenameAsync(processId, _editModel!.Name, _editModel!.Description);
+            _editingId = null;
+            _editModel = null;
+            _processes = (await ProcessRepository.GetByScreenServiceIdAsync(ScreenServiceId)).ToList();
+        }
+        catch (DbUpdateException ex) when (ex.IsUniqueViolation())
+        {
+            _editError = $"A process named '{_editModel!.Name}' already exists.";
+        }
+    }
+
+    private async Task DeactivateAsync(int processId)
+    {
+        await ProcessRepository.DeactivateAsync(processId);
+        _processes = (await ProcessRepository.GetByScreenServiceIdAsync(ScreenServiceId)).ToList();
+    }
+
+    private class NewProcessModel
+    {
+        public string Name { get; set; } = string.Empty;
+        public string? Description { get; set; }
+    }
+
+    private class EditProcessModel
+    {
+        public string Name { get; set; } = string.Empty;
+        public string? Description { get; set; }
+    }
+}
