@@ -19,9 +19,13 @@ Full CRUD-minus-real-delete management of the `Module → ScreenService → Proc
 - No custom CSS (same as the prior UI slice).
 - No change to the existing `Application`/`AppEnvironment` API or UI beyond adding one new link/section per Application row pointing into the new drill-down.
 
+## Naming Correction: `AppModule`, not `Module`
+
+Following this project's established BCL-collision-avoidance rule (`AppEnvironment` not `Environment`, `ProcessNode` not `Process` — see the prior plan's Global Constraints), the C# entity class for the "Module" hierarchy level must be named **`AppModule`**, not `Module` — `System.Reflection.Module` is a real BCL type, and this project has consistently avoided this exact class of ambiguity risk everywhere else. The hierarchy level is still conceptually/prosaically called "Module" throughout this doc and in routes (`/modules`) and UI text — only the C# type name changes.
+
 ## API Shape (one pattern, four entities)
 
-Using `Module` as the canonical example — `ScreenService`, `ProcessNode`, `Operation` follow identically, each nested under its own parent's route:
+Using `AppModule` as the canonical example — `ScreenService`, `ProcessNode`, `Operation` follow identically, each nested under its own parent's route:
 
 | Method | Route | Behavior |
 |---|---|---|
@@ -39,15 +43,15 @@ Chain routes for the other three levels: `/modules/{moduleId}/screen-services`, 
 
 **Decision for this slice: `DELETE` always deactivates (`IsActive=false`), never hard-deletes.** Hard-delete-when-genuinely-history-free is deferred until the `Event` table exists and the check becomes meaningful — noted here explicitly so it isn't mistaken for the final behavior.
 
-## Repository Interfaces (pattern, `Module` example)
+## Repository Interfaces (pattern, `AppModule` example)
 
 ```csharp
 public interface IModuleRepository
 {
-    Task<Module?> GetByIdAsync(int id);
-    Task<IReadOnlyList<Module>> GetByApplicationIdAsync(int applicationId, bool includeInactive = false);
-    Task<Module> AddAsync(Module module);
-    Task<Module> RenameAsync(int id, string name, string? description);
+    Task<AppModule?> GetByIdAsync(int id);
+    Task<IReadOnlyList<AppModule>> GetByApplicationIdAsync(int applicationId, bool includeInactive = false);
+    Task<AppModule> AddAsync(AppModule module);
+    Task<AppModule> RenameAsync(int id, string name, string? description);
     Task DeactivateAsync(int id);
 }
 ```
