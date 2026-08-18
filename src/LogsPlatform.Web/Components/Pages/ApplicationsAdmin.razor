@@ -36,6 +36,7 @@
     <thead>
         <tr>
             <th></th>
+            <th></th>
             <th>Name</th>
             <th>Description</th>
             <th>Created At</th>
@@ -50,6 +51,7 @@
                         @(_expandedAppIds.Contains(application.Id) ? "-" : "+")
                     </button>
                 </td>
+                <td><a href="/admin/applications/@application.Id/modules">Modules</a></td>
                 <td>@application.Name</td>
                 <td>@application.Description</td>
                 <td>@application.CreatedAt</td>
@@ -57,7 +59,7 @@
             @if (_expandedAppIds.Contains(application.Id))
             {
                 <tr>
-                    <td colspan="4">
+                    <td colspan="5">
                         <h4>Environments</h4>
                         <table>
                             <thead>

@@ -1,0 +1,179 @@
+@* src/LogsPlatform.Web/Components/Pages/ModulesAdmin.razor *@
+@page "/admin/applications/{AppId:int}/modules"
+@using LogsPlatform.Domain.Entities
+@using LogsPlatform.Domain.Repositories
+@using LogsPlatform.Web
+@using LogsPlatform.Web.Services
+@using Microsoft.EntityFrameworkCore
+@inject IAppModuleRepository ModuleRepository
+@inject BreadcrumbBuilder BreadcrumbBuilder
+@rendermode InteractiveServer
+
+<p>
+    @for (var i = 0; i < _breadcrumb.Count; i++)
+    {
+        var segment = _breadcrumb[i];
+        <a href="@segment.Url">@segment.Label</a>
+        @if (i < _breadcrumb.Count - 1)
+        {
+            <text> &gt; </text>
+        }
+    }
+</p>
+
+<h1>Modules</h1>
+
+<h2>Create Module</h2>
+<EditForm Model="_newModule" OnValidSubmit="CreateModuleAsync">
+    <div>
+        <label>
+            Name:
+            <InputText @bind-Value="_newModule.Name" required />
+        </label>
+    </div>
+    <div>
+        <label>
+            Description:
+            <InputText @bind-Value="_newModule.Description" />
+        </label>
+    </div>
+    <button type="submit">Create</button>
+</EditForm>
+@if (_createError is not null)
+{
+    <p style="color:red">@_createError</p>
+}
+
+<h2>All Modules</h2>
+<table>
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>Description</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var module in _modules)
+        {
+            <tr>
+                @if (_editingId == module.Id)
+                {
+                    <td colspan="2">
+                        <EditForm Model="_editModel" OnValidSubmit="() => SaveRenameAsync(module.Id)">
+                            <InputText @bind-Value="_editModel!.Name" required />
+                            <InputText @bind-Value="_editModel!.Description" />
+                            <button type="submit">Save</button>
+                            <button type="button" @onclick="CancelEdit">Cancel</button>
+                        </EditForm>
+                        @if (_editError is not null)
+                        {
+                            <p style="color:red">@_editError</p>
+                        }
+                    </td>
+                }
+                else
+                {
+                    <td><a href="/admin/applications/@AppId/modules/@module.Id/screen-services">@module.Name</a></td>
+                    <td>@module.Description</td>
+                }
+                <td>
+                    @if (_editingId != module.Id)
+                    {
+                        <button @onclick="() => StartEdit(module)">Edit</button>
+                    }
+                    <button @onclick="() => DeactivateAsync(module.Id)">Deactivate</button>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+@code {
+    [Parameter] public int AppId { get; set; }
+
+    private List<AppModule> _modules = new();
+    private List<BreadcrumbSegment> _breadcrumb = new();
+    private readonly NewModuleModel _newModule = new();
+    private string? _createError;
+
+    private int? _editingId;
+    private EditModuleModel? _editModel;
+    private string? _editError;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _breadcrumb = await BreadcrumbBuilder.BuildAsync(AppId);
+        _modules = (await ModuleRepository.GetByApplicationIdAsync(AppId)).ToList();
+    }
+
+    private async Task CreateModuleAsync()
+    {
+        _createError = null;
+        try
+        {
+            await ModuleRepository.AddAsync(new AppModule
+            {
+                ApplicationId = AppId,
+                Name = _newModule.Name,
+                Description = _newModule.Description
+            });
+
+            _newModule.Name = string.Empty;
+            _newModule.Description = null;
+            _modules = (await ModuleRepository.GetByApplicationIdAsync(AppId)).ToList();
+        }
+        catch (DbUpdateException ex) when (ex.IsUniqueViolation())
+        {
+            _createError = $"A module named '{_newModule.Name}' already exists.";
+        }
+    }
+
+    private void StartEdit(AppModule module)
+    {
+        _editingId = module.Id;
+        _editModel = new EditModuleModel { Name = module.Name, Description = module.Description };
+        _editError = null;
+    }
+
+    private void CancelEdit()
+    {
+        _editingId = null;
+        _editModel = null;
+        _editError = null;
+    }
+
+    private async Task SaveRenameAsync(int moduleId)
+    {
+        _editError = null;
+        try
+        {
+            await ModuleRepository.RenameAsync(moduleId, _editModel!.Name, _editModel!.Description);
+            _editingId = null;
+            _editModel = null;
+            _modules = (await ModuleRepository.GetByApplicationIdAsync(AppId)).ToList();
+        }
+        catch (DbUpdateException ex) when (ex.IsUniqueViolation())
+        {
+            _editError = $"A module named '{_editModel!.Name}' already exists.";
+        }
+    }
+
+    private async Task DeactivateAsync(int moduleId)
+    {
+        await ModuleRepository.DeactivateAsync(moduleId);
+        _modules = (await ModuleRepository.GetByApplicationIdAsync(AppId)).ToList();
+    }
+
+    private class NewModuleModel
+    {
+        public string Name { get; set; } = string.Empty;
+        public string? Description { get; set; }
+    }
+
+    private class EditModuleModel
+    {
+        public string Name { get; set; } = string.Empty;
+        public string? Description { get; set; }
+    }
+}
