@@ -46,7 +46,7 @@ Chain routes for the other three levels: `/modules/{moduleId}/screen-services`, 
 ## Repository Interfaces (pattern, `AppModule` example)
 
 ```csharp
-public interface IModuleRepository
+public interface IAppModuleRepository
 {
     Task<AppModule?> GetByIdAsync(int id);
     Task<IReadOnlyList<AppModule>> GetByApplicationIdAsync(int applicationId, bool includeInactive = false);
@@ -56,7 +56,7 @@ public interface IModuleRepository
 }
 ```
 
-Same shape for `IScreenServiceRepository` (scoped by `moduleId`), `IProcessNodeRepository` (scoped by `screenServiceId`), `IOperationRepository` (scoped by `processId`) — each following the "always scope child-entity queries by parent" Global Constraint already established in the prior plan.
+Interface names mirror their entity name exactly, matching the existing `Application`→`IApplicationRepository`/`AppEnvironment`→`IAppEnvironmentRepository` convention (routes and controllers still use the short "Module"/"ScreenService" form, per the `EnvironmentsController` precedent — only repository interfaces/classes take the full entity name). Same shape for `IScreenServiceRepository` (scoped by `moduleId`), `IProcessNodeRepository` (scoped by `screenServiceId`), `IOperationRepository` (scoped by `processId`) — each following the "always scope child-entity queries by parent" Global Constraint already established in the prior plan.
 
 ## UI: Drill-Down with Breadcrumbs
 

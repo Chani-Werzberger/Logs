@@ -26,12 +26,12 @@
 - Create: `src/LogsPlatform.Domain/Entities/AppModule.cs`
 - Create: `src/LogsPlatform.Domain/Entities/ScreenService.cs`
 - Modify: `src/LogsPlatform.Domain/Entities/Application.cs` (add `Modules` navigation collection)
-- Create: `src/LogsPlatform.Domain/Repositories/IModuleRepository.cs`
+- Create: `src/LogsPlatform.Domain/Repositories/IAppModuleRepository.cs`
 - Create: `src/LogsPlatform.Domain/Repositories/IScreenServiceRepository.cs`
 
 **Interfaces:**
 - Consumes: `Application` entity (existing).
-- Produces: `AppModule`, `ScreenService` entity classes and `IModuleRepository`, `IScreenServiceRepository` interfaces that Task 3/4 implement against.
+- Produces: `AppModule`, `ScreenService` entity classes and `IAppModuleRepository`, `IScreenServiceRepository` interfaces that Task 3/4 implement against.
 
 - [ ] **Step 1: Write the `AppModule` entity**
 
@@ -97,12 +97,12 @@ public class Application
 - [ ] **Step 4: Write the repository interfaces**
 
 ```csharp
-// src/LogsPlatform.Domain/Repositories/IModuleRepository.cs
+// src/LogsPlatform.Domain/Repositories/IAppModuleRepository.cs
 using LogsPlatform.Domain.Entities;
 
 namespace LogsPlatform.Domain.Repositories;
 
-public interface IModuleRepository
+public interface IAppModuleRepository
 {
     Task<AppModule?> GetByIdAsync(int id);
     Task<IReadOnlyList<AppModule>> GetByApplicationIdAsync(int applicationId, bool includeInactive = false);
@@ -136,7 +136,7 @@ Expected: `Build succeeded. 0 Warning(s) 0 Error(s)`.
 - [ ] **Step 6: Commit**
 
 ```bash
-git add src/LogsPlatform.Domain/Entities/AppModule.cs src/LogsPlatform.Domain/Entities/ScreenService.cs src/LogsPlatform.Domain/Entities/Application.cs src/LogsPlatform.Domain/Repositories/IModuleRepository.cs src/LogsPlatform.Domain/Repositories/IScreenServiceRepository.cs
+git add src/LogsPlatform.Domain/Entities/AppModule.cs src/LogsPlatform.Domain/Entities/ScreenService.cs src/LogsPlatform.Domain/Entities/Application.cs src/LogsPlatform.Domain/Repositories/IAppModuleRepository.cs src/LogsPlatform.Domain/Repositories/IScreenServiceRepository.cs
 git commit -m "Add AppModule and ScreenService domain entities + repository interfaces"
 ```
 
@@ -287,20 +287,20 @@ git commit -m "Add AppModule and ScreenService EF Core mapping + migration"
 
 ---
 
-### Task 3: `ModuleRepository` implementation + tests
+### Task 3: `AppModuleRepository` implementation + tests
 
 **Files:**
-- Create: `src/LogsPlatform.Infrastructure/Repositories/ModuleRepository.cs`
-- Create: `tests/LogsPlatform.Tests/Infrastructure/ModuleRepositoryTests.cs`
+- Create: `src/LogsPlatform.Infrastructure/Repositories/AppModuleRepository.cs`
+- Create: `tests/LogsPlatform.Tests/Infrastructure/AppModuleRepositoryTests.cs`
 
 **Interfaces:**
-- Consumes: `IModuleRepository` (Task 1), `LogsPlatformDbContext` (Task 2).
-- Produces: `ModuleRepository` — registered in DI by Task 5, consumed by Task 6's controller.
+- Consumes: `IAppModuleRepository` (Task 1), `LogsPlatformDbContext` (Task 2).
+- Produces: `AppModuleRepository` — registered in DI by Task 5, consumed by Task 6's controller.
 
 - [ ] **Step 1: Write the failing tests**
 
 ```csharp
-// tests/LogsPlatform.Tests/Infrastructure/ModuleRepositoryTests.cs
+// tests/LogsPlatform.Tests/Infrastructure/AppModuleRepositoryTests.cs
 using LogsPlatform.Domain.Entities;
 using LogsPlatform.Infrastructure;
 using LogsPlatform.Infrastructure.Repositories;
@@ -310,7 +310,7 @@ using Xunit;
 namespace LogsPlatform.Tests.Infrastructure;
 
 [Collection("Database")]
-public class ModuleRepositoryTests
+public class AppModuleRepositoryTests
 {
     private static async Task<int> CreateTestApplicationAsync(LogsPlatformDbContext context, string name)
     {
@@ -325,7 +325,7 @@ public class ModuleRepositoryTests
     {
         using var context = TestDatabase.CreateContext();
         var appId = await CreateTestApplicationAsync(context, "ModuleAddTestApp");
-        var repository = new ModuleRepository(context);
+        var repository = new AppModuleRepository(context);
 
         var created = await repository.AddAsync(new AppModule { ApplicationId = appId, Name = "Payments" });
         var loaded = await repository.GetByIdAsync(created.Id);
@@ -340,7 +340,7 @@ public class ModuleRepositoryTests
     {
         using var context = TestDatabase.CreateContext();
         var appId = await CreateTestApplicationAsync(context, "ModuleFilterTestApp");
-        var repository = new ModuleRepository(context);
+        var repository = new AppModuleRepository(context);
 
         var active = await repository.AddAsync(new AppModule { ApplicationId = appId, Name = "Active" });
         var toDeactivate = await repository.AddAsync(new AppModule { ApplicationId = appId, Name = "WillBeInactive" });
@@ -359,7 +359,7 @@ public class ModuleRepositoryTests
     {
         using var context = TestDatabase.CreateContext();
         var appId = await CreateTestApplicationAsync(context, "ModuleRenameTestApp");
-        var repository = new ModuleRepository(context);
+        var repository = new AppModuleRepository(context);
         var created = await repository.AddAsync(new AppModule { ApplicationId = appId, Name = "OldName" });
 
         var renamed = await repository.RenameAsync(created.Id, "NewName", "new description");
@@ -375,7 +375,7 @@ public class ModuleRepositoryTests
     {
         using var context = TestDatabase.CreateContext();
         var appId = await CreateTestApplicationAsync(context, "ModuleDeactivateTestApp");
-        var repository = new ModuleRepository(context);
+        var repository = new AppModuleRepository(context);
         var created = await repository.AddAsync(new AppModule { ApplicationId = appId, Name = "ToDeactivate" });
 
         await repository.DeactivateAsync(created.Id);
@@ -391,7 +391,7 @@ public class ModuleRepositoryTests
         // (see the prior plan's final review) -- proactively guarded here from Task 3 onward.
         using var context = TestDatabase.CreateContext();
         var appId = await CreateTestApplicationAsync(context, "ModuleCircuitTestApp");
-        var repository = new ModuleRepository(context);
+        var repository = new AppModuleRepository(context);
 
         await repository.AddAsync(new AppModule { ApplicationId = appId, Name = "DupModule" });
 
@@ -407,24 +407,24 @@ public class ModuleRepositoryTests
 
 - [ ] **Step 2: Run tests to verify they fail**
 
-Run: `dotnet test --filter ModuleRepositoryTests`
-Expected: FAIL — `ModuleRepository` does not exist yet.
+Run: `dotnet test --filter AppModuleRepositoryTests`
+Expected: FAIL — `AppModuleRepository` does not exist yet.
 
-- [ ] **Step 3: Implement `ModuleRepository`**
+- [ ] **Step 3: Implement `AppModuleRepository`**
 
 ```csharp
-// src/LogsPlatform.Infrastructure/Repositories/ModuleRepository.cs
+// src/LogsPlatform.Infrastructure/Repositories/AppModuleRepository.cs
 using LogsPlatform.Domain.Entities;
 using LogsPlatform.Domain.Repositories;
 using Microsoft.EntityFrameworkCore;
 
 namespace LogsPlatform.Infrastructure.Repositories;
 
-public class ModuleRepository : IModuleRepository
+public class AppModuleRepository : IAppModuleRepository
 {
     private readonly LogsPlatformDbContext _context;
 
-    public ModuleRepository(LogsPlatformDbContext context)
+    public AppModuleRepository(LogsPlatformDbContext context)
     {
         _context = context;
     }
@@ -487,14 +487,14 @@ public class ModuleRepository : IModuleRepository
 
 - [ ] **Step 4: Run tests to verify they pass**
 
-Run: `dotnet test --filter ModuleRepositoryTests`
+Run: `dotnet test --filter AppModuleRepositoryTests`
 Expected: PASS (5 tests).
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add src/LogsPlatform.Infrastructure/Repositories/ModuleRepository.cs tests/LogsPlatform.Tests/Infrastructure/ModuleRepositoryTests.cs
-git commit -m "Implement ModuleRepository with proactive detach-on-failure handling"
+git add src/LogsPlatform.Infrastructure/Repositories/AppModuleRepository.cs tests/LogsPlatform.Tests/Infrastructure/AppModuleRepositoryTests.cs
+git commit -m "Implement AppModuleRepository with proactive detach-on-failure handling"
 ```
 
 ---
@@ -506,7 +506,7 @@ git commit -m "Implement ModuleRepository with proactive detach-on-failure handl
 - Create: `tests/LogsPlatform.Tests/Infrastructure/ScreenServiceRepositoryTests.cs`
 
 **Interfaces:**
-- Consumes: `IScreenServiceRepository` (Task 1), `LogsPlatformDbContext` (Task 2), `ModuleRepository` pattern (Task 3, for the parallel test-helper shape).
+- Consumes: `IScreenServiceRepository` (Task 1), `LogsPlatformDbContext` (Task 2), `AppModuleRepository` pattern (Task 3, for the parallel test-helper shape).
 - Produces: `ScreenServiceRepository` — registered in DI by Task 5, consumed by Task 7's controller.
 
 - [ ] **Step 1: Write the failing tests**
@@ -726,7 +726,7 @@ git commit -m "Implement ScreenServiceRepository with proactive detach-on-failur
 - Modify: `src/LogsPlatform.Web/Program.cs`
 
 **Interfaces:**
-- Consumes: `IModuleRepository`/`ModuleRepository`, `IScreenServiceRepository`/`ScreenServiceRepository` (Tasks 1/3/4).
+- Consumes: `IAppModuleRepository`/`AppModuleRepository`, `IScreenServiceRepository`/`ScreenServiceRepository` (Tasks 1/3/4).
 - Produces: DI registrations that make Task 6/7's controllers (and their `WebApplicationFactory` tests) resolvable — same reasoning as the prior plan's Task 5 (DI wiring must precede the controllers that need it).
 
 - [ ] **Step 1: Add the two new DI registrations**
@@ -734,7 +734,7 @@ git commit -m "Implement ScreenServiceRepository with proactive detach-on-failur
 Modify `Program.cs` — add these two lines directly after the existing `AddScoped<IAppEnvironmentRepository, AppEnvironmentRepository>();` line (do not reorder or remove anything else):
 
 ```csharp
-builder.Services.AddScoped<IModuleRepository, ModuleRepository>();
+builder.Services.AddScoped<IAppModuleRepository, AppModuleRepository>();
 builder.Services.AddScoped<IScreenServiceRepository, ScreenServiceRepository>();
 ```
 
@@ -762,7 +762,7 @@ builder.Services.AddDbContext<LogsPlatformDbContext>(options =>
 
 builder.Services.AddScoped<IApplicationRepository, ApplicationRepository>();
 builder.Services.AddScoped<IAppEnvironmentRepository, AppEnvironmentRepository>();
-builder.Services.AddScoped<IModuleRepository, ModuleRepository>();
+builder.Services.AddScoped<IAppModuleRepository, AppModuleRepository>();
 builder.Services.AddScoped<IScreenServiceRepository, ScreenServiceRepository>();
 
 var app = builder.Build();
@@ -801,7 +801,7 @@ Expected: `Passed! - Failed: 0, Passed: 21, Skipped: 0, Total: 21` — unchanged
 
 ```bash
 git add src/LogsPlatform.Web/Program.cs
-git commit -m "Wire up DI for ModuleRepository and ScreenServiceRepository"
+git commit -m "Wire up DI for AppModuleRepository and ScreenServiceRepository"
 ```
 
 ---
@@ -814,7 +814,7 @@ git commit -m "Wire up DI for ModuleRepository and ScreenServiceRepository"
 - Create: `tests/LogsPlatform.Tests/Web/ModulesControllerTests.cs`
 
 **Interfaces:**
-- Consumes: `IModuleRepository` (Task 1/3), DI wiring (Task 5).
+- Consumes: `IAppModuleRepository` (Task 1/3), DI wiring (Task 5).
 - Produces: `POST/GET/PUT/DELETE /api/v1/admin/applications/{appId}/modules[/{id}]`.
 
 - [ ] **Step 1: Write the failing tests**
@@ -974,9 +974,9 @@ namespace LogsPlatform.Web.Controllers;
 [Route("api/v1/admin/applications/{appId:int}/modules")]
 public class ModulesController : ControllerBase
 {
-    private readonly IModuleRepository _modules;
+    private readonly IAppModuleRepository _modules;
 
-    public ModulesController(IModuleRepository modules)
+    public ModulesController(IAppModuleRepository modules)
     {
         _modules = modules;
     }
@@ -1070,7 +1070,7 @@ git commit -m "Add Modules admin API controller"
 - Create: `tests/LogsPlatform.Tests/Web/ScreenServicesControllerTests.cs`
 
 **Interfaces:**
-- Consumes: `IScreenServiceRepository` (Task 1/4), `IModuleRepository` (Task 1/3, for a helper that creates a test module via the API), DI wiring (Task 5).
+- Consumes: `IScreenServiceRepository` (Task 1/4), `IAppModuleRepository` (Task 1/3, for a helper that creates a test module via the API), DI wiring (Task 5).
 - Produces: `POST/GET/PUT/DELETE /api/v1/admin/modules/{moduleId}/screen-services[/{id}]` — the last piece of this plan.
 
 - [ ] **Step 1: Write the failing tests**
@@ -1352,7 +1352,7 @@ git commit -m "Add ScreenServices admin API controller"
 ## Self-Review Notes
 
 - **Spec coverage:** Every element of `docs/superpowers/specs/2026-08-18-application-hierarchy-spine-design.md`'s "API Shape", "Deactivate Semantics", "Repository Interfaces", and "Naming Correction" sections is implemented across Tasks 1-7. UI (design doc's "A3") is explicitly out of scope for this plan — it depends on this plan's completed API and is planned separately.
-- **Type consistency:** `IModuleRepository`/`IScreenServiceRepository` signatures from Task 1 are used identically by `ModuleRepository`/`ScreenServiceRepository` (Tasks 3-4) and consumed identically by `ModulesController`/`ScreenServicesController` (Tasks 6-7) — verified by re-reading each task above. `ScreenServiceType` enum values (`Screen`, `Service`) are used consistently in tests, the controller's `Enum.TryParse`, and the entity.
+- **Type consistency:** `IAppModuleRepository`/`IScreenServiceRepository` signatures from Task 1 are used identically by `AppModuleRepository`/`ScreenServiceRepository` (Tasks 3-4) and consumed identically by `ModulesController`/`ScreenServicesController` (Tasks 6-7) — verified by re-reading each task above. `ScreenServiceType` enum values (`Screen`, `Service`) are used consistently in tests, the controller's `Enum.TryParse`, and the entity.
 - **Global Constraints applied, not just stated:** detach-on-failure appears in every `AddAsync`/`RenameAsync` from Task 3 onward (not retrofitted later); every `GetById`/`Rename`/`Deactivate` controller action checks the parent-id match before acting (IDOR guard), with a dedicated test for it in both controller test files.
 - **No placeholders:** every step has complete, runnable code or an exact command with an expected result, including the running test-count expectations at each stage (11 → 21 → 21 → 31), so a deviation is immediately visible.
 
