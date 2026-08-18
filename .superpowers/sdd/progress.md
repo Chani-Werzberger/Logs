@@ -5,7 +5,7 @@ Branch: hierarchy-spine-a1-module-screenservice
 Worktree: .worktrees/hierarchy-spine-a1
 
 ## Tasks
-- [ ] Task 1: Domain entities (AppModule, ScreenService) + repository interfaces
+- [x] Task 1: Domain entities (AppModule, ScreenService) + repository interfaces (commits c7383b3..7139f77, review Approved; Minor plan-mandated naming finding self-corrected: IModuleRepository -> IAppModuleRepository, plan+design doc fixed on main at 77984b4 and cherry-picked)
 - [ ] Task 2: LogsPlatformDbContext mapping + migration
 - [ ] Task 3: ModuleRepository implementation + tests
 - [ ] Task 4: ScreenServiceRepository implementation + tests
