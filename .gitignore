@@ -17,6 +17,9 @@ appsettings.*.local.json
 # Git worktrees (local isolation, not shared)
 .worktrees/
 
+# Local scratch space for the subagent-driven-development skill (not shared)
+.superpowers/
+
 # OS
 .DS_Store
 Thumbs.db
