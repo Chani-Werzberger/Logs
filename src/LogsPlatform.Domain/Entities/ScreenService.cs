@@ -15,4 +15,6 @@ public class ScreenService
     public ScreenServiceType Type { get; set; }
     public string? Description { get; set; }
     public bool IsActive { get; set; } = true;
+
+    public ICollection<ProcessNode> Processes { get; set; } = new List<ProcessNode>();
 }
