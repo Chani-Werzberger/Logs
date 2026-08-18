@@ -1,0 +1,14 @@
+# Progress Ledger: A1 - AppModule + ScreenService Backend
+
+Plan: docs/superpowers/plans/2026-08-18-hierarchy-spine-a1-module-screenservice.md
+Branch: hierarchy-spine-a1-module-screenservice
+Worktree: .worktrees/hierarchy-spine-a1
+
+## Tasks
+- [ ] Task 1: Domain entities (AppModule, ScreenService) + repository interfaces
+- [ ] Task 2: LogsPlatformDbContext mapping + migration
+- [ ] Task 3: ModuleRepository implementation + tests
+- [ ] Task 4: ScreenServiceRepository implementation + tests
+- [ ] Task 5: DI wiring in Program.cs
+- [ ] Task 6: ModulesController + tests
+- [ ] Task 7: ScreenServicesController + tests
