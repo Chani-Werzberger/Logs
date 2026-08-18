@@ -18,6 +18,8 @@ builder.Services.AddDbContext<LogsPlatformDbContext>(options =>
 
 builder.Services.AddScoped<IApplicationRepository, ApplicationRepository>();
 builder.Services.AddScoped<IAppEnvironmentRepository, AppEnvironmentRepository>();
+builder.Services.AddScoped<IAppModuleRepository, AppModuleRepository>();
+builder.Services.AddScoped<IScreenServiceRepository, ScreenServiceRepository>();
 
 var app = builder.Build();
 

@@ -70,4 +70,31 @@ public class LogsPlatformDbContextTests
         // If ToUniversalTime() shifted this by the local UTC offset, Hour (or Day, near
         // midnight) would differ from the original Unspecified value.
     }
+
+    [Fact]
+    public async Task CanInsertAndRetrieveModuleWithScreenService()
+    {
+        using var context = TestDatabase.CreateContext();
+
+        var application = new Application { Name = "HierarchyDbContextTestApp", CreatedAt = DateTime.UtcNow };
+        var module = new AppModule { Name = "Payments" };
+        module.ScreenServices.Add(new ScreenService { Name = "PaymentGateway", Type = ScreenServiceType.Service });
+        application.Modules.Add(module);
+
+        context.Applications.Add(application);
+        await context.SaveChangesAsync();
+
+        using var readContext = new LogsPlatformDbContext(
+            new DbContextOptionsBuilder<LogsPlatformDbContext>().UseSqlServer(TestDatabase.ConnectionString).Options);
+
+        var loaded = await readContext.Modules
+            .Include(m => m.ScreenServices)
+            .FirstAsync(m => m.Name == "Payments");
+
+        Assert.True(loaded.IsActive);
+        Assert.Single(loaded.ScreenServices);
+        Assert.Equal("PaymentGateway", loaded.ScreenServices.First().Name);
+        Assert.Equal(ScreenServiceType.Service, loaded.ScreenServices.First().Type);
+        Assert.True(loaded.ScreenServices.First().IsActive);
+    }
 }
