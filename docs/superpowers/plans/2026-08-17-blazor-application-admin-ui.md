@@ -35,6 +35,8 @@
 
 **Regression risk this task specifically carries:** `Program.cs` is the file `TestWebApplicationFactory` boots via `WebApplicationFactory<Program>` for all 9 existing tests. Adding Razor Components hosting to it must not break any of them — Step 3 below is not optional.
 
+> **Correction (post-Task 1):** the original code blocks below were missing two standard, necessary pieces of ASP.NET Core's Blazor Web App hosting model, both already folded into the code shown now: (1) `_Imports.razor` needs `@using static Microsoft.AspNetCore.Components.Web.RenderMode` — without it, `@rendermode="InteractiveServer"` fails to compile with `CS0103` (`InteractiveServer` is a static member of `RenderMode`, not a bare type); this line is present in the official .NET Blazor Web App template for exactly this reason. (2) `Program.cs` needs `app.UseAntiforgery();` between `UseStaticFiles()` and `MapControllers()`/`MapRazorComponents()` — without it, every component request throws `InvalidOperationException: Endpoint ... contains anti-forgery metadata, but a middleware was not found that supports anti-forgery`, because `MapRazorComponents` attaches anti-forgery metadata to its endpoints by default in this hosting model. Both were discovered and fixed by Task 1's implementer, re-verified against the full 9-test suite before and after.
+
 - [ ] **Step 1: Write the root Razor Components files**
 
 ```razor
@@ -45,6 +47,7 @@
 @using Microsoft.AspNetCore.Components.Web
 @using Microsoft.JSInterop
 @using LogsPlatform.Web.Components
+@using static Microsoft.AspNetCore.Components.Web.RenderMode
 ```
 
 ```razor
@@ -114,6 +117,7 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.UseStaticFiles();
+app.UseAntiforgery();
 app.MapControllers();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
@@ -189,7 +193,7 @@ sleep 5
 curl -s http://localhost:5201/admin/applications
 ```
 
-Expected: HTML output containing `<h1>Applications</h1>`, `<table>`, and `<th>Name</th>` — confirming the page route resolves and the component prerenders server-side (Blazor Server prerenders the initial HTTP response before the SignalR circuit attaches, so `curl` can see this even though it can't test interactivity). Stop the background process afterward (`kill %1` or equivalent).
+Expected: HTML output containing `<h1>Applications</h1>`, `<table>`, and `<th>Name</th>` — confirming the page route resolves and the component prerenders server-side (Blazor Server prerenders the initial HTTP response before the SignalR circuit attaches, so `curl` can see this even though it can't test interactivity). Stop the background process afterward — `kill %1` does not reliably stop it on this Windows/Git-Bash environment since `dotnet run` spawns a child process; use `taskkill //F //IM dotnet.exe` instead (verify with `netstat -ano | grep 5201` that nothing is left listening).
 
 If curl returns a 404 or an error page instead: check that `app.MapRazorComponents<App>()` in `Program.cs` is actually being reached (not short-circuited by an earlier `return`/exception) and that `Components/App.razor`'s namespace resolves correctly (it must be `LogsPlatform.Web.Components` for the `using LogsPlatform.Web.Components;` in `Program.cs` to find it).
 
@@ -325,7 +329,7 @@ sleep 5
 curl -s http://localhost:5201/admin/applications
 ```
 
-Expected: HTML output now also contains `Create Application`, an `<input` element, and `<button type="submit">Create</button>` alongside the table from Task 1. Stop the background process afterward.
+Expected: HTML output now also contains `Create Application`, an `<input` element, and `<button type="submit">Create</button>` alongside the table from Task 1. Stop the background process afterward with `taskkill //F //IM dotnet.exe` (see Task 1's note — `kill %1` doesn't reliably work on this environment).
 
 **Note on what this does NOT verify:** curl cannot submit the form (that requires a real browser's SignalR/WebSocket client) — this step confirms the markup is present and correct, not that clicking Create actually works end-to-end. Full interactive verification happens after Task 3 (see Task 3's final step).
 
@@ -559,7 +563,7 @@ sleep 5
 curl -s http://localhost:5201/admin/applications
 ```
 
-Expected: HTML output containing everything from Task 2 plus at least one row with an expand-toggle button (`+`) in the first column of the Applications table (present as long as at least one `Application` already exists in the target database — if the table is genuinely empty, the toggle buttons simply won't appear yet, which is correct, not a bug: create one via the form first, per Task 2, to get a row to expand). Stop the background process afterward.
+Expected: HTML output containing everything from Task 2 plus at least one row with an expand-toggle button (`+`) in the first column of the Applications table (present as long as at least one `Application` already exists in the target database — if the table is genuinely empty, the toggle buttons simply won't appear yet, which is correct, not a bug: create one via the form first, per Task 2, to get a row to expand). Stop the background process afterward with `taskkill //F //IM dotnet.exe` (see Task 1's note — `kill %1` doesn't reliably work on this environment).
 
 - [ ] **Step 5: Commit**
 
