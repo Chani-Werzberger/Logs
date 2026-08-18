@@ -13,6 +13,8 @@ public class LogsPlatformDbContext : DbContext
     public DbSet<AppEnvironment> AppEnvironments => Set<AppEnvironment>();
     public DbSet<AppModule> Modules => Set<AppModule>();
     public DbSet<ScreenService> ScreenServices => Set<ScreenService>();
+    public DbSet<ProcessNode> Processes => Set<ProcessNode>();
+    public DbSet<Operation> Operations => Set<Operation>();
 
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
     {
@@ -55,6 +57,26 @@ public class LogsPlatformDbContext : DbContext
                 .HasForeignKey(s => s.ModuleId)
                 .OnDelete(DeleteBehavior.Cascade);
             entity.HasIndex(s => new { s.ModuleId, s.Name }).IsUnique();
+        });
+
+        modelBuilder.Entity<ProcessNode>(entity =>
+        {
+            entity.Property(p => p.Name).HasMaxLength(200).IsRequired();
+            entity.HasOne(p => p.ScreenService)
+                .WithMany(s => s.Processes)
+                .HasForeignKey(p => p.ScreenServiceId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasIndex(p => new { p.ScreenServiceId, p.Name }).IsUnique();
+        });
+
+        modelBuilder.Entity<Operation>(entity =>
+        {
+            entity.Property(o => o.Name).HasMaxLength(200).IsRequired();
+            entity.HasOne(o => o.Process)
+                .WithMany(p => p.Operations)
+                .HasForeignKey(o => o.ProcessId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasIndex(o => new { o.ProcessId, o.Name }).IsUnique();
         });
     }
 }

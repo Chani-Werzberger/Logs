@@ -97,4 +97,34 @@ public class LogsPlatformDbContextTests
         Assert.Equal(ScreenServiceType.Service, loaded.ScreenServices.First().Type);
         Assert.True(loaded.ScreenServices.First().IsActive);
     }
+
+    [Fact]
+    public async Task CanInsertAndRetrieveProcessNodeWithOperation()
+    {
+        using var context = TestDatabase.CreateContext();
+
+        var application = new Application { Name = "HierarchyDbContextTestApp2", CreatedAt = DateTime.UtcNow };
+        var module = new AppModule { Name = "Payments" };
+        var screenService = new ScreenService { Name = "PaymentGateway", Type = ScreenServiceType.Service };
+        var process = new ProcessNode { Name = "ChargeCard" };
+        process.Operations.Add(new Operation { Name = "AuthorizePayment" });
+        screenService.Processes.Add(process);
+        module.ScreenServices.Add(screenService);
+        application.Modules.Add(module);
+
+        context.Applications.Add(application);
+        await context.SaveChangesAsync();
+
+        using var readContext = new LogsPlatformDbContext(
+            new DbContextOptionsBuilder<LogsPlatformDbContext>().UseSqlServer(TestDatabase.ConnectionString).Options);
+
+        var loaded = await readContext.Processes
+            .Include(p => p.Operations)
+            .FirstAsync(p => p.Name == "ChargeCard");
+
+        Assert.True(loaded.IsActive);
+        Assert.Single(loaded.Operations);
+        Assert.Equal("AuthorizePayment", loaded.Operations.First().Name);
+        Assert.True(loaded.Operations.First().IsActive);
+    }
 }
