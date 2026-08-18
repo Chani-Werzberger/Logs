@@ -11,6 +11,8 @@ public class LogsPlatformDbContext : DbContext
 
     public DbSet<Application> Applications => Set<Application>();
     public DbSet<AppEnvironment> AppEnvironments => Set<AppEnvironment>();
+    public DbSet<AppModule> Modules => Set<AppModule>();
+    public DbSet<ScreenService> ScreenServices => Set<ScreenService>();
 
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
     {
@@ -33,6 +35,26 @@ public class LogsPlatformDbContext : DbContext
                 .HasForeignKey(e => e.ApplicationId)
                 .OnDelete(DeleteBehavior.Cascade);
             entity.HasIndex(e => new { e.ApplicationId, e.Name }).IsUnique();
+        });
+
+        modelBuilder.Entity<AppModule>(entity =>
+        {
+            entity.Property(m => m.Name).HasMaxLength(200).IsRequired();
+            entity.HasOne(m => m.Application)
+                .WithMany(a => a.Modules)
+                .HasForeignKey(m => m.ApplicationId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasIndex(m => new { m.ApplicationId, m.Name }).IsUnique();
+        });
+
+        modelBuilder.Entity<ScreenService>(entity =>
+        {
+            entity.Property(s => s.Name).HasMaxLength(200).IsRequired();
+            entity.HasOne(s => s.Module)
+                .WithMany(m => m.ScreenServices)
+                .HasForeignKey(s => s.ModuleId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasIndex(s => new { s.ModuleId, s.Name }).IsUnique();
         });
     }
 }
