@@ -2,6 +2,7 @@ using LogsPlatform.Domain.Repositories;
 using LogsPlatform.Infrastructure;
 using LogsPlatform.Infrastructure.Repositories;
 using LogsPlatform.Web.Components;
+using LogsPlatform.Web.Services;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -22,6 +23,7 @@ builder.Services.AddScoped<IAppModuleRepository, AppModuleRepository>();
 builder.Services.AddScoped<IScreenServiceRepository, ScreenServiceRepository>();
 builder.Services.AddScoped<IProcessNodeRepository, ProcessNodeRepository>();
 builder.Services.AddScoped<IOperationRepository, OperationRepository>();
+builder.Services.AddScoped<BreadcrumbBuilder>();
 
 var app = builder.Build();
 
