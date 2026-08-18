@@ -1,0 +1,196 @@
+@* src/LogsPlatform.Web/Components/Pages/ScreenServicesAdmin.razor *@
+@page "/admin/applications/{AppId:int}/modules/{ModuleId:int}/screen-services"
+@using LogsPlatform.Domain.Entities
+@using LogsPlatform.Domain.Repositories
+@using LogsPlatform.Web
+@using LogsPlatform.Web.Services
+@using Microsoft.EntityFrameworkCore
+@inject IScreenServiceRepository ScreenServiceRepository
+@inject BreadcrumbBuilder BreadcrumbBuilder
+@rendermode InteractiveServer
+
+<p>
+    @for (var i = 0; i < _breadcrumb.Count; i++)
+    {
+        var segment = _breadcrumb[i];
+        <a href="@segment.Url">@segment.Label</a>
+        @if (i < _breadcrumb.Count - 1)
+        {
+            <text> &gt; </text>
+        }
+    }
+</p>
+
+<h1>Screen/Services</h1>
+
+<h2>Create Screen/Service</h2>
+<EditForm Model="_newScreenService" OnValidSubmit="CreateScreenServiceAsync">
+    <div>
+        <label>
+            Name:
+            <InputText @bind-Value="_newScreenService.Name" required />
+        </label>
+    </div>
+    <div>
+        <label>
+            Type:
+            <InputSelect @bind-Value="_newScreenService.Type">
+                <option value="@ScreenServiceType.Screen">Screen</option>
+                <option value="@ScreenServiceType.Service">Service</option>
+            </InputSelect>
+        </label>
+    </div>
+    <div>
+        <label>
+            Description:
+            <InputText @bind-Value="_newScreenService.Description" />
+        </label>
+    </div>
+    <button type="submit">Create</button>
+</EditForm>
+@if (_createError is not null)
+{
+    <p style="color:red">@_createError</p>
+}
+
+<h2>All Screen/Services</h2>
+<table>
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>Type</th>
+            <th>Description</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var screenService in _screenServices)
+        {
+            <tr>
+                @if (_editingId == screenService.Id)
+                {
+                    <td colspan="3">
+                        <EditForm Model="_editModel" OnValidSubmit="() => SaveRenameAsync(screenService.Id)">
+                            <InputText @bind-Value="_editModel!.Name" required />
+                            <InputText @bind-Value="_editModel!.Description" />
+                            <button type="submit">Save</button>
+                            <button type="button" @onclick="CancelEdit">Cancel</button>
+                        </EditForm>
+                        @if (_editError is not null)
+                        {
+                            <p style="color:red">@_editError</p>
+                        }
+                    </td>
+                }
+                else
+                {
+                    <td>
+                        <a href="/admin/applications/@AppId/modules/@ModuleId/screen-services/@screenService.Id/processes">@screenService.Name</a>
+                    </td>
+                    <td>@screenService.Type</td>
+                    <td>@screenService.Description</td>
+                }
+                <td>
+                    @if (_editingId != screenService.Id)
+                    {
+                        <button @onclick="() => StartEdit(screenService)">Edit</button>
+                    }
+                    <button @onclick="() => DeactivateAsync(screenService.Id)">Deactivate</button>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+@code {
+    [Parameter] public int AppId { get; set; }
+    [Parameter] public int ModuleId { get; set; }
+
+    private List<ScreenService> _screenServices = new();
+    private List<BreadcrumbSegment> _breadcrumb = new();
+    private readonly NewScreenServiceModel _newScreenService = new();
+    private string? _createError;
+
+    private int? _editingId;
+    private EditScreenServiceModel? _editModel;
+    private string? _editError;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _breadcrumb = await BreadcrumbBuilder.BuildAsync(AppId, ModuleId);
+        _screenServices = (await ScreenServiceRepository.GetByModuleIdAsync(ModuleId)).ToList();
+    }
+
+    private async Task CreateScreenServiceAsync()
+    {
+        _createError = null;
+        try
+        {
+            await ScreenServiceRepository.AddAsync(new ScreenService
+            {
+                ModuleId = ModuleId,
+                Name = _newScreenService.Name,
+                Type = _newScreenService.Type,
+                Description = _newScreenService.Description
+            });
+
+            _newScreenService.Name = string.Empty;
+            _newScreenService.Type = ScreenServiceType.Screen;
+            _newScreenService.Description = null;
+            _screenServices = (await ScreenServiceRepository.GetByModuleIdAsync(ModuleId)).ToList();
+        }
+        catch (DbUpdateException ex) when (ex.IsUniqueViolation())
+        {
+            _createError = $"A screen/service named '{_newScreenService.Name}' already exists.";
+        }
+    }
+
+    private void StartEdit(ScreenService screenService)
+    {
+        _editingId = screenService.Id;
+        _editModel = new EditScreenServiceModel { Name = screenService.Name, Description = screenService.Description };
+        _editError = null;
+    }
+
+    private void CancelEdit()
+    {
+        _editingId = null;
+        _editModel = null;
+        _editError = null;
+    }
+
+    private async Task SaveRenameAsync(int screenServiceId)
+    {
+        _editError = null;
+        try
+        {
+            await ScreenServiceRepository.RenameAsync(screenServiceId, _editModel!.Name, _editModel!.Description);
+            _editingId = null;
+            _editModel = null;
+            _screenServices = (await ScreenServiceRepository.GetByModuleIdAsync(ModuleId)).ToList();
+        }
+        catch (DbUpdateException ex) when (ex.IsUniqueViolation())
+        {
+            _editError = $"A screen/service named '{_editModel!.Name}' already exists.";
+        }
+    }
+
+    private async Task DeactivateAsync(int screenServiceId)
+    {
+        await ScreenServiceRepository.DeactivateAsync(screenServiceId);
+        _screenServices = (await ScreenServiceRepository.GetByModuleIdAsync(ModuleId)).ToList();
+    }
+
+    private class NewScreenServiceModel
+    {
+        public string Name { get; set; } = string.Empty;
+        public ScreenServiceType Type { get; set; } = ScreenServiceType.Screen;
+        public string? Description { get; set; }
+    }
+
+    private class EditScreenServiceModel
+    {
+        public string Name { get; set; } = string.Empty;
+        public string? Description { get; set; }
+    }
+}
