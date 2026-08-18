@@ -8,4 +8,5 @@ public class Application
     public DateTime CreatedAt { get; set; }
 
     public ICollection<AppEnvironment> Environments { get; set; } = new List<AppEnvironment>();
+    public ICollection<AppModule> Modules { get; set; } = new List<AppModule>();
 }
