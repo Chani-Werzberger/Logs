@@ -1,10 +1,34 @@
+@* src/LogsPlatform.Web/Components/Pages/ApplicationsAdmin.razor *@
 @page "/admin/applications"
 @using LogsPlatform.Domain.Entities
 @using LogsPlatform.Domain.Repositories
+@using Microsoft.EntityFrameworkCore
+@using Microsoft.Data.SqlClient
 @inject IApplicationRepository ApplicationRepository
 @rendermode InteractiveServer
 
 <h1>Applications</h1>
+
+<h2>Create Application</h2>
+<EditForm Model="_newApplication" OnValidSubmit="CreateApplicationAsync">
+    <div>
+        <label>
+            Name:
+            <InputText @bind-Value="_newApplication.Name" required />
+        </label>
+    </div>
+    <div>
+        <label>
+            Description:
+            <InputText @bind-Value="_newApplication.Description" />
+        </label>
+    </div>
+    <button type="submit">Create</button>
+</EditForm>
+@if (_createError is not null)
+{
+    <p style="color:red">@_createError</p>
+}
 
 <h2>All Applications</h2>
 <table>
@@ -29,9 +53,39 @@
 
 @code {
     private List<Application> _applications = new();
+    private readonly NewApplicationModel _newApplication = new();
+    private string? _createError;
 
     protected override async Task OnInitializedAsync()
     {
         _applications = (await ApplicationRepository.GetAllAsync()).ToList();
+    }
+
+    private async Task CreateApplicationAsync()
+    {
+        _createError = null;
+        try
+        {
+            await ApplicationRepository.AddAsync(new Application
+            {
+                Name = _newApplication.Name,
+                Description = _newApplication.Description,
+                CreatedAt = DateTime.UtcNow
+            });
+
+            _newApplication.Name = string.Empty;
+            _newApplication.Description = null;
+            _applications = (await ApplicationRepository.GetAllAsync()).ToList();
+        }
+        catch (DbUpdateException ex) when (ex.InnerException is SqlException { Number: 2601 or 2627 })
+        {
+            _createError = $"An application named '{_newApplication.Name}' already exists.";
+        }
+    }
+
+    private class NewApplicationModel
+    {
+        public string Name { get; set; } = string.Empty;
+        public string? Description { get; set; }
     }
 }
