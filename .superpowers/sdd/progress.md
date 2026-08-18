@@ -14,4 +14,6 @@ Worktree: .worktrees/hierarchy-spine-a1
 - [x] Task 4: ScreenServiceRepository implementation + tests (commits ecd0734..e479a38, review Approved, 21/21 tests)
 - [x] Task 5: DI wiring in Program.cs (commits bb6b20b..e9be899, review Approved, 21/21 tests)
 - [x] Task 6: ModulesController + tests (commits fc29007..c198e3f, review Approved, 26/26 tests, IDOR guards verified genuine)
-- [ ] Task 7: ScreenServicesController + tests
+- [x] Task 7: ScreenServicesController + tests (commits ee11197..a80e313, review Approved, 31/31 tests, IDOR guards verified; manual smoke check hit "Invalid object name 'Modules'" against the dev DB -- expected, migration not yet applied there, not a code defect)
+
+## All 7 tasks complete. Next: final whole-branch review, then finishing-a-development-branch.
