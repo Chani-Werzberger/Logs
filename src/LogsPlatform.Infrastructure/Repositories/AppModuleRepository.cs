@@ -64,6 +64,14 @@ public class AppModuleRepository : IAppModuleRepository
         var module = await _context.Modules.FindAsync(id)
             ?? throw new InvalidOperationException($"Module {id} not found.");
         module.IsActive = false;
-        await _context.SaveChangesAsync();
+        try
+        {
+            await _context.SaveChangesAsync();
+        }
+        catch
+        {
+            _context.Entry(module).State = EntityState.Detached;
+            throw;
+        }
     }
 }

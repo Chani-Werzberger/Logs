@@ -64,6 +64,14 @@ public class ProcessNodeRepository : IProcessNodeRepository
         var process = await _context.Processes.FindAsync(id)
             ?? throw new InvalidOperationException($"ProcessNode {id} not found.");
         process.IsActive = false;
-        await _context.SaveChangesAsync();
+        try
+        {
+            await _context.SaveChangesAsync();
+        }
+        catch
+        {
+            _context.Entry(process).State = EntityState.Detached;
+            throw;
+        }
     }
 }

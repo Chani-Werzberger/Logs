@@ -64,6 +64,14 @@ public class OperationRepository : IOperationRepository
         var operation = await _context.Operations.FindAsync(id)
             ?? throw new InvalidOperationException($"Operation {id} not found.");
         operation.IsActive = false;
-        await _context.SaveChangesAsync();
+        try
+        {
+            await _context.SaveChangesAsync();
+        }
+        catch
+        {
+            _context.Entry(operation).State = EntityState.Detached;
+            throw;
+        }
     }
 }

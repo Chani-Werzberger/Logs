@@ -64,6 +64,14 @@ public class ScreenServiceRepository : IScreenServiceRepository
         var screenService = await _context.ScreenServices.FindAsync(id)
             ?? throw new InvalidOperationException($"ScreenService {id} not found.");
         screenService.IsActive = false;
-        await _context.SaveChangesAsync();
+        try
+        {
+            await _context.SaveChangesAsync();
+        }
+        catch
+        {
+            _context.Entry(screenService).State = EntityState.Detached;
+            throw;
+        }
     }
 }
