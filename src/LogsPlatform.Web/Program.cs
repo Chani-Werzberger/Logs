@@ -28,6 +28,8 @@ builder.Services.AddScoped<ICustomerRepository, CustomerRepository>();
 builder.Services.AddScoped<IAppUserRepository, AppUserRepository>();
 builder.Services.AddScoped<ILogSourceRepository, LogSourceRepository>();
 builder.Services.AddScoped<IApiKeyRepository, ApiKeyRepository>();
+builder.Services.AddScoped<IAppVersionRepository, AppVersionRepository>();
+builder.Services.AddScoped<IDeploymentRepository, DeploymentRepository>();
 
 var app = builder.Build();
 
