@@ -1,0 +1,175 @@
+@* src/LogsPlatform.Web/Components/Shared/DeploymentsSection.razor *@
+@using LogsPlatform.Domain.Entities
+@using LogsPlatform.Domain.Repositories
+@inject IDeploymentRepository DeploymentRepository
+@inject IAppEnvironmentRepository EnvironmentRepository
+@inject IAppVersionRepository VersionRepository
+
+<h4>Deployments</h4>
+<table>
+    <thead>
+        <tr>
+            <th>Environment</th>
+            <th>Version</th>
+            <th>Deployed At</th>
+            <th>Notes</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var deployment in _deployments)
+        {
+            <tr>
+                @if (_editingId == deployment.Id)
+                {
+                    <td colspan="4">
+                        <EditForm Model="_editModel" OnValidSubmit="() => SaveRenameAsync(deployment.Id)">
+                            <InputText @bind-Value="_editModel!.Notes" />
+                            <button type="submit">Save</button>
+                            <button type="button" @onclick="CancelEdit">Cancel</button>
+                        </EditForm>
+                    </td>
+                }
+                else
+                {
+                    <td>@EnvironmentName(deployment.EnvironmentId)</td>
+                    <td>@VersionNumber(deployment.VersionId)</td>
+                    <td>@deployment.DeployedAt</td>
+                    <td>@deployment.Notes</td>
+                }
+                <td>
+                    @if (_editingId != deployment.Id)
+                    {
+                        <button @onclick="() => StartEdit(deployment)">Edit</button>
+                    }
+                    <button @onclick="() => DeactivateAsync(deployment.Id)">Deactivate</button>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+<EditForm Model="_newDeployment" OnValidSubmit="CreateDeploymentAsync">
+    <label>
+        Environment:
+        <InputSelect @bind-Value="_newDeployment.EnvironmentId">
+            <option value="0">-- select --</option>
+            @foreach (var environment in _environments)
+            {
+                <option value="@environment.Id">@environment.Name</option>
+            }
+        </InputSelect>
+    </label>
+    <label>
+        Version:
+        <InputSelect @bind-Value="_newDeployment.VersionId">
+            <option value="0">-- select --</option>
+            @foreach (var version in _versions)
+            {
+                <option value="@version.Id">@version.VersionNumber</option>
+            }
+        </InputSelect>
+    </label>
+    <label>
+        Deployed At:
+        <InputDate @bind-Value="_newDeployment.DeployedAt" Type="InputDateType.DateTimeLocal" />
+    </label>
+    <label>
+        Notes:
+        <InputText @bind-Value="_newDeployment.Notes" />
+    </label>
+    <button type="submit">Add Deployment</button>
+</EditForm>
+@if (_createError is not null)
+{
+    <p style="color:red">@_createError</p>
+}
+
+@code {
+    [Parameter] public int ApplicationId { get; set; }
+
+    private List<Deployment> _deployments = new();
+    private List<AppEnvironment> _environments = new();
+    private List<AppVersion> _versions = new();
+    private readonly NewDeploymentModel _newDeployment = new();
+    private string? _createError;
+
+    private int? _editingId;
+    private EditDeploymentModel? _editModel;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _deployments = (await DeploymentRepository.GetByApplicationIdAsync(ApplicationId)).ToList();
+        _environments = (await EnvironmentRepository.GetByApplicationIdAsync(ApplicationId)).ToList();
+        _versions = (await VersionRepository.GetByApplicationIdAsync(ApplicationId)).ToList();
+    }
+
+    private string EnvironmentName(int environmentId) =>
+        _environments.FirstOrDefault(e => e.Id == environmentId)?.Name ?? $"#{environmentId}";
+
+    private string VersionNumber(int versionId) =>
+        _versions.FirstOrDefault(v => v.Id == versionId)?.VersionNumber ?? $"#{versionId}";
+
+    private async Task CreateDeploymentAsync()
+    {
+        _createError = null;
+        if (_newDeployment.EnvironmentId == 0 || _newDeployment.VersionId == 0)
+        {
+            _createError = "Select both an environment and a version.";
+            return;
+        }
+
+        await DeploymentRepository.AddAsync(new Deployment
+        {
+            ApplicationId = ApplicationId,
+            EnvironmentId = _newDeployment.EnvironmentId,
+            VersionId = _newDeployment.VersionId,
+            DeployedAt = _newDeployment.DeployedAt,
+            Notes = _newDeployment.Notes
+        });
+
+        _newDeployment.EnvironmentId = 0;
+        _newDeployment.VersionId = 0;
+        _newDeployment.Notes = null;
+        _deployments = (await DeploymentRepository.GetByApplicationIdAsync(ApplicationId)).ToList();
+    }
+
+    private void StartEdit(Deployment deployment)
+    {
+        _editingId = deployment.Id;
+        _editModel = new EditDeploymentModel { Notes = deployment.Notes };
+    }
+
+    private void CancelEdit()
+    {
+        _editingId = null;
+        _editModel = null;
+    }
+
+    private async Task SaveRenameAsync(int deploymentId)
+    {
+        await DeploymentRepository.RenameAsync(deploymentId, _editModel!.Notes);
+        _editingId = null;
+        _editModel = null;
+        _deployments = (await DeploymentRepository.GetByApplicationIdAsync(ApplicationId)).ToList();
+    }
+
+    private async Task DeactivateAsync(int deploymentId)
+    {
+        await DeploymentRepository.DeactivateAsync(deploymentId);
+        _deployments = (await DeploymentRepository.GetByApplicationIdAsync(ApplicationId)).ToList();
+    }
+
+    private class NewDeploymentModel
+    {
+        public int EnvironmentId { get; set; }
+        public int VersionId { get; set; }
+        public DateTime DeployedAt { get; set; } = DateTime.UtcNow;
+        public string? Notes { get; set; }
+    }
+
+    private class EditDeploymentModel
+    {
+        public string? Notes { get; set; }
+    }
+}
