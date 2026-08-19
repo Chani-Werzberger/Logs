@@ -28,7 +28,7 @@
     <div>
         <label>
             Name:
-            <InputText @bind-Value="_newProcess.Name" required />
+            <InputText @bind-Value="_newProcess.Name" required maxlength="200" />
         </label>
     </div>
     <div>
@@ -61,7 +61,7 @@
                 {
                     <td colspan="2">
                         <EditForm Model="_editModel" OnValidSubmit="() => SaveRenameAsync(process.Id)">
-                            <InputText @bind-Value="_editModel!.Name" required />
+                            <InputText @bind-Value="_editModel!.Name" required maxlength="200" />
                             <InputText @bind-Value="_editModel!.Description" />
                             <button type="submit">Save</button>
                             <button type="button" @onclick="CancelEdit">Cancel</button>

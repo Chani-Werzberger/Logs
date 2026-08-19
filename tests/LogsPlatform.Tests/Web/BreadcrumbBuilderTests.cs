@@ -10,9 +10,10 @@ namespace LogsPlatform.Tests.Web;
 [Collection("Database")]
 public class BreadcrumbBuilderTests
 {
-    private static async Task<(int appId, int moduleId, int screenServiceId, int processId)> CreateFullChainAsync(LogsPlatformDbContext context)
+    private static async Task<(int appId, int moduleId, int screenServiceId, int processId)> CreateFullChainAsync(
+        LogsPlatformDbContext context, string appName = "BreadcrumbTestApp")
     {
-        var application = new Application { Name = "BreadcrumbTestApp", CreatedAt = DateTime.UtcNow };
+        var application = new Application { Name = appName, CreatedAt = DateTime.UtcNow };
         var module = new AppModule { Name = "Payments" };
         var screenService = new ScreenService { Name = "PaymentGateway", Type = ScreenServiceType.Service };
         var process = new ProcessNode { Name = "ChargeCard" };
@@ -32,7 +33,7 @@ public class BreadcrumbBuilderTests
             new ProcessNodeRepository(context));
 
     [Fact]
-    public async Task BuildAsync_WithOnlyAppId_ReturnsSingleSegmentPointingToModulesPage()
+    public async Task BuildAsync_WithOnlyAppId_ReturnsTwoSegments()
     {
         using var context = TestDatabase.CreateContext();
         var (appId, _, _, _) = await CreateFullChainAsync(context);
@@ -40,13 +41,15 @@ public class BreadcrumbBuilderTests
 
         var segments = await builder.BuildAsync(appId);
 
-        Assert.Single(segments);
-        Assert.Equal("BreadcrumbTestApp", segments[0].Label);
-        Assert.Equal($"/admin/applications/{appId}/modules", segments[0].Url);
+        Assert.Equal(2, segments.Count);
+        Assert.Equal("Applications", segments[0].Label);
+        Assert.Equal("/admin/applications", segments[0].Url);
+        Assert.Equal("BreadcrumbTestApp", segments[1].Label);
+        Assert.Equal($"/admin/applications/{appId}/modules", segments[1].Url);
     }
 
     [Fact]
-    public async Task BuildAsync_WithModuleId_ReturnsTwoSegments()
+    public async Task BuildAsync_WithModuleId_ReturnsThreeSegments()
     {
         using var context = TestDatabase.CreateContext();
         var (appId, moduleId, _, _) = await CreateFullChainAsync(context);
@@ -54,13 +57,13 @@ public class BreadcrumbBuilderTests
 
         var segments = await builder.BuildAsync(appId, moduleId);
 
-        Assert.Equal(2, segments.Count);
-        Assert.Equal("Payments", segments[1].Label);
-        Assert.Equal($"/admin/applications/{appId}/modules/{moduleId}/screen-services", segments[1].Url);
+        Assert.Equal(3, segments.Count);
+        Assert.Equal("Payments", segments[2].Label);
+        Assert.Equal($"/admin/applications/{appId}/modules/{moduleId}/screen-services", segments[2].Url);
     }
 
     [Fact]
-    public async Task BuildAsync_WithFullChain_ReturnsFourSegmentsInRootToLeafOrder()
+    public async Task BuildAsync_WithFullChain_ReturnsFiveSegmentsInRootToLeafOrder()
     {
         using var context = TestDatabase.CreateContext();
         var (appId, moduleId, screenServiceId, processId) = await CreateFullChainAsync(context);
@@ -68,14 +71,18 @@ public class BreadcrumbBuilderTests
 
         var segments = await builder.BuildAsync(appId, moduleId, screenServiceId, processId);
 
-        Assert.Equal(4, segments.Count);
-        Assert.Equal("BreadcrumbTestApp", segments[0].Label);
-        Assert.Equal("Payments", segments[1].Label);
-        Assert.Equal("PaymentGateway", segments[2].Label);
-        Assert.Equal("ChargeCard", segments[3].Label);
+        Assert.Equal(5, segments.Count);
+        Assert.Equal("Applications", segments[0].Label);
+        Assert.Equal("BreadcrumbTestApp", segments[1].Label);
+        Assert.Equal("Payments", segments[2].Label);
+        Assert.Equal("PaymentGateway", segments[3].Label);
+        Assert.Equal(
+            $"/admin/applications/{appId}/modules/{moduleId}/screen-services/{screenServiceId}/processes",
+            segments[3].Url);
+        Assert.Equal("ChargeCard", segments[4].Label);
         Assert.Equal(
             $"/admin/applications/{appId}/modules/{moduleId}/screen-services/{screenServiceId}/processes/{processId}/operations",
-            segments[3].Url);
+            segments[4].Url);
     }
 
     [Fact]
@@ -85,5 +92,46 @@ public class BreadcrumbBuilderTests
         var builder = CreateBuilder(context);
 
         await Assert.ThrowsAsync<InvalidOperationException>(async () => await builder.BuildAsync(999999));
+    }
+
+    [Fact]
+    public async Task BuildAsync_WithUnknownModuleId_Throws()
+    {
+        using var context = TestDatabase.CreateContext();
+        var (appId, _, _, _) = await CreateFullChainAsync(context);
+        var builder = CreateBuilder(context);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(async () => await builder.BuildAsync(appId, 999999));
+    }
+
+    [Fact]
+    public async Task BuildAsync_WithUnknownScreenServiceId_Throws()
+    {
+        using var context = TestDatabase.CreateContext();
+        var (appId, moduleId, _, _) = await CreateFullChainAsync(context);
+        var builder = CreateBuilder(context);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(async () => await builder.BuildAsync(appId, moduleId, 999999));
+    }
+
+    [Fact]
+    public async Task BuildAsync_WithUnknownProcessId_Throws()
+    {
+        using var context = TestDatabase.CreateContext();
+        var (appId, moduleId, screenServiceId, _) = await CreateFullChainAsync(context);
+        var builder = CreateBuilder(context);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(async () => await builder.BuildAsync(appId, moduleId, screenServiceId, 999999));
+    }
+
+    [Fact]
+    public async Task BuildAsync_WithModuleFromDifferentApplication_Throws()
+    {
+        using var context = TestDatabase.CreateContext();
+        var (appId1, _, _, _) = await CreateFullChainAsync(context, "BreadcrumbTestApp1");
+        var (_, moduleId2, _, _) = await CreateFullChainAsync(context, "BreadcrumbTestApp2");
+        var builder = CreateBuilder(context);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(async () => await builder.BuildAsync(appId1, moduleId2));
     }
 }

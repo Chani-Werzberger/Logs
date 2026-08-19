@@ -28,7 +28,7 @@
     <div>
         <label>
             Name:
-            <InputText @bind-Value="_newScreenService.Name" required />
+            <InputText @bind-Value="_newScreenService.Name" required maxlength="200" />
         </label>
     </div>
     <div>
@@ -71,7 +71,7 @@
                 {
                     <td colspan="3">
                         <EditForm Model="_editModel" OnValidSubmit="() => SaveRenameAsync(screenService.Id)">
-                            <InputText @bind-Value="_editModel!.Name" required />
+                            <InputText @bind-Value="_editModel!.Name" required maxlength="200" />
                             <InputText @bind-Value="_editModel!.Description" />
                             <button type="submit">Save</button>
                             <button type="button" @onclick="CancelEdit">Cancel</button>
