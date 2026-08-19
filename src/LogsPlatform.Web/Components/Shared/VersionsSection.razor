@@ -1,0 +1,138 @@
+@* src/LogsPlatform.Web/Components/Shared/VersionsSection.razor *@
+@using LogsPlatform.Domain.Entities
+@using LogsPlatform.Domain.Repositories
+@using LogsPlatform.Web
+@using Microsoft.EntityFrameworkCore
+@inject IAppVersionRepository VersionRepository
+
+<h4>Versions</h4>
+<table>
+    <thead>
+        <tr>
+            <th>Version Number</th>
+            <th>Release Notes</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var version in _versions)
+        {
+            <tr>
+                @if (_editingId == version.Id)
+                {
+                    <td colspan="2">
+                        <EditForm Model="_editModel" OnValidSubmit="() => SaveRenameAsync(version.Id)">
+                            <InputText @bind-Value="_editModel!.ReleaseNotes" />
+                            <button type="submit">Save</button>
+                            <button type="button" @onclick="CancelEdit">Cancel</button>
+                        </EditForm>
+                    </td>
+                }
+                else
+                {
+                    <td>@version.VersionNumber</td>
+                    <td>@version.ReleaseNotes</td>
+                }
+                <td>
+                    @if (_editingId != version.Id)
+                    {
+                        <button @onclick="() => StartEdit(version)">Edit</button>
+                    }
+                    <button @onclick="() => DeactivateAsync(version.Id)">Deactivate</button>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+<EditForm Model="_newVersion" OnValidSubmit="CreateVersionAsync">
+    <label>
+        Version Number:
+        <InputText @bind-Value="_newVersion.VersionNumber" required maxlength="200" />
+    </label>
+    <label>
+        Release Notes:
+        <InputText @bind-Value="_newVersion.ReleaseNotes" />
+    </label>
+    <button type="submit">Add Version</button>
+</EditForm>
+@if (_createError is not null)
+{
+    <p style="color:red">@_createError</p>
+}
+
+@code {
+    [Parameter] public int ApplicationId { get; set; }
+
+    private List<AppVersion> _versions = new();
+    private readonly NewVersionModel _newVersion = new();
+    private string? _createError;
+
+    private int? _editingId;
+    private EditVersionModel? _editModel;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _versions = (await VersionRepository.GetByApplicationIdAsync(ApplicationId)).ToList();
+    }
+
+    private async Task CreateVersionAsync()
+    {
+        _createError = null;
+        try
+        {
+            await VersionRepository.AddAsync(new AppVersion
+            {
+                ApplicationId = ApplicationId,
+                VersionNumber = _newVersion.VersionNumber,
+                ReleaseNotes = _newVersion.ReleaseNotes,
+                CreatedAt = DateTime.UtcNow
+            });
+
+            _newVersion.VersionNumber = string.Empty;
+            _newVersion.ReleaseNotes = null;
+            _versions = (await VersionRepository.GetByApplicationIdAsync(ApplicationId)).ToList();
+        }
+        catch (DbUpdateException ex) when (ex.IsUniqueViolation())
+        {
+            _createError = $"A version '{_newVersion.VersionNumber}' already exists.";
+        }
+    }
+
+    private void StartEdit(AppVersion version)
+    {
+        _editingId = version.Id;
+        _editModel = new EditVersionModel { ReleaseNotes = version.ReleaseNotes };
+    }
+
+    private void CancelEdit()
+    {
+        _editingId = null;
+        _editModel = null;
+    }
+
+    private async Task SaveRenameAsync(int versionId)
+    {
+        await VersionRepository.RenameAsync(versionId, _editModel!.ReleaseNotes);
+        _editingId = null;
+        _editModel = null;
+        _versions = (await VersionRepository.GetByApplicationIdAsync(ApplicationId)).ToList();
+    }
+
+    private async Task DeactivateAsync(int versionId)
+    {
+        await VersionRepository.DeactivateAsync(versionId);
+        _versions = (await VersionRepository.GetByApplicationIdAsync(ApplicationId)).ToList();
+    }
+
+    private class NewVersionModel
+    {
+        public string VersionNumber { get; set; } = string.Empty;
+        public string? ReleaseNotes { get; set; }
+    }
+
+    private class EditVersionModel
+    {
+        public string? ReleaseNotes { get; set; }
+    }
+}
