@@ -74,6 +74,42 @@ public class CustomersControllerTests : IClassFixture<TestWebApplicationFactory>
     }
 
     [Fact]
+    public async Task Rename_CustomerBelongingToDifferentApplication_Returns404()
+    {
+        var client = _factory.CreateClient();
+        var appId1 = await CreateApplicationAsync(client, "CustomerRenameIdorTestApp1");
+        var appId2 = await CreateApplicationAsync(client, "CustomerRenameIdorTestApp2");
+
+        var createResponse = await client.PostAsJsonAsync(
+            $"/api/v1/admin/applications/{appId1}/customers",
+            new CreateCustomerRequest("cust-1", "BelongsToApp1"));
+        var created = await createResponse.Content.ReadFromJsonAsync<CustomerResponse>();
+
+        var crossAppRename = await client.PutAsJsonAsync(
+            $"/api/v1/admin/applications/{appId2}/customers/{created!.Id}",
+            new RenameCustomerRequest("Hijacked"));
+
+        Assert.Equal(HttpStatusCode.NotFound, crossAppRename.StatusCode);
+    }
+
+    [Fact]
+    public async Task Deactivate_CustomerBelongingToDifferentApplication_Returns404()
+    {
+        var client = _factory.CreateClient();
+        var appId1 = await CreateApplicationAsync(client, "CustomerDeactivateIdorTestApp1");
+        var appId2 = await CreateApplicationAsync(client, "CustomerDeactivateIdorTestApp2");
+
+        var createResponse = await client.PostAsJsonAsync(
+            $"/api/v1/admin/applications/{appId1}/customers",
+            new CreateCustomerRequest("cust-1", "BelongsToApp1"));
+        var created = await createResponse.Content.ReadFromJsonAsync<CustomerResponse>();
+
+        var crossAppDeactivate = await client.DeleteAsync($"/api/v1/admin/applications/{appId2}/customers/{created!.Id}");
+
+        Assert.Equal(HttpStatusCode.NotFound, crossAppDeactivate.StatusCode);
+    }
+
+    [Fact]
     public async Task Rename_UpdatesName_LeavesExternalCustomerIdUnchanged()
     {
         var client = _factory.CreateClient();

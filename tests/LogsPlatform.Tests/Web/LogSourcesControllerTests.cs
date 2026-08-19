@@ -72,6 +72,42 @@ public class LogSourcesControllerTests : IClassFixture<TestWebApplicationFactory
     }
 
     [Fact]
+    public async Task Rename_LogSourceBelongingToDifferentApplication_Returns404()
+    {
+        var client = _factory.CreateClient();
+        var appId1 = await CreateApplicationAsync(client, "LogSourceRenameIdorTestApp1");
+        var appId2 = await CreateApplicationAsync(client, "LogSourceRenameIdorTestApp2");
+
+        var createResponse = await client.PostAsJsonAsync(
+            $"/api/v1/admin/applications/{appId1}/log-sources",
+            new CreateLogSourceRequest("BelongsToApp1", null));
+        var created = await createResponse.Content.ReadFromJsonAsync<LogSourceResponse>();
+
+        var crossAppRename = await client.PutAsJsonAsync(
+            $"/api/v1/admin/applications/{appId2}/log-sources/{created!.Id}",
+            new RenameLogSourceRequest("Hijacked", null));
+
+        Assert.Equal(HttpStatusCode.NotFound, crossAppRename.StatusCode);
+    }
+
+    [Fact]
+    public async Task Deactivate_LogSourceBelongingToDifferentApplication_Returns404()
+    {
+        var client = _factory.CreateClient();
+        var appId1 = await CreateApplicationAsync(client, "LogSourceDeactivateIdorTestApp1");
+        var appId2 = await CreateApplicationAsync(client, "LogSourceDeactivateIdorTestApp2");
+
+        var createResponse = await client.PostAsJsonAsync(
+            $"/api/v1/admin/applications/{appId1}/log-sources",
+            new CreateLogSourceRequest("BelongsToApp1", null));
+        var created = await createResponse.Content.ReadFromJsonAsync<LogSourceResponse>();
+
+        var crossAppDeactivate = await client.DeleteAsync($"/api/v1/admin/applications/{appId2}/log-sources/{created!.Id}");
+
+        Assert.Equal(HttpStatusCode.NotFound, crossAppDeactivate.StatusCode);
+    }
+
+    [Fact]
     public async Task Rename_UpdatesNameAndDescription()
     {
         var client = _factory.CreateClient();

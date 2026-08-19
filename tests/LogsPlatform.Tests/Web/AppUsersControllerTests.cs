@@ -74,6 +74,42 @@ public class AppUsersControllerTests : IClassFixture<TestWebApplicationFactory>
     }
 
     [Fact]
+    public async Task Rename_AppUserBelongingToDifferentApplication_Returns404()
+    {
+        var client = _factory.CreateClient();
+        var appId1 = await CreateApplicationAsync(client, "AppUserRenameIdorTestApp1");
+        var appId2 = await CreateApplicationAsync(client, "AppUserRenameIdorTestApp2");
+
+        var createResponse = await client.PostAsJsonAsync(
+            $"/api/v1/admin/applications/{appId1}/users",
+            new CreateAppUserRequest("user-1", "BelongsToApp1"));
+        var created = await createResponse.Content.ReadFromJsonAsync<AppUserResponse>();
+
+        var crossAppRename = await client.PutAsJsonAsync(
+            $"/api/v1/admin/applications/{appId2}/users/{created!.Id}",
+            new RenameAppUserRequest("Hijacked"));
+
+        Assert.Equal(HttpStatusCode.NotFound, crossAppRename.StatusCode);
+    }
+
+    [Fact]
+    public async Task Deactivate_AppUserBelongingToDifferentApplication_Returns404()
+    {
+        var client = _factory.CreateClient();
+        var appId1 = await CreateApplicationAsync(client, "AppUserDeactivateIdorTestApp1");
+        var appId2 = await CreateApplicationAsync(client, "AppUserDeactivateIdorTestApp2");
+
+        var createResponse = await client.PostAsJsonAsync(
+            $"/api/v1/admin/applications/{appId1}/users",
+            new CreateAppUserRequest("user-1", "BelongsToApp1"));
+        var created = await createResponse.Content.ReadFromJsonAsync<AppUserResponse>();
+
+        var crossAppDeactivate = await client.DeleteAsync($"/api/v1/admin/applications/{appId2}/users/{created!.Id}");
+
+        Assert.Equal(HttpStatusCode.NotFound, crossAppDeactivate.StatusCode);
+    }
+
+    [Fact]
     public async Task Rename_UpdatesDisplayName_LeavesExternalUserIdUnchanged()
     {
         var client = _factory.CreateClient();
