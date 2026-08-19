@@ -73,7 +73,7 @@ Every `AddAsync`/`RenameAsync` wraps `SaveChangesAsync` in `try`/`catch`/`_conte
 
 No new pages, no breadcrumbs — `Customer`/`AppUser`/`LogSource` are flat, so the existing "expand-in-place" pattern already used for `AppEnvironment` on `ApplicationsAdmin.razor` is the right fit, not the drill-down-with-breadcrumbs pattern Group A needed for its 4-level nesting.
 
-Each Application row's existing expanded section gains three more subsections (alongside the existing Environments one): **Customers**, **Users**, **Log Sources** — each with its own small table (relevant columns + Active status), inline "Add" form, per-row inline-edit Rename toggle (the same single-`_editingId`-per-section mechanism established in Group A's UI plan), and a Deactivate button per row. Unlike Group A's UI, there's no drill-down link on any row — these are leaf-level, flat lists.
+Each Application row's existing expanded section gains three more subsections (alongside the existing Environments one): **Customers**, **Users**, **Log Sources** — each with its own small table (relevant columns only; no separate "Active" column — like every Group A list, the table shows active rows and a deactivated row simply drops out of view, matching the established `IsActive`-filtered-list convention rather than surfacing status as a visible field), inline "Add" form, per-row inline-edit Rename toggle (the same single-`_editingId`-per-section mechanism established in Group A's UI plan), and a Deactivate button per row. Unlike Group A's UI, there's no drill-down link on any row — these are leaf-level, flat lists.
 
 ## Testing
 

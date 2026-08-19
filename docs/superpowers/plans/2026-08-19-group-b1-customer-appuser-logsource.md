@@ -2157,16 +2157,9 @@ Expected: `Build succeeded. 0 Warning(s) 0 Error(s)`.
 Run: `dotnet test`
 Expected: `Passed! - Failed: 0, Passed: 116, Skipped: 0, Total: 116` — unchanged (this task adds no automated tests, matching Group A's UI-task testing posture).
 
-- [ ] **Step 5: Manual smoke check**
+- [ ] **Step 5: Verify by code inspection (curl cannot reach this content)**
 
-The dev database must already have this plan's migration applied — run `dotnet ef database update --project src/LogsPlatform.Infrastructure --connection "<your dev connection string>"` first if you haven't.
-
-```bash
-dotnet run --project src/LogsPlatform.Web --launch-profile http &
-sleep 5
-curl -s http://localhost:5201/admin/applications | grep -o "Customers" | head -1
-```
-Expected: prints `Customers` — confirms the new section renders when a row is expanded (the `<h4>Customers</h4>` markup is present in the page's static HTML regardless of expand state, since Blazor renders the whole component tree; this confirms the component compiled and is wired in, not a live interaction). Stop the background process afterward with `taskkill //F //IM dotnet.exe`.
+`CustomersSection` is nested inside `ApplicationsAdmin.razor`'s `_expandedAppIds.Contains(...)` conditional, which is `false` for every row on a cold page load. A `curl` request only ever sees the server's initial static render, so it can **never** find `Customers`/`<h4>Customers</h4>` in the response — not even when the component is correctly wired. `curl`-based smoke checks are unusable for any content behind this expand toggle; do not attempt one here or treat a failed grep as a defect. Instead confirm the component is correctly wired by inspection: `<CustomersSection ApplicationId="application.Id" />` is present inside `ApplicationsAdmin.razor`'s expanded-row block, `@using LogsPlatform.Web.Components.Shared` resolves the tag, and the build in Step 3 succeeded (a missing/misspelled component reference is a compile error, not a silent no-op). Full interactive confirmation — actually clicking a row open in a browser — happens once during the required manual walkthrough after all of Group B1 merges (see the plan's closing verification section), not per-task.
 
 - [ ] **Step 6: Commit**
 
@@ -2351,14 +2344,9 @@ Expected: `Build succeeded. 0 Warning(s) 0 Error(s)`.
 Run: `dotnet test`
 Expected: `Passed! - Failed: 0, Passed: 116, Skipped: 0, Total: 116` — unchanged.
 
-- [ ] **Step 5: Manual smoke check**
+- [ ] **Step 5: Verify by code inspection (curl cannot reach this content)**
 
-```bash
-dotnet run --project src/LogsPlatform.Web --launch-profile http &
-sleep 5
-curl -s http://localhost:5201/admin/applications | grep -o "Users" | head -1
-```
-Expected: prints `Users`. Stop the background process afterward with `taskkill //F //IM dotnet.exe`.
+`UsersSection` is nested inside `ApplicationsAdmin.razor`'s `_expandedAppIds.Contains(...)` conditional, which is `false` for every row on a cold page load. A `curl` request only ever sees the server's initial static render, so it can **never** find `Users`/`<h4>Users</h4>` in the response — not even when the component is correctly wired. `curl`-based smoke checks are unusable for any content behind this expand toggle; do not attempt one here or treat a failed grep as a defect. Instead confirm the component is correctly wired by inspection: `<UsersSection ApplicationId="application.Id" />` is present inside `ApplicationsAdmin.razor`'s expanded-row block, directly after `<CustomersSection>`, and the build in Step 3 succeeded (a missing/misspelled component reference is a compile error, not a silent no-op). Full interactive confirmation — actually clicking a row open in a browser — happens once during the required manual walkthrough after all of Group B1 merges (see the plan's closing verification section), not per-task.
 
 - [ ] **Step 6: Commit**
 
@@ -2563,14 +2551,9 @@ Expected: `Build succeeded. 0 Warning(s) 0 Error(s)`.
 Run: `dotnet test`
 Expected: `Passed! - Failed: 0, Passed: 116, Skipped: 0, Total: 116` — unchanged.
 
-- [ ] **Step 5: Manual smoke check**
+- [ ] **Step 5: Verify by code inspection (curl cannot reach this content)**
 
-```bash
-dotnet run --project src/LogsPlatform.Web --launch-profile http &
-sleep 5
-curl -s http://localhost:5201/admin/applications | grep -o "Log Sources" | head -1
-```
-Expected: prints `Log Sources`. Stop the background process afterward with `taskkill //F //IM dotnet.exe`.
+`LogSourcesSection` is nested inside `ApplicationsAdmin.razor`'s `_expandedAppIds.Contains(...)` conditional, which is `false` for every row on a cold page load. A `curl` request only ever sees the server's initial static render, so it can **never** find `Log Sources`/`<h4>Log Sources</h4>` in the response — not even when the component is correctly wired. `curl`-based smoke checks are unusable for any content behind this expand toggle; do not attempt one here or treat a failed grep as a defect. Instead confirm the component is correctly wired by inspection: `<LogSourcesSection ApplicationId="application.Id" />` is present inside `ApplicationsAdmin.razor`'s expanded-row block, directly after `<UsersSection>`, and the build in Step 3 succeeded (a missing/misspelled component reference is a compile error, not a silent no-op). Full interactive confirmation — actually clicking a row open in a browser — happens once during the required manual walkthrough after all of Group B1 merges (see the plan's closing verification section), not per-task.
 
 - [ ] **Step 6: Commit**
 
