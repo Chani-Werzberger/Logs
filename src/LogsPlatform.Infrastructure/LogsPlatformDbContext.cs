@@ -19,6 +19,8 @@ public class LogsPlatformDbContext : DbContext
     public DbSet<AppUser> Users => Set<AppUser>();
     public DbSet<LogSource> LogSources => Set<LogSource>();
     public DbSet<ApiKey> ApiKeys => Set<ApiKey>();
+    public DbSet<AppVersion> Versions => Set<AppVersion>();
+    public DbSet<Deployment> Deployments => Set<Deployment>();
 
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
     {
@@ -124,6 +126,33 @@ public class LogsPlatformDbContext : DbContext
                 .HasForeignKey(k => k.ApplicationId)
                 .OnDelete(DeleteBehavior.Cascade);
             entity.HasIndex(k => k.KeyHash);
+        });
+
+        modelBuilder.Entity<AppVersion>(entity =>
+        {
+            entity.Property(v => v.VersionNumber).HasMaxLength(200).IsRequired();
+            entity.HasOne(v => v.Application)
+                .WithMany(a => a.Versions)
+                .HasForeignKey(v => v.ApplicationId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasIndex(v => new { v.ApplicationId, v.VersionNumber }).IsUnique();
+        });
+
+        modelBuilder.Entity<Deployment>(entity =>
+        {
+            entity.HasOne(d => d.Application)
+                .WithMany(a => a.Deployments)
+                .HasForeignKey(d => d.ApplicationId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(d => d.Environment)
+                .WithMany()
+                .HasForeignKey(d => d.EnvironmentId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(d => d.Version)
+                .WithMany()
+                .HasForeignKey(d => d.VersionId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasIndex(d => new { d.EnvironmentId, d.VersionId, d.DeployedAt });
         });
     }
 }

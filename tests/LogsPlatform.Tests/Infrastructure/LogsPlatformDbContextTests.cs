@@ -184,4 +184,44 @@ public class LogsPlatformDbContextTests
         Assert.Null(loadedApp.ApiKeys.First().RevokedAt);
         Assert.Equal(new string('a', 64), loadedApp.ApiKeys.First().KeyHash);
     }
+
+    [Fact]
+    public async Task CanInsertAndRetrieveAppVersionAndDeployment()
+    {
+        using var context = TestDatabase.CreateContext();
+
+        var application = new Application { Name = "B3DbContextTestApp", CreatedAt = DateTime.UtcNow };
+        var environment = new AppEnvironment { Name = "Production", IsProduction = true };
+        application.Environments.Add(environment);
+        var version = new AppVersion { VersionNumber = "1.0.0", ReleaseNotes = "Initial release", CreatedAt = DateTime.UtcNow };
+        application.Versions.Add(version);
+
+        context.Applications.Add(application);
+        await context.SaveChangesAsync();
+
+        application.Deployments.Add(new Deployment
+        {
+            ApplicationId = application.Id,
+            EnvironmentId = environment.Id,
+            VersionId = version.Id,
+            DeployedAt = DateTime.UtcNow,
+            Notes = "First deploy"
+        });
+        await context.SaveChangesAsync();
+
+        using var readContext = new LogsPlatformDbContext(
+            new DbContextOptionsBuilder<LogsPlatformDbContext>().UseSqlServer(TestDatabase.ConnectionString).Options);
+
+        var loadedApp = await readContext.Applications
+            .Include(a => a.Versions)
+            .Include(a => a.Deployments)
+            .FirstAsync(a => a.Name == "B3DbContextTestApp");
+
+        Assert.Single(loadedApp.Versions);
+        Assert.Equal("1.0.0", loadedApp.Versions.First().VersionNumber);
+        Assert.True(loadedApp.Versions.First().IsActive);
+        Assert.Single(loadedApp.Deployments);
+        Assert.Equal("First deploy", loadedApp.Deployments.First().Notes);
+        Assert.True(loadedApp.Deployments.First().IsActive);
+    }
 }
