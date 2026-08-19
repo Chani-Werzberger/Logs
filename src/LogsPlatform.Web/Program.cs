@@ -24,6 +24,9 @@ builder.Services.AddScoped<IScreenServiceRepository, ScreenServiceRepository>();
 builder.Services.AddScoped<IProcessNodeRepository, ProcessNodeRepository>();
 builder.Services.AddScoped<IOperationRepository, OperationRepository>();
 builder.Services.AddScoped<BreadcrumbBuilder>();
+builder.Services.AddScoped<ICustomerRepository, CustomerRepository>();
+builder.Services.AddScoped<IAppUserRepository, AppUserRepository>();
+builder.Services.AddScoped<ILogSourceRepository, LogSourceRepository>();
 
 var app = builder.Build();
 
