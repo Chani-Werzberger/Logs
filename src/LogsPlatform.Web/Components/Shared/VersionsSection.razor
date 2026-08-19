@@ -70,9 +70,19 @@
 
     private int? _editingId;
     private EditVersionModel? _editModel;
+    private int? _lastLoadedApplicationId;
 
-    protected override async Task OnInitializedAsync()
+    protected override async Task OnParametersSetAsync()
     {
+        if (_lastLoadedApplicationId == ApplicationId)
+        {
+            return;
+        }
+
+        _lastLoadedApplicationId = ApplicationId;
+        _createError = null;
+        _editingId = null;
+        _editModel = null;
         _versions = (await VersionRepository.GetByApplicationIdAsync(ApplicationId)).ToList();
     }
 

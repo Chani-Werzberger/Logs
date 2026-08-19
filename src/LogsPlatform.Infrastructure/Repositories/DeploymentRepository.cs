@@ -23,7 +23,7 @@ public class DeploymentRepository : IDeploymentRepository
         {
             query = query.Where(d => d.IsActive);
         }
-        return await query.ToListAsync();
+        return await query.OrderBy(d => d.DeployedAt).ThenBy(d => d.Id).ToListAsync();
     }
 
     public async Task<Deployment> AddAsync(Deployment deployment)

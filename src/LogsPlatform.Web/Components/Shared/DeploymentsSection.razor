@@ -34,7 +34,7 @@
                 {
                     <td>@EnvironmentName(deployment.EnvironmentId)</td>
                     <td>@VersionNumber(deployment.VersionId)</td>
-                    <td>@deployment.DeployedAt</td>
+                    <td>@deployment.DeployedAt.ToString("yyyy-MM-dd HH:mm:ss", System.Globalization.CultureInfo.InvariantCulture) UTC</td>
                     <td>@deployment.Notes</td>
                 }
                 <td>
@@ -71,7 +71,7 @@
         </InputSelect>
     </label>
     <label>
-        Deployed At:
+        Deployed At (UTC):
         <InputDate @bind-Value="_newDeployment.DeployedAt" Type="InputDateType.DateTimeLocal" />
     </label>
     <label>
@@ -96,9 +96,19 @@
 
     private int? _editingId;
     private EditDeploymentModel? _editModel;
+    private int? _lastLoadedApplicationId;
 
-    protected override async Task OnInitializedAsync()
+    protected override async Task OnParametersSetAsync()
     {
+        if (_lastLoadedApplicationId == ApplicationId)
+        {
+            return;
+        }
+
+        _lastLoadedApplicationId = ApplicationId;
+        _createError = null;
+        _editingId = null;
+        _editModel = null;
         _deployments = (await DeploymentRepository.GetByApplicationIdAsync(ApplicationId)).ToList();
         _environments = (await EnvironmentRepository.GetByApplicationIdAsync(ApplicationId)).ToList();
         _versions = (await VersionRepository.GetByApplicationIdAsync(ApplicationId)).ToList();
@@ -116,6 +126,12 @@
         if (_newDeployment.EnvironmentId == 0 || _newDeployment.VersionId == 0)
         {
             _createError = "Select both an environment and a version.";
+            return;
+        }
+
+        if (!_environments.Any(e => e.Id == _newDeployment.EnvironmentId) || !_versions.Any(v => v.Id == _newDeployment.VersionId))
+        {
+            _createError = "Select a valid environment and version for this application.";
             return;
         }
 
