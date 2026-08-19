@@ -27,6 +27,7 @@ builder.Services.AddScoped<BreadcrumbBuilder>();
 builder.Services.AddScoped<ICustomerRepository, CustomerRepository>();
 builder.Services.AddScoped<IAppUserRepository, AppUserRepository>();
 builder.Services.AddScoped<ILogSourceRepository, LogSourceRepository>();
+builder.Services.AddScoped<IApiKeyRepository, ApiKeyRepository>();
 
 var app = builder.Build();
 
