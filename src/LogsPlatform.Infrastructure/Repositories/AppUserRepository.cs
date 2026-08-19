@@ -63,6 +63,14 @@ public class AppUserRepository : IAppUserRepository
         var user = await _context.Users.FindAsync(id)
             ?? throw new InvalidOperationException($"AppUser {id} not found.");
         user.IsActive = false;
-        await _context.SaveChangesAsync();
+        try
+        {
+            await _context.SaveChangesAsync();
+        }
+        catch
+        {
+            _context.Entry(user).State = EntityState.Detached;
+            throw;
+        }
     }
 }

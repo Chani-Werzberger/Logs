@@ -63,6 +63,14 @@ public class CustomerRepository : ICustomerRepository
         var customer = await _context.Customers.FindAsync(id)
             ?? throw new InvalidOperationException($"Customer {id} not found.");
         customer.IsActive = false;
-        await _context.SaveChangesAsync();
+        try
+        {
+            await _context.SaveChangesAsync();
+        }
+        catch
+        {
+            _context.Entry(customer).State = EntityState.Detached;
+            throw;
+        }
     }
 }

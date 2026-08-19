@@ -64,6 +64,14 @@ public class LogSourceRepository : ILogSourceRepository
         var logSource = await _context.LogSources.FindAsync(id)
             ?? throw new InvalidOperationException($"LogSource {id} not found.");
         logSource.IsActive = false;
-        await _context.SaveChangesAsync();
+        try
+        {
+            await _context.SaveChangesAsync();
+        }
+        catch
+        {
+            _context.Entry(logSource).State = EntityState.Detached;
+            throw;
+        }
     }
 }
