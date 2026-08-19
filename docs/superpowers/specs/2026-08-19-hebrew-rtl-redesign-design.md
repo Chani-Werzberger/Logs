@@ -63,7 +63,7 @@ Applied identically across all 11 CRUD files:
 - `Components/Layout/NavMenu.razor`
 
 **Modified (markup/CSS classes/text only, no `@code` behavior changes):**
-- `App.razor`, `_Imports.razor`
+- `App.razor`, `Routes.razor` (wires `MainLayout` as the default layout via `RouteView`'s `DefaultLayout` parameter — the standard Blazor idiom)
 - `Components/Pages/ApplicationsAdmin.razor`, `ModulesAdmin.razor`, `ScreenServicesAdmin.razor`, `ProcessesAdmin.razor`, `OperationsAdmin.razor`
 - `Components/Shared/ApiKeysSection.razor`, `CustomersSection.razor`, `DeploymentsSection.razor`, `LogSourcesSection.razor`, `UsersSection.razor`, `VersionsSection.razor`
 
