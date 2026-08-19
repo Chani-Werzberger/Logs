@@ -2,6 +2,7 @@
 @page "/admin/applications"
 @using LogsPlatform.Domain.Entities
 @using LogsPlatform.Domain.Repositories
+@using LogsPlatform.Web.Components.Shared
 @using Microsoft.EntityFrameworkCore
 @using Microsoft.Data.SqlClient
 @inject IApplicationRepository ApplicationRepository
@@ -96,6 +97,8 @@
                                 <button type="submit">Add Environment</button>
                             </EditForm>
                         }
+
+                        <CustomersSection ApplicationId="application.Id" />
                     </td>
                 </tr>
             }

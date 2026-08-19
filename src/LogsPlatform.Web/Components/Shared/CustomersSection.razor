@@ -1,0 +1,137 @@
+@* src/LogsPlatform.Web/Components/Shared/CustomersSection.razor *@
+@using LogsPlatform.Domain.Entities
+@using LogsPlatform.Domain.Repositories
+@using LogsPlatform.Web
+@using Microsoft.EntityFrameworkCore
+@inject ICustomerRepository CustomerRepository
+
+<h4>Customers</h4>
+<table>
+    <thead>
+        <tr>
+            <th>External Customer Id</th>
+            <th>Name</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var customer in _customers)
+        {
+            <tr>
+                @if (_editingId == customer.Id)
+                {
+                    <td colspan="2">
+                        <EditForm Model="_editModel" OnValidSubmit="() => SaveRenameAsync(customer.Id)">
+                            <InputText @bind-Value="_editModel!.Name" required maxlength="200" />
+                            <button type="submit">Save</button>
+                            <button type="button" @onclick="CancelEdit">Cancel</button>
+                        </EditForm>
+                    </td>
+                }
+                else
+                {
+                    <td>@customer.ExternalCustomerId</td>
+                    <td>@customer.Name</td>
+                }
+                <td>
+                    @if (_editingId != customer.Id)
+                    {
+                        <button @onclick="() => StartEdit(customer)">Edit</button>
+                    }
+                    <button @onclick="() => DeactivateAsync(customer.Id)">Deactivate</button>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+<EditForm Model="_newCustomer" OnValidSubmit="CreateCustomerAsync">
+    <label>
+        External Customer Id:
+        <InputText @bind-Value="_newCustomer.ExternalCustomerId" required maxlength="200" />
+    </label>
+    <label>
+        Name:
+        <InputText @bind-Value="_newCustomer.Name" required maxlength="200" />
+    </label>
+    <button type="submit">Add Customer</button>
+</EditForm>
+@if (_createError is not null)
+{
+    <p style="color:red">@_createError</p>
+}
+
+@code {
+    [Parameter] public int ApplicationId { get; set; }
+
+    private List<Customer> _customers = new();
+    private readonly NewCustomerModel _newCustomer = new();
+    private string? _createError;
+
+    private int? _editingId;
+    private EditCustomerModel? _editModel;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _customers = (await CustomerRepository.GetByApplicationIdAsync(ApplicationId)).ToList();
+    }
+
+    private async Task CreateCustomerAsync()
+    {
+        _createError = null;
+        try
+        {
+            await CustomerRepository.AddAsync(new Customer
+            {
+                ApplicationId = ApplicationId,
+                ExternalCustomerId = _newCustomer.ExternalCustomerId,
+                Name = _newCustomer.Name
+            });
+
+            _newCustomer.ExternalCustomerId = string.Empty;
+            _newCustomer.Name = string.Empty;
+            _customers = (await CustomerRepository.GetByApplicationIdAsync(ApplicationId)).ToList();
+        }
+        catch (DbUpdateException ex) when (ex.IsUniqueViolation())
+        {
+            _createError = $"A customer with external id '{_newCustomer.ExternalCustomerId}' already exists.";
+        }
+    }
+
+    private void StartEdit(Customer customer)
+    {
+        _editingId = customer.Id;
+        _editModel = new EditCustomerModel { Name = customer.Name };
+    }
+
+    private void CancelEdit()
+    {
+        _editingId = null;
+        _editModel = null;
+    }
+
+    private async Task SaveRenameAsync(int customerId)
+    {
+        await CustomerRepository.RenameAsync(customerId, _editModel!.Name);
+        _editingId = null;
+        _editModel = null;
+        _customers = (await CustomerRepository.GetByApplicationIdAsync(ApplicationId)).ToList();
+    }
+
+    private async Task DeactivateAsync(int customerId)
+    {
+        await CustomerRepository.DeactivateAsync(customerId);
+        _customers = (await CustomerRepository.GetByApplicationIdAsync(ApplicationId)).ToList();
+    }
+
+    private class NewCustomerModel
+    {
+        public string ExternalCustomerId { get; set; } = string.Empty;
+        public string Name { get; set; } = string.Empty;
+    }
+
+    private class EditCustomerModel
+    {
+        public string Name { get; set; } = string.Empty;
+    }
+}
