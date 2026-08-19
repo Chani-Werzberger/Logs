@@ -1,0 +1,137 @@
+@* src/LogsPlatform.Web/Components/Shared/UsersSection.razor *@
+@using LogsPlatform.Domain.Entities
+@using LogsPlatform.Domain.Repositories
+@using LogsPlatform.Web
+@using Microsoft.EntityFrameworkCore
+@inject IAppUserRepository AppUserRepository
+
+<h4>Users</h4>
+<table>
+    <thead>
+        <tr>
+            <th>External User Id</th>
+            <th>Display Name</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var user in _users)
+        {
+            <tr>
+                @if (_editingId == user.Id)
+                {
+                    <td colspan="2">
+                        <EditForm Model="_editModel" OnValidSubmit="() => SaveRenameAsync(user.Id)">
+                            <InputText @bind-Value="_editModel!.DisplayName" required maxlength="200" />
+                            <button type="submit">Save</button>
+                            <button type="button" @onclick="CancelEdit">Cancel</button>
+                        </EditForm>
+                    </td>
+                }
+                else
+                {
+                    <td>@user.ExternalUserId</td>
+                    <td>@user.DisplayName</td>
+                }
+                <td>
+                    @if (_editingId != user.Id)
+                    {
+                        <button @onclick="() => StartEdit(user)">Edit</button>
+                    }
+                    <button @onclick="() => DeactivateAsync(user.Id)">Deactivate</button>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+<EditForm Model="_newUser" OnValidSubmit="CreateUserAsync">
+    <label>
+        External User Id:
+        <InputText @bind-Value="_newUser.ExternalUserId" required maxlength="200" />
+    </label>
+    <label>
+        Display Name:
+        <InputText @bind-Value="_newUser.DisplayName" required maxlength="200" />
+    </label>
+    <button type="submit">Add User</button>
+</EditForm>
+@if (_createError is not null)
+{
+    <p style="color:red">@_createError</p>
+}
+
+@code {
+    [Parameter] public int ApplicationId { get; set; }
+
+    private List<AppUser> _users = new();
+    private readonly NewUserModel _newUser = new();
+    private string? _createError;
+
+    private int? _editingId;
+    private EditUserModel? _editModel;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _users = (await AppUserRepository.GetByApplicationIdAsync(ApplicationId)).ToList();
+    }
+
+    private async Task CreateUserAsync()
+    {
+        _createError = null;
+        try
+        {
+            await AppUserRepository.AddAsync(new AppUser
+            {
+                ApplicationId = ApplicationId,
+                ExternalUserId = _newUser.ExternalUserId,
+                DisplayName = _newUser.DisplayName
+            });
+
+            _newUser.ExternalUserId = string.Empty;
+            _newUser.DisplayName = string.Empty;
+            _users = (await AppUserRepository.GetByApplicationIdAsync(ApplicationId)).ToList();
+        }
+        catch (DbUpdateException ex) when (ex.IsUniqueViolation())
+        {
+            _createError = $"A user with external id '{_newUser.ExternalUserId}' already exists.";
+        }
+    }
+
+    private void StartEdit(AppUser user)
+    {
+        _editingId = user.Id;
+        _editModel = new EditUserModel { DisplayName = user.DisplayName };
+    }
+
+    private void CancelEdit()
+    {
+        _editingId = null;
+        _editModel = null;
+    }
+
+    private async Task SaveRenameAsync(int userId)
+    {
+        await AppUserRepository.RenameAsync(userId, _editModel!.DisplayName);
+        _editingId = null;
+        _editModel = null;
+        _users = (await AppUserRepository.GetByApplicationIdAsync(ApplicationId)).ToList();
+    }
+
+    private async Task DeactivateAsync(int userId)
+    {
+        await AppUserRepository.DeactivateAsync(userId);
+        _users = (await AppUserRepository.GetByApplicationIdAsync(ApplicationId)).ToList();
+    }
+
+    private class NewUserModel
+    {
+        public string ExternalUserId { get; set; } = string.Empty;
+        public string DisplayName { get; set; } = string.Empty;
+    }
+
+    private class EditUserModel
+    {
+        public string DisplayName { get; set; } = string.Empty;
+    }
+}
