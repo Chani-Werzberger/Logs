@@ -46,7 +46,7 @@
     <tbody>
         @foreach (var application in _applications)
         {
-            <tr>
+            <tr @key="application.Id">
                 <td>
                     <button @onclick="() => ToggleExpandAsync(application.Id)">
                         @(_expandedAppIds.Contains(application.Id) ? "-" : "+")
