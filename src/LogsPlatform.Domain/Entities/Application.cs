@@ -13,4 +13,6 @@ public class Application
     public ICollection<AppUser> Users { get; set; } = new List<AppUser>();
     public ICollection<LogSource> LogSources { get; set; } = new List<LogSource>();
     public ICollection<ApiKey> ApiKeys { get; set; } = new List<ApiKey>();
+    public ICollection<AppVersion> Versions { get; set; } = new List<AppVersion>();
+    public ICollection<Deployment> Deployments { get; set; } = new List<Deployment>();
 }
