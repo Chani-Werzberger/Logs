@@ -15,6 +15,9 @@ public class LogsPlatformDbContext : DbContext
     public DbSet<ScreenService> ScreenServices => Set<ScreenService>();
     public DbSet<ProcessNode> Processes => Set<ProcessNode>();
     public DbSet<Operation> Operations => Set<Operation>();
+    public DbSet<Customer> Customers => Set<Customer>();
+    public DbSet<AppUser> Users => Set<AppUser>();
+    public DbSet<LogSource> LogSources => Set<LogSource>();
 
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
     {
@@ -77,6 +80,38 @@ public class LogsPlatformDbContext : DbContext
                 .HasForeignKey(o => o.ProcessId)
                 .OnDelete(DeleteBehavior.Cascade);
             entity.HasIndex(o => new { o.ProcessId, o.Name }).IsUnique();
+        });
+
+        modelBuilder.Entity<Customer>(entity =>
+        {
+            entity.Property(c => c.ExternalCustomerId).HasMaxLength(200).IsRequired();
+            entity.Property(c => c.Name).HasMaxLength(200).IsRequired();
+            entity.HasOne(c => c.Application)
+                .WithMany(a => a.Customers)
+                .HasForeignKey(c => c.ApplicationId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasIndex(c => new { c.ApplicationId, c.ExternalCustomerId }).IsUnique();
+        });
+
+        modelBuilder.Entity<AppUser>(entity =>
+        {
+            entity.Property(u => u.ExternalUserId).HasMaxLength(200).IsRequired();
+            entity.Property(u => u.DisplayName).HasMaxLength(200).IsRequired();
+            entity.HasOne(u => u.Application)
+                .WithMany(a => a.Users)
+                .HasForeignKey(u => u.ApplicationId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasIndex(u => new { u.ApplicationId, u.ExternalUserId }).IsUnique();
+        });
+
+        modelBuilder.Entity<LogSource>(entity =>
+        {
+            entity.Property(l => l.Name).HasMaxLength(200).IsRequired();
+            entity.HasOne(l => l.Application)
+                .WithMany(a => a.LogSources)
+                .HasForeignKey(l => l.ApplicationId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasIndex(l => new { l.ApplicationId, l.Name }).IsUnique();
         });
     }
 }

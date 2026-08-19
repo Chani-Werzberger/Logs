@@ -127,4 +127,37 @@ public class LogsPlatformDbContextTests
         Assert.Equal("AuthorizePayment", loaded.Operations.First().Name);
         Assert.True(loaded.Operations.First().IsActive);
     }
+
+    [Fact]
+    public async Task CanInsertAndRetrieveCustomerAppUserLogSource()
+    {
+        using var context = TestDatabase.CreateContext();
+
+        var application = new Application { Name = "GroupB1DbContextTestApp", CreatedAt = DateTime.UtcNow };
+        application.Customers.Add(new Customer { ExternalCustomerId = "cust-1", Name = "Acme Corp" });
+        application.Users.Add(new AppUser { ExternalUserId = "user-1", DisplayName = "Jane Doe" });
+        application.LogSources.Add(new LogSource { Name = "PaymentServiceLogs", Description = "Structured logs from the payment microservice" });
+
+        context.Applications.Add(application);
+        await context.SaveChangesAsync();
+
+        using var readContext = new LogsPlatformDbContext(
+            new DbContextOptionsBuilder<LogsPlatformDbContext>().UseSqlServer(TestDatabase.ConnectionString).Options);
+
+        var loadedApp = await readContext.Applications
+            .Include(a => a.Customers)
+            .Include(a => a.Users)
+            .Include(a => a.LogSources)
+            .FirstAsync(a => a.Name == "GroupB1DbContextTestApp");
+
+        Assert.Single(loadedApp.Customers);
+        Assert.Equal("cust-1", loadedApp.Customers.First().ExternalCustomerId);
+        Assert.True(loadedApp.Customers.First().IsActive);
+        Assert.Single(loadedApp.Users);
+        Assert.Equal("user-1", loadedApp.Users.First().ExternalUserId);
+        Assert.True(loadedApp.Users.First().IsActive);
+        Assert.Single(loadedApp.LogSources);
+        Assert.Equal("PaymentServiceLogs", loadedApp.LogSources.First().Name);
+        Assert.True(loadedApp.LogSources.First().IsActive);
+    }
 }
