@@ -160,4 +160,27 @@ public class LogsPlatformDbContextTests
         Assert.Equal("PaymentServiceLogs", loadedApp.LogSources.First().Name);
         Assert.True(loadedApp.LogSources.First().IsActive);
     }
+
+    [Fact]
+    public async Task CanInsertAndRetrieveApiKey()
+    {
+        using var context = TestDatabase.CreateContext();
+
+        var application = new Application { Name = "ApiKeyDbContextTestApp", CreatedAt = DateTime.UtcNow };
+        application.ApiKeys.Add(new ApiKey { KeyHash = new string('a', 64), Label = "CI pipeline key", CreatedAt = DateTime.UtcNow });
+
+        context.Applications.Add(application);
+        await context.SaveChangesAsync();
+
+        using var readContext = new LogsPlatformDbContext(
+            new DbContextOptionsBuilder<LogsPlatformDbContext>().UseSqlServer(TestDatabase.ConnectionString).Options);
+
+        var loadedApp = await readContext.Applications
+            .Include(a => a.ApiKeys)
+            .FirstAsync(a => a.Name == "ApiKeyDbContextTestApp");
+
+        Assert.Single(loadedApp.ApiKeys);
+        Assert.Equal("CI pipeline key", loadedApp.ApiKeys.First().Label);
+        Assert.Null(loadedApp.ApiKeys.First().RevokedAt);
+    }
 }

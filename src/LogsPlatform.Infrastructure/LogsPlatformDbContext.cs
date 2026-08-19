@@ -18,6 +18,7 @@ public class LogsPlatformDbContext : DbContext
     public DbSet<Customer> Customers => Set<Customer>();
     public DbSet<AppUser> Users => Set<AppUser>();
     public DbSet<LogSource> LogSources => Set<LogSource>();
+    public DbSet<ApiKey> ApiKeys => Set<ApiKey>();
 
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
     {
@@ -112,6 +113,17 @@ public class LogsPlatformDbContext : DbContext
                 .HasForeignKey(l => l.ApplicationId)
                 .OnDelete(DeleteBehavior.Cascade);
             entity.HasIndex(l => new { l.ApplicationId, l.Name }).IsUnique();
+        });
+
+        modelBuilder.Entity<ApiKey>(entity =>
+        {
+            entity.Property(k => k.KeyHash).HasMaxLength(64).IsRequired();
+            entity.Property(k => k.Label).HasMaxLength(200).IsRequired();
+            entity.HasOne(k => k.Application)
+                .WithMany(a => a.ApiKeys)
+                .HasForeignKey(k => k.ApplicationId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasIndex(k => k.KeyHash);
         });
     }
 }
