@@ -12,4 +12,5 @@ public class Application
     public ICollection<Customer> Customers { get; set; } = new List<Customer>();
     public ICollection<AppUser> Users { get; set; } = new List<AppUser>();
     public ICollection<LogSource> LogSources { get; set; } = new List<LogSource>();
+    public ICollection<ApiKey> ApiKeys { get; set; } = new List<ApiKey>();
 }
