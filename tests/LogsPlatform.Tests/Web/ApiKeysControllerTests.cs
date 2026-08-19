@@ -176,5 +176,6 @@ public class ApiKeysControllerTests : IClassFixture<TestWebApplicationFactory>
 
         Assert.DoesNotContain(created!.ApiKey, body);
         Assert.DoesNotContain("keyHash", body, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("ListLeakCheckKey", body);
     }
 }

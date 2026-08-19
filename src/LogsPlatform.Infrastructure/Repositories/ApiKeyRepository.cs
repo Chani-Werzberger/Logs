@@ -27,7 +27,7 @@ public class ApiKeyRepository : IApiKeyRepository
         {
             query = query.Where(k => k.RevokedAt == null);
         }
-        return await query.OrderBy(k => k.CreatedAt).ToListAsync();
+        return await query.OrderBy(k => k.CreatedAt).ThenBy(k => k.Id).ToListAsync();
     }
 
     public async Task<(ApiKey Entity, string RawKey)> AddAsync(int applicationId, string label)

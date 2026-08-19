@@ -22,7 +22,7 @@
         {
             <tr>
                 <td>@apiKey.Label</td>
-                <td>@apiKey.CreatedAt.ToString("yyyy-MM-dd HH:mm:ss")</td>
+                <td>@apiKey.CreatedAt.ToString("yyyy-MM-dd HH:mm:ss", System.Globalization.CultureInfo.InvariantCulture) UTC</td>
                 <td>
                     <button @onclick="() => RevokeAsync(apiKey.Id)">Revoke</button>
                 </td>

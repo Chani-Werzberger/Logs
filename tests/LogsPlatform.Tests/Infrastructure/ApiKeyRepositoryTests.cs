@@ -2,6 +2,7 @@
 using LogsPlatform.Domain.Entities;
 using LogsPlatform.Infrastructure;
 using LogsPlatform.Infrastructure.Repositories;
+using Microsoft.EntityFrameworkCore;
 using Xunit;
 
 namespace LogsPlatform.Tests.Infrastructure;
@@ -15,6 +16,19 @@ public class ApiKeyRepositoryTests
         context.Applications.Add(application);
         await context.SaveChangesAsync();
         return application.Id;
+    }
+
+    // TestDatabase.CreateContext() runs EnsureDeleted()+Migrate() on every call, which wipes
+    // the shared database. That's fine when called once (or before any writes), but a later
+    // "verify against a fresh, untracked context" step must NOT re-migrate, or it destroys the
+    // rows it's trying to read back. This attaches a brand-new, untracked context to the
+    // already-migrated database instead.
+    private static LogsPlatformDbContext CreateUntrackedContext()
+    {
+        var options = new DbContextOptionsBuilder<LogsPlatformDbContext>()
+            .UseSqlServer(TestDatabase.ConnectionString)
+            .Options;
+        return new LogsPlatformDbContext(options);
     }
 
     [Fact]
@@ -110,5 +124,27 @@ public class ApiKeyRepositoryTests
         var secondRevokedAt = (await repository.GetByIdAsync(created.Id))!.RevokedAt;
 
         Assert.Equal(firstRevokedAt, secondRevokedAt);
+    }
+
+    [Fact]
+    public async Task RevokeAsync_WithStaleTrackedInstance_DoesNotOverwriteRealRevocation()
+    {
+        using var contextA = TestDatabase.CreateContext();
+        using var contextB = TestDatabase.CreateContext();
+        var repoA = new ApiKeyRepository(contextA);
+        var repoB = new ApiKeyRepository(contextB);
+        var appId = await CreateTestApplicationAsync(contextA, "ApiKeyStaleTrackerTestApp");
+
+        var (created, _) = await repoA.AddAsync(appId, "StaleTracker");
+
+        await repoB.RevokeAsync(created.Id);
+        var realRevokedAt = (await repoB.GetByIdAsync(created.Id))!.RevokedAt;
+
+        await Task.Delay(50);
+        await repoA.RevokeAsync(created.Id);
+
+        using var verifyContext = CreateUntrackedContext();
+        var verified = await new ApiKeyRepository(verifyContext).GetByIdAsync(created.Id);
+        Assert.Equal(realRevokedAt, verified!.RevokedAt);
     }
 }
