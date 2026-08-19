@@ -182,5 +182,6 @@ public class LogsPlatformDbContextTests
         Assert.Single(loadedApp.ApiKeys);
         Assert.Equal("CI pipeline key", loadedApp.ApiKeys.First().Label);
         Assert.Null(loadedApp.ApiKeys.First().RevokedAt);
+        Assert.Equal(new string('a', 64), loadedApp.ApiKeys.First().KeyHash);
     }
 }

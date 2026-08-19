@@ -27,7 +27,7 @@ public class ApiKeyRepository : IApiKeyRepository
         {
             query = query.Where(k => k.RevokedAt == null);
         }
-        return await query.ToListAsync();
+        return await query.OrderBy(k => k.CreatedAt).ToListAsync();
     }
 
     public async Task<(ApiKey Entity, string RawKey)> AddAsync(int applicationId, string label)
@@ -58,6 +58,8 @@ public class ApiKeyRepository : IApiKeyRepository
     {
         var apiKey = await _context.ApiKeys.FindAsync(id)
             ?? throw new InvalidOperationException($"ApiKey {id} not found.");
+
+        await _context.Entry(apiKey).ReloadAsync();
 
         if (apiKey.RevokedAt is not null)
         {

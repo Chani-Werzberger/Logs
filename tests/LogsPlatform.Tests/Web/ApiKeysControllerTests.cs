@@ -139,4 +139,42 @@ public class ApiKeysControllerTests : IClassFixture<TestWebApplicationFactory>
         Assert.Equal(HttpStatusCode.NoContent, firstRevoke.StatusCode);
         Assert.Equal(HttpStatusCode.NoContent, secondRevoke.StatusCode);
     }
+
+    [Fact]
+    public async Task Revoke_CalledTwice_LeavesOriginalRevokedAtUnchanged()
+    {
+        var client = _factory.CreateClient();
+        var appId = await CreateApplicationAsync(client, "ApiKeyRevokeTimestampControllerTestApp");
+        var createResponse = await client.PostAsJsonAsync(
+            $"/api/v1/admin/applications/{appId}/api-keys",
+            new CreateApiKeyRequest("TimestampCheck"));
+        var created = await createResponse.Content.ReadFromJsonAsync<CreateApiKeyResponse>();
+
+        await client.DeleteAsync($"/api/v1/admin/applications/{appId}/api-keys/{created!.Id}");
+        var afterFirst = await client.GetFromJsonAsync<ApiKeyResponse>($"/api/v1/admin/applications/{appId}/api-keys/{created.Id}");
+
+        await Task.Delay(50);
+        await client.DeleteAsync($"/api/v1/admin/applications/{appId}/api-keys/{created.Id}");
+        var afterSecond = await client.GetFromJsonAsync<ApiKeyResponse>($"/api/v1/admin/applications/{appId}/api-keys/{created.Id}");
+
+        Assert.NotNull(afterFirst!.RevokedAt);
+        Assert.Equal(afterFirst.RevokedAt, afterSecond!.RevokedAt);
+    }
+
+    [Fact]
+    public async Task GetAll_ResponseNeverContainsRawKeyOrHashField()
+    {
+        var client = _factory.CreateClient();
+        var appId = await CreateApplicationAsync(client, "ApiKeyListNoLeakTestApp");
+        var createResponse = await client.PostAsJsonAsync(
+            $"/api/v1/admin/applications/{appId}/api-keys",
+            new CreateApiKeyRequest("ListLeakCheckKey"));
+        var created = await createResponse.Content.ReadFromJsonAsync<CreateApiKeyResponse>();
+
+        var listResponse = await client.GetAsync($"/api/v1/admin/applications/{appId}/api-keys");
+        var body = await listResponse.Content.ReadAsStringAsync();
+
+        Assert.DoesNotContain(created!.ApiKey, body);
+        Assert.DoesNotContain("keyHash", body, StringComparison.OrdinalIgnoreCase);
+    }
 }
