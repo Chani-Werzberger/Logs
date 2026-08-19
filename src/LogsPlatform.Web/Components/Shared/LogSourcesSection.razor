@@ -1,0 +1,154 @@
+@* src/LogsPlatform.Web/Components/Shared/LogSourcesSection.razor *@
+@using LogsPlatform.Domain.Entities
+@using LogsPlatform.Domain.Repositories
+@using LogsPlatform.Web
+@using Microsoft.EntityFrameworkCore
+@inject ILogSourceRepository LogSourceRepository
+
+<h4>Log Sources</h4>
+<table>
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>Description</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var logSource in _logSources)
+        {
+            <tr>
+                @if (_editingId == logSource.Id)
+                {
+                    <td colspan="2">
+                        <EditForm Model="_editModel" OnValidSubmit="() => SaveRenameAsync(logSource.Id)">
+                            <InputText @bind-Value="_editModel!.Name" required maxlength="200" />
+                            <InputText @bind-Value="_editModel!.Description" />
+                            <button type="submit">Save</button>
+                            <button type="button" @onclick="CancelEdit">Cancel</button>
+                        </EditForm>
+                        @if (_editError is not null)
+                        {
+                            <p style="color:red">@_editError</p>
+                        }
+                    </td>
+                }
+                else
+                {
+                    <td>@logSource.Name</td>
+                    <td>@logSource.Description</td>
+                }
+                <td>
+                    @if (_editingId != logSource.Id)
+                    {
+                        <button @onclick="() => StartEdit(logSource)">Edit</button>
+                    }
+                    <button @onclick="() => DeactivateAsync(logSource.Id)">Deactivate</button>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+<EditForm Model="_newLogSource" OnValidSubmit="CreateLogSourceAsync">
+    <label>
+        Name:
+        <InputText @bind-Value="_newLogSource.Name" required maxlength="200" />
+    </label>
+    <label>
+        Description:
+        <InputText @bind-Value="_newLogSource.Description" />
+    </label>
+    <button type="submit">Add Log Source</button>
+</EditForm>
+@if (_createError is not null)
+{
+    <p style="color:red">@_createError</p>
+}
+
+@code {
+    [Parameter] public int ApplicationId { get; set; }
+
+    private List<LogSource> _logSources = new();
+    private readonly NewLogSourceModel _newLogSource = new();
+    private string? _createError;
+
+    private int? _editingId;
+    private EditLogSourceModel? _editModel;
+    private string? _editError;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _logSources = (await LogSourceRepository.GetByApplicationIdAsync(ApplicationId)).ToList();
+    }
+
+    private async Task CreateLogSourceAsync()
+    {
+        _createError = null;
+        try
+        {
+            await LogSourceRepository.AddAsync(new LogSource
+            {
+                ApplicationId = ApplicationId,
+                Name = _newLogSource.Name,
+                Description = _newLogSource.Description
+            });
+
+            _newLogSource.Name = string.Empty;
+            _newLogSource.Description = null;
+            _logSources = (await LogSourceRepository.GetByApplicationIdAsync(ApplicationId)).ToList();
+        }
+        catch (DbUpdateException ex) when (ex.IsUniqueViolation())
+        {
+            _createError = $"A log source named '{_newLogSource.Name}' already exists.";
+        }
+    }
+
+    private void StartEdit(LogSource logSource)
+    {
+        _editingId = logSource.Id;
+        _editModel = new EditLogSourceModel { Name = logSource.Name, Description = logSource.Description };
+        _editError = null;
+    }
+
+    private void CancelEdit()
+    {
+        _editingId = null;
+        _editModel = null;
+        _editError = null;
+    }
+
+    private async Task SaveRenameAsync(int logSourceId)
+    {
+        _editError = null;
+        try
+        {
+            await LogSourceRepository.RenameAsync(logSourceId, _editModel!.Name, _editModel!.Description);
+            _editingId = null;
+            _editModel = null;
+            _logSources = (await LogSourceRepository.GetByApplicationIdAsync(ApplicationId)).ToList();
+        }
+        catch (DbUpdateException ex) when (ex.IsUniqueViolation())
+        {
+            _editError = $"A log source named '{_editModel!.Name}' already exists.";
+        }
+    }
+
+    private async Task DeactivateAsync(int logSourceId)
+    {
+        await LogSourceRepository.DeactivateAsync(logSourceId);
+        _logSources = (await LogSourceRepository.GetByApplicationIdAsync(ApplicationId)).ToList();
+    }
+
+    private class NewLogSourceModel
+    {
+        public string Name { get; set; } = string.Empty;
+        public string? Description { get; set; }
+    }
+
+    private class EditLogSourceModel
+    {
+        public string Name { get; set; } = string.Empty;
+        public string? Description { get; set; }
+    }
+}
