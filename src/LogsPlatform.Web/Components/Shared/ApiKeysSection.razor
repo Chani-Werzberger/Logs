@@ -1,0 +1,73 @@
+@* src/LogsPlatform.Web/Components/Shared/ApiKeysSection.razor *@
+@using LogsPlatform.Domain.Entities
+@using LogsPlatform.Domain.Repositories
+@inject IApiKeyRepository ApiKeyRepository
+
+<h4>API Keys</h4>
+@if (_newRawKey is not null)
+{
+    <p style="color:darkred">This is the only time you will see this key — copy it now.</p>
+    <pre>@_newRawKey</pre>
+}
+<table>
+    <thead>
+        <tr>
+            <th>Label</th>
+            <th>Created At</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var apiKey in _apiKeys)
+        {
+            <tr>
+                <td>@apiKey.Label</td>
+                <td>@apiKey.CreatedAt</td>
+                <td>
+                    <button @onclick="() => RevokeAsync(apiKey.Id)">Revoke</button>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+<EditForm Model="_newApiKey" OnValidSubmit="CreateApiKeyAsync">
+    <label>
+        Label:
+        <InputText @bind-Value="_newApiKey.Label" required maxlength="200" />
+    </label>
+    <button type="submit">Add API Key</button>
+</EditForm>
+
+@code {
+    [Parameter] public int ApplicationId { get; set; }
+
+    private List<ApiKey> _apiKeys = new();
+    private readonly NewApiKeyModel _newApiKey = new();
+    private string? _newRawKey;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _apiKeys = (await ApiKeyRepository.GetByApplicationIdAsync(ApplicationId)).ToList();
+    }
+
+    private async Task CreateApiKeyAsync()
+    {
+        var (_, rawKey) = await ApiKeyRepository.AddAsync(ApplicationId, _newApiKey.Label);
+
+        _newRawKey = rawKey;
+        _newApiKey.Label = string.Empty;
+        _apiKeys = (await ApiKeyRepository.GetByApplicationIdAsync(ApplicationId)).ToList();
+    }
+
+    private async Task RevokeAsync(int apiKeyId)
+    {
+        await ApiKeyRepository.RevokeAsync(apiKeyId);
+        _apiKeys = (await ApiKeyRepository.GetByApplicationIdAsync(ApplicationId)).ToList();
+    }
+
+    private class NewApiKeyModel
+    {
+        public string Label { get; set; } = string.Empty;
+    }
+}
