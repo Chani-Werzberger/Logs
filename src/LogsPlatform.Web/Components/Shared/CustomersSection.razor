@@ -24,7 +24,7 @@
                         <EditForm Model="_editModel" OnValidSubmit="() => SaveRenameAsync(customer.Id)">
                             <div class="row g-2 align-items-center">
                                 <div class="col-auto">
-                                    <InputText @bind-Value="_editModel!.Name" required maxlength="200" class="form-control form-control-sm" />
+                                    <InputText @bind-Value="_editModel!.Name" required maxlength="200" class="form-control form-control-sm" aria-label="שם" />
                                 </div>
                                 <div class="col-auto">
                                     <button type="submit" class="btn btn-sm btn-primary">שמור</button>
@@ -55,11 +55,11 @@
     <div class="row g-3 align-items-end">
         <div class="col-auto">
             <label class="form-label">מזהה לקוח חיצוני</label>
-            <InputText @bind-Value="_newCustomer.ExternalCustomerId" required maxlength="200" class="form-control" />
+            <InputText @bind-Value="_newCustomer.ExternalCustomerId" required maxlength="200" class="form-control" aria-label="מזהה לקוח חיצוני" />
         </div>
         <div class="col-auto">
             <label class="form-label">שם</label>
-            <InputText @bind-Value="_newCustomer.Name" required maxlength="200" class="form-control" />
+            <InputText @bind-Value="_newCustomer.Name" required maxlength="200" class="form-control" aria-label="שם" />
         </div>
         <div class="col-auto">
             <button type="submit" class="btn btn-primary">הוסף Customer</button>

@@ -24,7 +24,7 @@
                         <EditForm Model="_editModel" OnValidSubmit="() => SaveRenameAsync(version.Id)">
                             <div class="row g-2 align-items-center">
                                 <div class="col-auto">
-                                    <InputText @bind-Value="_editModel!.ReleaseNotes" class="form-control form-control-sm" />
+                                    <InputText @bind-Value="_editModel!.ReleaseNotes" class="form-control form-control-sm" aria-label="הערות גרסה" />
                                 </div>
                                 <div class="col-auto">
                                     <button type="submit" class="btn btn-sm btn-primary">שמור</button>
@@ -55,11 +55,11 @@
     <div class="row g-3 align-items-end">
         <div class="col-auto">
             <label class="form-label">מספר גרסה</label>
-            <InputText @bind-Value="_newVersion.VersionNumber" required maxlength="200" class="form-control" />
+            <InputText @bind-Value="_newVersion.VersionNumber" required maxlength="200" class="form-control" aria-label="מספר גרסה" />
         </div>
         <div class="col-auto">
             <label class="form-label">הערות גרסה</label>
-            <InputText @bind-Value="_newVersion.ReleaseNotes" class="form-control" />
+            <InputText @bind-Value="_newVersion.ReleaseNotes" class="form-control" aria-label="הערות גרסה" />
         </div>
         <div class="col-auto">
             <button type="submit" class="btn btn-primary">הוסף Version</button>

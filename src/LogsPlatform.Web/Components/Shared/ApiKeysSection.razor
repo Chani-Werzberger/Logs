@@ -7,7 +7,7 @@
 @if (_newRawKey is not null)
 {
     <div class="alert alert-warning">זוהי הפעם היחידה שבה תוכל/י לראות את המפתח הזה — העתק/י אותו עכשיו.</div>
-    <pre class="bg-light border rounded p-2">@_newRawKey</pre>
+    <pre class="bg-light border rounded p-2" dir="ltr">@_newRawKey</pre>
 }
 <table class="table table-sm table-striped align-middle">
     <thead>
@@ -35,7 +35,7 @@
     <div class="row g-3 align-items-end">
         <div class="col-auto">
             <label class="form-label">תווית</label>
-            <InputText @bind-Value="_newApiKey.Label" required maxlength="200" class="form-control" />
+            <InputText @bind-Value="_newApiKey.Label" required maxlength="200" class="form-control" aria-label="תווית" />
         </div>
         <div class="col-auto">
             <button type="submit" class="btn btn-primary">הוסף API Key</button>

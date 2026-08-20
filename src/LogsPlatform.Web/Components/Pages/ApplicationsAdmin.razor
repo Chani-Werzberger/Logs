@@ -18,11 +18,11 @@
             <div class="row g-3 align-items-end">
                 <div class="col-auto">
                     <label class="form-label">שם</label>
-                    <InputText @bind-Value="_newApplication.Name" required class="form-control" />
+                    <InputText @bind-Value="_newApplication.Name" required class="form-control" aria-label="שם" />
                 </div>
                 <div class="col-auto">
                     <label class="form-label">תיאור</label>
-                    <InputText @bind-Value="_newApplication.Description" class="form-control" />
+                    <InputText @bind-Value="_newApplication.Description" class="form-control" aria-label="תיאור" />
                 </div>
                 <div class="col-auto">
                     <button type="submit" class="btn btn-primary">צור</button>
@@ -94,7 +94,7 @@
                                         <div class="row g-3 align-items-end">
                                             <div class="col-auto">
                                                 <label class="form-label">שם</label>
-                                                <InputText @bind-Value="newEnvironment.Name" required class="form-control" />
+                                                <InputText @bind-Value="newEnvironment.Name" required class="form-control" aria-label="שם" />
                                             </div>
                                             <div class="col-auto form-check mb-2">
                                                 <InputCheckbox @bind-Value="newEnvironment.IsProduction" class="form-check-input" id="@($"isProduction-{application.Id}")" />

@@ -35,11 +35,11 @@
             <div class="row g-3 align-items-end">
                 <div class="col-auto">
                     <label class="form-label">שם</label>
-                    <InputText @bind-Value="_newModule.Name" required maxlength="200" class="form-control" />
+                    <InputText @bind-Value="_newModule.Name" required maxlength="200" class="form-control" aria-label="שם" />
                 </div>
                 <div class="col-auto">
                     <label class="form-label">תיאור</label>
-                    <InputText @bind-Value="_newModule.Description" class="form-control" />
+                    <InputText @bind-Value="_newModule.Description" class="form-control" aria-label="תיאור" />
                 </div>
                 <div class="col-auto">
                     <button type="submit" class="btn btn-primary">צור</button>
@@ -71,10 +71,10 @@
                         <EditForm Model="_editModel" OnValidSubmit="() => SaveRenameAsync(module.Id)">
                             <div class="row g-2 align-items-center">
                                 <div class="col-auto">
-                                    <InputText @bind-Value="_editModel!.Name" required maxlength="200" class="form-control form-control-sm" />
+                                    <InputText @bind-Value="_editModel!.Name" required maxlength="200" class="form-control form-control-sm" aria-label="שם" />
                                 </div>
                                 <div class="col-auto">
-                                    <InputText @bind-Value="_editModel!.Description" class="form-control form-control-sm" />
+                                    <InputText @bind-Value="_editModel!.Description" class="form-control form-control-sm" aria-label="תיאור" />
                                 </div>
                                 <div class="col-auto">
                                     <button type="submit" class="btn btn-sm btn-primary">שמור</button>

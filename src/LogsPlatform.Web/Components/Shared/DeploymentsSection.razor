@@ -26,7 +26,7 @@
                         <EditForm Model="_editModel" OnValidSubmit="() => SaveRenameAsync(deployment.Id)">
                             <div class="row g-2 align-items-center">
                                 <div class="col-auto">
-                                    <InputText @bind-Value="_editModel!.Notes" class="form-control form-control-sm" />
+                                    <InputText @bind-Value="_editModel!.Notes" class="form-control form-control-sm" aria-label="הערות" />
                                 </div>
                                 <div class="col-auto">
                                     <button type="submit" class="btn btn-sm btn-primary">שמור</button>
@@ -59,7 +59,7 @@
     <div class="row g-3 align-items-end">
         <div class="col-auto">
             <label class="form-label">Environment</label>
-            <InputSelect @bind-Value="_newDeployment.EnvironmentId" class="form-select">
+            <InputSelect @bind-Value="_newDeployment.EnvironmentId" class="form-select" aria-label="Environment">
                 <option value="0">-- בחר/י --</option>
                 @foreach (var environment in _environments)
                 {
@@ -69,7 +69,7 @@
         </div>
         <div class="col-auto">
             <label class="form-label">Version</label>
-            <InputSelect @bind-Value="_newDeployment.VersionId" class="form-select">
+            <InputSelect @bind-Value="_newDeployment.VersionId" class="form-select" aria-label="Version">
                 <option value="0">-- בחר/י --</option>
                 @foreach (var version in _versions)
                 {
@@ -79,11 +79,11 @@
         </div>
         <div class="col-auto">
             <label class="form-label">תאריך פריסה (UTC)</label>
-            <InputDate @bind-Value="_newDeployment.DeployedAt" Type="InputDateType.DateTimeLocal" class="form-control" />
+            <InputDate @bind-Value="_newDeployment.DeployedAt" Type="InputDateType.DateTimeLocal" class="form-control" aria-label="תאריך פריסה (UTC)" />
         </div>
         <div class="col-auto">
             <label class="form-label">הערות</label>
-            <InputText @bind-Value="_newDeployment.Notes" class="form-control" />
+            <InputText @bind-Value="_newDeployment.Notes" class="form-control" aria-label="הערות" />
         </div>
         <div class="col-auto">
             <button type="submit" class="btn btn-primary">הוסף Deployment</button>
