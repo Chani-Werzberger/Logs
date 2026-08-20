@@ -6,6 +6,14 @@ namespace LogsPlatform.Client.Serilog;
 
 public static class LogsPlatformSinkExtensions
 {
+    /// <summary>
+    /// Adds a LogsPlatform sink to the logger pipeline. This also enables Serilog's
+    /// <c>Enrich.FromLogContext()</c> on the returned <see cref="LoggerConfiguration"/>,
+    /// since the sink reads Module/ScreenService/Process/Operation/CorrelationId/CustomerId
+    /// from ambient <see cref="Serilog.Context.LogContext"/> properties, which Serilog only
+    /// populates when that enrichment is active. This affects every sink configured on the
+    /// same logger, not just this one.
+    /// </summary>
     public static LoggerConfiguration LogsPlatform(
         this LoggerSinkConfiguration sinkConfiguration,
         string apiKey,

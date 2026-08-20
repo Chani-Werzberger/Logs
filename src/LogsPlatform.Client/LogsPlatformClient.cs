@@ -8,6 +8,7 @@ public sealed class LogsPlatformClient : ILogsPlatformClient
 
     private readonly HttpClient _httpClient;
     private readonly bool _ownsHttpClient;
+    private readonly string _apiKey;
     private readonly int _batchSize;
     private readonly int _queueLimit;
     private readonly Timer _timer;
@@ -30,6 +31,7 @@ public sealed class LogsPlatformClient : ILogsPlatformClient
 
         _batchSize = batchSize;
         _queueLimit = queueLimit;
+        _apiKey = apiKey;
 
         if (httpClient is null)
         {
@@ -41,8 +43,6 @@ public sealed class LogsPlatformClient : ILogsPlatformClient
             _httpClient = httpClient;
             _ownsHttpClient = false;
         }
-
-        _httpClient.DefaultRequestHeaders.Add("X-Api-Key", apiKey);
 
         var actualPeriod = period ?? TimeSpan.FromSeconds(2);
         _timer = new Timer(OnTimerTick, null, actualPeriod, actualPeriod);
@@ -111,7 +111,13 @@ public sealed class LogsPlatformClient : ILogsPlatformClient
 
         try
         {
-            var response = await _httpClient.PostAsJsonAsync(IngestPath, batch);
+            using var request = new HttpRequestMessage(HttpMethod.Post, IngestPath)
+            {
+                Content = JsonContent.Create(batch)
+            };
+            request.Headers.Add("X-Api-Key", _apiKey);
+
+            using var response = await _httpClient.SendAsync(request).ConfigureAwait(false);
             if (!response.IsSuccessStatusCode)
             {
                 Console.Error.WriteLine($"[LogsPlatform.Client] Ingestion request failed with status {(int)response.StatusCode}.");
@@ -131,15 +137,15 @@ public sealed class LogsPlatformClient : ILogsPlatformClient
         }
         _disposed = true;
 
-        _timer.Dispose();
-        await FlushAsync();
+        await _timer.DisposeAsync().ConfigureAwait(false);
+        await FlushAsync().ConfigureAwait(false);
 
         Task[] pending;
         lock (_pendingFlushesLock)
         {
             pending = _pendingFlushes.Where(t => !t.IsCompleted).ToArray();
         }
-        await Task.WhenAll(pending);
+        await Task.WhenAll(pending).ConfigureAwait(false);
 
         if (_ownsHttpClient)
         {
