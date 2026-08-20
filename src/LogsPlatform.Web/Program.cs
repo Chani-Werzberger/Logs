@@ -35,6 +35,10 @@ builder.Services.AddScoped<ILogSourceRepository, LogSourceRepository>();
 builder.Services.AddScoped<IApiKeyRepository, ApiKeyRepository>();
 builder.Services.AddScoped<IAppVersionRepository, AppVersionRepository>();
 builder.Services.AddScoped<IDeploymentRepository, DeploymentRepository>();
+builder.Services.AddScoped<IEventRepository, EventRepository>();
+builder.Services.AddScoped<IExceptionGroupRepository, ExceptionGroupRepository>();
+builder.Services.AddScoped<HierarchyResolver>();
+builder.Services.AddScoped<IngestionProcessor>();
 
 var app = builder.Build();
 
