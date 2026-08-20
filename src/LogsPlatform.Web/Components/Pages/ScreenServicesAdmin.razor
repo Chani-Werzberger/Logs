@@ -9,57 +9,63 @@
 @inject BreadcrumbBuilder BreadcrumbBuilder
 @rendermode InteractiveServer
 
-<p>
-    @for (var i = 0; i < _breadcrumb.Count; i++)
-    {
-        var segment = _breadcrumb[i];
-        <a href="@segment.Url">@segment.Label</a>
-        @if (i < _breadcrumb.Count - 1)
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        @for (var i = 0; i < _breadcrumb.Count; i++)
         {
-            <text> &gt; </text>
+            var segment = _breadcrumb[i];
+            if (i == _breadcrumb.Count - 1)
+            {
+                <li class="breadcrumb-item active" aria-current="page">@segment.Label</li>
+            }
+            else
+            {
+                <li class="breadcrumb-item"><a href="@segment.Url">@segment.Label</a></li>
+            }
         }
-    }
-</p>
+    </ol>
+</nav>
 
 <h1>Screen/Services</h1>
 
-<h2>Create Screen/Service</h2>
-<EditForm Model="_newScreenService" OnValidSubmit="CreateScreenServiceAsync">
-    <div>
-        <label>
-            Name:
-            <InputText @bind-Value="_newScreenService.Name" required maxlength="200" />
-        </label>
+<div class="card mb-4">
+    <div class="card-header">הוספת Screen/Service</div>
+    <div class="card-body">
+        <EditForm Model="_newScreenService" OnValidSubmit="CreateScreenServiceAsync">
+            <div class="row g-3 align-items-end">
+                <div class="col-auto">
+                    <label class="form-label">שם</label>
+                    <InputText @bind-Value="_newScreenService.Name" required maxlength="200" class="form-control" />
+                </div>
+                <div class="col-auto">
+                    <label class="form-label">סוג</label>
+                    <InputSelect @bind-Value="_newScreenService.Type" class="form-select">
+                        <option value="@ScreenServiceType.Screen">Screen</option>
+                        <option value="@ScreenServiceType.Service">Service</option>
+                    </InputSelect>
+                </div>
+                <div class="col-auto">
+                    <label class="form-label">תיאור</label>
+                    <InputText @bind-Value="_newScreenService.Description" class="form-control" />
+                </div>
+                <div class="col-auto">
+                    <button type="submit" class="btn btn-primary">צור</button>
+                </div>
+            </div>
+        </EditForm>
+        @if (_createError is not null)
+        {
+            <div class="alert alert-danger mt-3 mb-0">@_createError</div>
+        }
     </div>
-    <div>
-        <label>
-            Type:
-            <InputSelect @bind-Value="_newScreenService.Type">
-                <option value="@ScreenServiceType.Screen">Screen</option>
-                <option value="@ScreenServiceType.Service">Service</option>
-            </InputSelect>
-        </label>
-    </div>
-    <div>
-        <label>
-            Description:
-            <InputText @bind-Value="_newScreenService.Description" />
-        </label>
-    </div>
-    <button type="submit">Create</button>
-</EditForm>
-@if (_createError is not null)
-{
-    <p style="color:red">@_createError</p>
-}
+</div>
 
-<h2>All Screen/Services</h2>
-<table>
+<table class="table table-striped table-hover align-middle">
     <thead>
         <tr>
-            <th>Name</th>
-            <th>Type</th>
-            <th>Description</th>
+            <th>שם</th>
+            <th>סוג</th>
+            <th>תיאור</th>
             <th></th>
         </tr>
     </thead>
@@ -71,14 +77,22 @@
                 {
                     <td colspan="3">
                         <EditForm Model="_editModel" OnValidSubmit="() => SaveRenameAsync(screenService.Id)">
-                            <InputText @bind-Value="_editModel!.Name" required maxlength="200" />
-                            <InputText @bind-Value="_editModel!.Description" />
-                            <button type="submit">Save</button>
-                            <button type="button" @onclick="CancelEdit">Cancel</button>
+                            <div class="row g-2 align-items-center">
+                                <div class="col-auto">
+                                    <InputText @bind-Value="_editModel!.Name" required maxlength="200" class="form-control form-control-sm" />
+                                </div>
+                                <div class="col-auto">
+                                    <InputText @bind-Value="_editModel!.Description" class="form-control form-control-sm" />
+                                </div>
+                                <div class="col-auto">
+                                    <button type="submit" class="btn btn-sm btn-primary">שמור</button>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="CancelEdit">בטל</button>
+                                </div>
+                            </div>
                         </EditForm>
                         @if (_editError is not null)
                         {
-                            <p style="color:red">@_editError</p>
+                            <div class="alert alert-danger mt-2 mb-0 py-1">@_editError</div>
                         }
                     </td>
                 }
@@ -93,9 +107,9 @@
                 <td>
                     @if (_editingId != screenService.Id)
                     {
-                        <button @onclick="() => StartEdit(screenService)">Edit</button>
+                        <button class="btn btn-sm btn-outline-secondary" @onclick="() => StartEdit(screenService)">ערוך</button>
                     }
-                    <button @onclick="() => DeactivateAsync(screenService.Id)">Deactivate</button>
+                    <button class="btn btn-sm btn-outline-danger" @onclick="() => DeactivateAsync(screenService.Id)">השבת</button>
                 </td>
             </tr>
         }
@@ -141,7 +155,7 @@
         }
         catch (DbUpdateException ex) when (ex.IsUniqueViolation())
         {
-            _createError = $"A screen/service named '{_newScreenService.Name}' already exists.";
+            _createError = $"Screen/Service בשם '{_newScreenService.Name}' כבר קיים.";
         }
     }
 
@@ -171,7 +185,7 @@
         }
         catch (DbUpdateException ex) when (ex.IsUniqueViolation())
         {
-            _editError = $"A screen/service named '{_editModel!.Name}' already exists.";
+            _editError = $"Screen/Service בשם '{_editModel!.Name}' כבר קיים.";
         }
     }
 
