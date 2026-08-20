@@ -147,4 +147,30 @@ public class ApiKeyRepositoryTests
         var verified = await new ApiKeyRepository(verifyContext).GetByIdAsync(created.Id);
         Assert.Equal(realRevokedAt, verified!.RevokedAt);
     }
+
+    [Fact]
+    public async Task GetByKeyHashAsync_ExistingHash_ReturnsMatchingKey()
+    {
+        using var context = TestDatabase.CreateContext();
+        var appId = await CreateTestApplicationAsync(context, "ApiKeyHashLookupTestApp");
+        var repository = new ApiKeyRepository(context);
+        var (created, rawKey) = await repository.AddAsync(appId, "Hash lookup test key");
+
+        var found = await repository.GetByKeyHashAsync(created.KeyHash);
+
+        Assert.NotNull(found);
+        Assert.Equal(created.Id, found!.Id);
+        Assert.NotEqual(rawKey, found.KeyHash);
+    }
+
+    [Fact]
+    public async Task GetByKeyHashAsync_UnknownHash_ReturnsNull()
+    {
+        using var context = TestDatabase.CreateContext();
+        var repository = new ApiKeyRepository(context);
+
+        var found = await repository.GetByKeyHashAsync("0000000000000000000000000000000000000000000000000000000000000000");
+
+        Assert.Null(found);
+    }
 }

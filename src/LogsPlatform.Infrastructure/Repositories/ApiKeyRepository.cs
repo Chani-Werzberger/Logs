@@ -1,5 +1,4 @@
 using System.Security.Cryptography;
-using System.Text;
 using LogsPlatform.Domain.Entities;
 using LogsPlatform.Domain.Repositories;
 using Microsoft.EntityFrameworkCore;
@@ -30,6 +29,9 @@ public class ApiKeyRepository : IApiKeyRepository
         return await query.OrderBy(k => k.CreatedAt).ThenBy(k => k.Id).ToListAsync();
     }
 
+    public async Task<ApiKey?> GetByKeyHashAsync(string keyHash) =>
+        await _context.ApiKeys.AsNoTracking().FirstOrDefaultAsync(k => k.KeyHash == keyHash);
+
     public async Task<(ApiKey Entity, string RawKey)> AddAsync(int applicationId, string label)
     {
         var rawKey = GenerateRawKey();
@@ -37,7 +39,7 @@ public class ApiKeyRepository : IApiKeyRepository
         {
             ApplicationId = applicationId,
             Label = label,
-            KeyHash = Hash(rawKey),
+            KeyHash = ApiKeyHasher.Hash(rawKey),
             CreatedAt = DateTime.UtcNow
         };
 
@@ -83,11 +85,5 @@ public class ApiKeyRepository : IApiKeyRepository
         var bytes = RandomNumberGenerator.GetBytes(32);
         var base64Url = Convert.ToBase64String(bytes).Replace('+', '-').Replace('/', '_').TrimEnd('=');
         return KeyPrefix + base64Url;
-    }
-
-    private static string Hash(string rawKey)
-    {
-        var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(rawKey));
-        return Convert.ToHexString(bytes);
     }
 }

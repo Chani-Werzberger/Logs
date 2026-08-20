@@ -1,6 +1,7 @@
 using LogsPlatform.Domain.Repositories;
 using LogsPlatform.Infrastructure;
 using LogsPlatform.Infrastructure.Repositories;
+using LogsPlatform.Web.Authentication;
 using LogsPlatform.Web.Components;
 using LogsPlatform.Web.Services;
 using Microsoft.EntityFrameworkCore;
@@ -10,6 +11,10 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+builder.Services.AddMemoryCache();
+builder.Services.AddAuthentication(ApiKeyAuthenticationOptions.SchemeName)
+    .AddScheme<ApiKeyAuthenticationOptions, ApiKeyAuthenticationHandler>(ApiKeyAuthenticationOptions.SchemeName, options => { });
+builder.Services.AddAuthorization();
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
@@ -30,6 +35,10 @@ builder.Services.AddScoped<ILogSourceRepository, LogSourceRepository>();
 builder.Services.AddScoped<IApiKeyRepository, ApiKeyRepository>();
 builder.Services.AddScoped<IAppVersionRepository, AppVersionRepository>();
 builder.Services.AddScoped<IDeploymentRepository, DeploymentRepository>();
+builder.Services.AddScoped<IEventRepository, EventRepository>();
+builder.Services.AddScoped<IExceptionGroupRepository, ExceptionGroupRepository>();
+builder.Services.AddScoped<HierarchyResolver>();
+builder.Services.AddScoped<IngestionProcessor>();
 
 var app = builder.Build();
 
@@ -41,6 +50,8 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.UseStaticFiles();
+app.UseAuthentication();
+app.UseAuthorization();
 app.UseAntiforgery();
 app.MapControllers();
 app.MapRazorComponents<App>()
