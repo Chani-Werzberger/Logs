@@ -38,7 +38,7 @@ public class IngestionController : ControllerBase
             entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(1);
             return new RateCounter();
         })!;
-        if (Interlocked.Increment(ref counter.Count) > RateLimitPerMinute)
+        if (Interlocked.Add(ref counter.Count, Math.Max(requests.Count, 1)) > RateLimitPerMinute)
         {
             Response.Headers["Retry-After"] = "60";
             return StatusCode(StatusCodes.Status429TooManyRequests, new { title = "Rate limit exceeded", status = 429 });

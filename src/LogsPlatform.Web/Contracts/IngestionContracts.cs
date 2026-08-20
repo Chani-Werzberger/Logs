@@ -1,7 +1,7 @@
 namespace LogsPlatform.Web.Contracts;
 
 public record IngestHierarchyRequest(string? Module, string? ScreenService, string? Process, string? Operation);
-public record IngestExceptionRequest(string Type, string StackTrace);
+public record IngestExceptionRequest(string Type, string? StackTrace);
 
 public record IngestEventRequest(
     string? EventKey,

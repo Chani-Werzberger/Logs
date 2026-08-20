@@ -21,9 +21,9 @@ public static partial class ExceptionFingerprinter
             .Take(3);
 
         var normalized = lines.Select(line => LineNumberPattern().Replace(line, string.Empty).Trim());
-        return string.Join("|", normalized);
+        return string.Join("\n", normalized);
     }
 
-    [GeneratedRegex(@":line \d+")]
+    [GeneratedRegex(@"\s+in\s+.*?:line \d+")]
     private static partial Regex LineNumberPattern();
 }

@@ -1,6 +1,7 @@
 using LogsPlatform.Domain.Entities;
 using LogsPlatform.Infrastructure;
 using LogsPlatform.Infrastructure.Repositories;
+using Microsoft.EntityFrameworkCore;
 using Xunit;
 
 namespace LogsPlatform.Tests.Infrastructure;
@@ -43,5 +44,35 @@ public class ExceptionGroupRepositoryTests
 
         Assert.Equal(first.Id, second.Id);
         Assert.Equal(1, second.OccurrenceCount);
+    }
+
+    [Fact]
+    public async Task GetOrCreateAsync_FingerprintAlreadyPersistedByBypassedInsert_ReturnsExistingGroupWithoutThrowing()
+    {
+        using var context = TestDatabase.CreateContext();
+        var appId = await CreateTestApplicationAsync(context, "ExceptionGroupUniqueViolationRetryTestApp");
+        var repository = new ExceptionGroupRepository(context);
+        var seenAt = DateTime.UtcNow;
+
+        // Simulate a concurrent request winning the (ApplicationId, Fingerprint) race: insert the
+        // row directly against the DB, bypassing the repository's own existence check, right
+        // before calling GetOrCreateAsync with the same fingerprint.
+        context.ExceptionGroups.Add(new ExceptionGroup
+        {
+            ApplicationId = appId,
+            Fingerprint = "fp-race",
+            ExceptionType = "System.Exception",
+            MessageTemplate = "boom",
+            RepresentativeStackTrace = "at Foo()",
+            FirstSeenAt = seenAt,
+            LastSeenAt = seenAt,
+            OccurrenceCount = 1
+        });
+        await context.SaveChangesAsync();
+
+        var result = await repository.GetOrCreateAsync(appId, "fp-race", "System.Exception", "boom", "at Foo()", seenAt);
+
+        Assert.Equal("fp-race", result.Fingerprint);
+        Assert.Equal(1, await context.ExceptionGroups.CountAsync(g => g.Fingerprint == "fp-race"));
     }
 }

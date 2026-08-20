@@ -71,4 +71,24 @@ public class EventRepositoryTests
         Assert.Equal(1, result.DuplicateEventKeysSkipped);
         Assert.Equal(1, await context.Events.CountAsync(e => e.EventKey == "evt-same"));
     }
+
+    [Fact]
+    public async Task AddEventsAsync_EventKeyAlreadyPersistedByBypassedInsert_CountsAsDuplicateWithoutThrowing()
+    {
+        using var context = TestDatabase.CreateContext();
+        var (appId, envId) = await CreateFixtureAsync(context, "EventUniqueViolationRetryTestApp");
+        var repository = new EventRepository(context);
+
+        // Simulate a concurrent request winning the (ApplicationId, EventKey) race: insert the
+        // row directly against the DB, bypassing the repository's own existence check, right
+        // before calling AddEventsAsync with the same key.
+        context.Events.Add(MakeEvent(appId, envId, "evt-race"));
+        await context.SaveChangesAsync();
+
+        var result = await repository.AddEventsAsync(appId, new[] { MakeEvent(appId, envId, "evt-race") });
+
+        Assert.Equal(0, result.Accepted);
+        Assert.Equal(1, result.DuplicateEventKeysSkipped);
+        Assert.Equal(1, await context.Events.CountAsync(e => e.EventKey == "evt-race"));
+    }
 }

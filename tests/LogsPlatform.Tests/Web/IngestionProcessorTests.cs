@@ -135,6 +135,25 @@ public class IngestionProcessorTests
     }
 
     [Fact]
+    public async Task ProcessAsync_DeactivatedCustomer_StillResolvesWithNoWarning()
+    {
+        using var context = TestDatabase.CreateContext();
+        var (appId, _) = await CreateFixtureAsync(context, "ProcessorDeactivatedCustomerTestApp");
+        var customerRepository = new CustomerRepository(context);
+        var customer = await customerRepository.AddAsync(new Customer { ApplicationId = appId, ExternalCustomerId = "cust-retired", Name = "Retired Customer" });
+        await customerRepository.DeactivateAsync(customer.Id);
+        var processor = CreateProcessor(context);
+        var request = ValidRequest("Production") with { CustomerId = "cust-retired" };
+
+        var result = await processor.ProcessAsync(appId, request);
+
+        Assert.Null(result.RejectReason);
+        Assert.NotNull(result.Event);
+        Assert.Equal(customer.Id, result.Event!.CustomerId);
+        Assert.DoesNotContain(result.Warnings, w => w.Field == "customerId");
+    }
+
+    [Fact]
     public async Task ProcessAsync_UnresolvableHierarchy_WarnsButAccepts()
     {
         using var context = TestDatabase.CreateContext();
@@ -162,5 +181,23 @@ public class IngestionProcessorTests
         Assert.Null(result.RejectReason);
         Assert.NotNull(result.Event!.ExceptionGroupId);
         Assert.Equal(1, await context.ExceptionGroups.CountAsync());
+    }
+
+    [Fact]
+    public async Task ProcessAsync_ExceptionWithNullStackTrace_WarnsButAccepts()
+    {
+        using var context = TestDatabase.CreateContext();
+        var (appId, _) = await CreateFixtureAsync(context, "ProcessorExceptionNullStackTraceTestApp");
+        var processor = CreateProcessor(context);
+        var request = ValidRequest("Production") with { Exception = new IngestExceptionRequest("System.TimeoutException", null) };
+
+        var result = await processor.ProcessAsync(appId, request);
+
+        Assert.Null(result.RejectReason);
+        Assert.NotNull(result.Event);
+        Assert.Null(result.Event!.ExceptionGroupId);
+        Assert.Null(result.Event!.StackTrace);
+        Assert.Contains(result.Warnings, w => w.Field == "exception");
+        Assert.Equal(0, await context.ExceptionGroups.CountAsync());
     }
 }

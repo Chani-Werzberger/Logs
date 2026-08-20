@@ -67,7 +67,11 @@ public class IngestionProcessor
         int? versionId = null;
         if (!string.IsNullOrWhiteSpace(request.Version))
         {
-            var versions = await _versions.GetByApplicationIdAsync(applicationId);
+            // AppVersion is an external identity reference: deactivating a version means "this
+            // release is retired," not "erase historical linkage for events still arriving that
+            // reference it." VersionNumber is unique per-application regardless of IsActive, so
+            // includeInactive can never introduce ambiguity here.
+            var versions = await _versions.GetByApplicationIdAsync(applicationId, includeInactive: true);
             var versionEntity = versions.FirstOrDefault(v => v.VersionNumber == request.Version);
             if (versionEntity is null)
             {
@@ -82,7 +86,10 @@ public class IngestionProcessor
         int? customerId = null;
         if (!string.IsNullOrWhiteSpace(request.CustomerId))
         {
-            var customers = await _customers.GetByApplicationIdAsync(applicationId);
+            // Customer is an external identity reference: deactivating one means "this customer
+            // left," not "erase historical linkage." ExternalCustomerId is unique per-application
+            // regardless of IsActive, so includeInactive can never introduce ambiguity here.
+            var customers = await _customers.GetByApplicationIdAsync(applicationId, includeInactive: true);
             var customerEntity = customers.FirstOrDefault(c => c.ExternalCustomerId == request.CustomerId);
             if (customerEntity is null)
             {
@@ -97,7 +104,11 @@ public class IngestionProcessor
         int? appUserId = null;
         if (!string.IsNullOrWhiteSpace(request.UserId))
         {
-            var appUsers = await _appUsers.GetByApplicationIdAsync(applicationId);
+            // AppUser is an external identity reference: deactivating one doesn't erase
+            // historical linkage for events still arriving that reference it. ExternalUserId is
+            // unique per-application regardless of IsActive, so includeInactive can never
+            // introduce ambiguity here.
+            var appUsers = await _appUsers.GetByApplicationIdAsync(applicationId, includeInactive: true);
             var appUserEntity = appUsers.FirstOrDefault(u => u.ExternalUserId == request.UserId);
             if (appUserEntity is null)
             {
@@ -121,11 +132,21 @@ public class IngestionProcessor
         string? stackTrace = null;
         if (request.Exception is not null)
         {
-            var fingerprint = ExceptionFingerprinter.Compute(request.Exception.Type, request.Exception.StackTrace, request.MessageTemplate);
-            var group = await _exceptionGroups.GetOrCreateAsync(
-                applicationId, fingerprint, request.Exception.Type, request.MessageTemplate ?? string.Empty, request.Exception.StackTrace, request.Timestamp.Value);
-            exceptionGroupId = group.Id;
-            stackTrace = request.Exception.StackTrace;
+            if (string.IsNullOrWhiteSpace(request.Exception.StackTrace))
+            {
+                // A malformed/incomplete exception object must never reject the whole event -
+                // just skip grouping for it and record a warning, same as the other
+                // optional-but-unresolvable fields above.
+                warnings.Add(("exception", "stackTrace missing, event stored without exception grouping"));
+            }
+            else
+            {
+                var fingerprint = ExceptionFingerprinter.Compute(request.Exception.Type, request.Exception.StackTrace, request.MessageTemplate);
+                var group = await _exceptionGroups.GetOrCreateAsync(
+                    applicationId, fingerprint, request.Exception.Type, request.MessageTemplate ?? string.Empty, request.Exception.StackTrace, request.Timestamp.Value);
+                exceptionGroupId = group.Id;
+                stackTrace = request.Exception.StackTrace;
+            }
         }
 
         var evt = new Event
