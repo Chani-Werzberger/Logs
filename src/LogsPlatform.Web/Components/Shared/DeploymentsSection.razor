@@ -6,13 +6,13 @@
 @inject IAppVersionRepository VersionRepository
 
 <h4>Deployments</h4>
-<table>
+<table class="table table-sm table-striped align-middle">
     <thead>
         <tr>
             <th>Environment</th>
             <th>Version</th>
-            <th>Deployed At</th>
-            <th>Notes</th>
+            <th>תאריך פריסה</th>
+            <th>הערות</th>
             <th></th>
         </tr>
     </thead>
@@ -24,9 +24,15 @@
                 {
                     <td colspan="4">
                         <EditForm Model="_editModel" OnValidSubmit="() => SaveRenameAsync(deployment.Id)">
-                            <InputText @bind-Value="_editModel!.Notes" />
-                            <button type="submit">Save</button>
-                            <button type="button" @onclick="CancelEdit">Cancel</button>
+                            <div class="row g-2 align-items-center">
+                                <div class="col-auto">
+                                    <InputText @bind-Value="_editModel!.Notes" class="form-control form-control-sm" />
+                                </div>
+                                <div class="col-auto">
+                                    <button type="submit" class="btn btn-sm btn-primary">שמור</button>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="CancelEdit">בטל</button>
+                                </div>
+                            </div>
                         </EditForm>
                     </td>
                 }
@@ -40,9 +46,9 @@
                 <td>
                     @if (_editingId != deployment.Id)
                     {
-                        <button @onclick="() => StartEdit(deployment)">Edit</button>
+                        <button class="btn btn-sm btn-outline-secondary" @onclick="() => StartEdit(deployment)">ערוך</button>
                     }
-                    <button @onclick="() => DeactivateAsync(deployment.Id)">Deactivate</button>
+                    <button class="btn btn-sm btn-outline-danger" @onclick="() => DeactivateAsync(deployment.Id)">השבת</button>
                 </td>
             </tr>
         }
@@ -50,39 +56,43 @@
 </table>
 
 <EditForm Model="_newDeployment" OnValidSubmit="CreateDeploymentAsync">
-    <label>
-        Environment:
-        <InputSelect @bind-Value="_newDeployment.EnvironmentId">
-            <option value="0">-- select --</option>
-            @foreach (var environment in _environments)
-            {
-                <option value="@environment.Id">@environment.Name</option>
-            }
-        </InputSelect>
-    </label>
-    <label>
-        Version:
-        <InputSelect @bind-Value="_newDeployment.VersionId">
-            <option value="0">-- select --</option>
-            @foreach (var version in _versions)
-            {
-                <option value="@version.Id">@version.VersionNumber</option>
-            }
-        </InputSelect>
-    </label>
-    <label>
-        Deployed At (UTC):
-        <InputDate @bind-Value="_newDeployment.DeployedAt" Type="InputDateType.DateTimeLocal" />
-    </label>
-    <label>
-        Notes:
-        <InputText @bind-Value="_newDeployment.Notes" />
-    </label>
-    <button type="submit">Add Deployment</button>
+    <div class="row g-3 align-items-end">
+        <div class="col-auto">
+            <label class="form-label">Environment</label>
+            <InputSelect @bind-Value="_newDeployment.EnvironmentId" class="form-select">
+                <option value="0">-- בחר/י --</option>
+                @foreach (var environment in _environments)
+                {
+                    <option value="@environment.Id">@environment.Name</option>
+                }
+            </InputSelect>
+        </div>
+        <div class="col-auto">
+            <label class="form-label">Version</label>
+            <InputSelect @bind-Value="_newDeployment.VersionId" class="form-select">
+                <option value="0">-- בחר/י --</option>
+                @foreach (var version in _versions)
+                {
+                    <option value="@version.Id">@version.VersionNumber</option>
+                }
+            </InputSelect>
+        </div>
+        <div class="col-auto">
+            <label class="form-label">תאריך פריסה (UTC)</label>
+            <InputDate @bind-Value="_newDeployment.DeployedAt" Type="InputDateType.DateTimeLocal" class="form-control" />
+        </div>
+        <div class="col-auto">
+            <label class="form-label">הערות</label>
+            <InputText @bind-Value="_newDeployment.Notes" class="form-control" />
+        </div>
+        <div class="col-auto">
+            <button type="submit" class="btn btn-primary">הוסף Deployment</button>
+        </div>
+    </div>
 </EditForm>
 @if (_createError is not null)
 {
-    <p style="color:red">@_createError</p>
+    <div class="alert alert-danger mt-3">@_createError</div>
 }
 
 @code {
@@ -125,13 +135,13 @@
         _createError = null;
         if (_newDeployment.EnvironmentId == 0 || _newDeployment.VersionId == 0)
         {
-            _createError = "Select both an environment and a version.";
+            _createError = "יש לבחור Environment ו-Version.";
             return;
         }
 
         if (!_environments.Any(e => e.Id == _newDeployment.EnvironmentId) || !_versions.Any(v => v.Id == _newDeployment.VersionId))
         {
-            _createError = "Select a valid environment and version for this application.";
+            _createError = "יש לבחור Environment ו-Version תקינים עבור Application זה.";
             return;
         }
 
