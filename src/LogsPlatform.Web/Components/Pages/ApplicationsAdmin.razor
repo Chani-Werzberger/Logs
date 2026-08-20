@@ -11,36 +11,39 @@
 
 <h1>Applications</h1>
 
-<h2>Create Application</h2>
-<EditForm Model="_newApplication" OnValidSubmit="CreateApplicationAsync">
-    <div>
-        <label>
-            Name:
-            <InputText @bind-Value="_newApplication.Name" required />
-        </label>
+<div class="card mb-4">
+    <div class="card-header">הוספת Application</div>
+    <div class="card-body">
+        <EditForm Model="_newApplication" OnValidSubmit="CreateApplicationAsync">
+            <div class="row g-3 align-items-end">
+                <div class="col-auto">
+                    <label class="form-label">שם</label>
+                    <InputText @bind-Value="_newApplication.Name" required class="form-control" />
+                </div>
+                <div class="col-auto">
+                    <label class="form-label">תיאור</label>
+                    <InputText @bind-Value="_newApplication.Description" class="form-control" />
+                </div>
+                <div class="col-auto">
+                    <button type="submit" class="btn btn-primary">צור</button>
+                </div>
+            </div>
+        </EditForm>
+        @if (_createError is not null)
+        {
+            <div class="alert alert-danger mt-3 mb-0">@_createError</div>
+        }
     </div>
-    <div>
-        <label>
-            Description:
-            <InputText @bind-Value="_newApplication.Description" />
-        </label>
-    </div>
-    <button type="submit">Create</button>
-</EditForm>
-@if (_createError is not null)
-{
-    <p style="color:red">@_createError</p>
-}
+</div>
 
-<h2>All Applications</h2>
-<table>
+<table class="table table-striped table-hover align-middle">
     <thead>
         <tr>
             <th></th>
             <th></th>
-            <th>Name</th>
-            <th>Description</th>
-            <th>Created At</th>
+            <th>שם</th>
+            <th>תיאור</th>
+            <th>נוצר בתאריך</th>
         </tr>
     </thead>
     <tbody>
@@ -48,7 +51,7 @@
         {
             <tr @key="application.Id">
                 <td>
-                    <button @onclick="() => ToggleExpandAsync(application.Id)">
+                    <button class="btn btn-sm btn-outline-secondary" @onclick="() => ToggleExpandAsync(application.Id)">
                         @(_expandedAppIds.Contains(application.Id) ? "-" : "+")
                     </button>
                 </td>
@@ -61,49 +64,57 @@
             {
                 <tr>
                     <td colspan="5">
-                        <h4>Environments</h4>
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>Name</th>
-                                    <th>Is Production</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @if (_environmentsByAppId.TryGetValue(application.Id, out var environments))
-                                {
-                                    @foreach (var environment in environments)
-                                    {
+                        <div class="app-row-details">
+                            <div>
+                                <h4>Environments</h4>
+                                <table class="table table-sm table-striped align-middle">
+                                    <thead>
                                         <tr>
-                                            <td>@environment.Name</td>
-                                            <td>@environment.IsProduction</td>
+                                            <th>שם</th>
+                                            <th>סביבת ייצור</th>
                                         </tr>
-                                    }
+                                    </thead>
+                                    <tbody>
+                                        @if (_environmentsByAppId.TryGetValue(application.Id, out var environments))
+                                        {
+                                            @foreach (var environment in environments)
+                                            {
+                                                <tr>
+                                                    <td>@environment.Name</td>
+                                                    <td>@environment.IsProduction</td>
+                                                </tr>
+                                            }
+                                        }
+                                    </tbody>
+                                </table>
+
+                                @if (_newEnvironmentModels.TryGetValue(application.Id, out var newEnvironment))
+                                {
+                                    <EditForm Model="newEnvironment" OnValidSubmit="() => CreateEnvironmentAsync(application.Id)">
+                                        <div class="row g-3 align-items-end">
+                                            <div class="col-auto">
+                                                <label class="form-label">שם</label>
+                                                <InputText @bind-Value="newEnvironment.Name" required class="form-control" />
+                                            </div>
+                                            <div class="col-auto form-check mb-2">
+                                                <InputCheckbox @bind-Value="newEnvironment.IsProduction" class="form-check-input" id="@($"isProduction-{application.Id}")" />
+                                                <label class="form-check-label" for="@($"isProduction-{application.Id}")">סביבת ייצור</label>
+                                            </div>
+                                            <div class="col-auto">
+                                                <button type="submit" class="btn btn-primary">הוסף Environment</button>
+                                            </div>
+                                        </div>
+                                    </EditForm>
                                 }
-                            </tbody>
-                        </table>
+                            </div>
 
-                        @if (_newEnvironmentModels.TryGetValue(application.Id, out var newEnvironment))
-                        {
-                            <EditForm Model="newEnvironment" OnValidSubmit="() => CreateEnvironmentAsync(application.Id)">
-                                <label>
-                                    Name:
-                                    <InputText @bind-Value="newEnvironment.Name" required />
-                                </label>
-                                <label>
-                                    Is Production:
-                                    <InputCheckbox @bind-Value="newEnvironment.IsProduction" />
-                                </label>
-                                <button type="submit">Add Environment</button>
-                            </EditForm>
-                        }
-
-                        <CustomersSection ApplicationId="application.Id" />
-                        <UsersSection ApplicationId="application.Id" />
-                        <LogSourcesSection ApplicationId="application.Id" />
-                        <ApiKeysSection ApplicationId="application.Id" />
-                        <VersionsSection ApplicationId="application.Id" />
-                        <DeploymentsSection ApplicationId="application.Id" />
+                            <CustomersSection ApplicationId="application.Id" />
+                            <UsersSection ApplicationId="application.Id" />
+                            <LogSourcesSection ApplicationId="application.Id" />
+                            <ApiKeysSection ApplicationId="application.Id" />
+                            <VersionsSection ApplicationId="application.Id" />
+                            <DeploymentsSection ApplicationId="application.Id" />
+                        </div>
                     </td>
                 </tr>
             }
@@ -143,7 +154,7 @@
         }
         catch (DbUpdateException ex) when (ex.InnerException is SqlException { Number: 2601 or 2627 })
         {
-            _createError = $"An application named '{_newApplication.Name}' already exists.";
+            _createError = $"Application בשם '{_newApplication.Name}' כבר קיימת.";
         }
     }
 
