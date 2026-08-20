@@ -6,11 +6,11 @@
 @inject ICustomerRepository CustomerRepository
 
 <h4>Customers</h4>
-<table>
+<table class="table table-sm table-striped align-middle">
     <thead>
         <tr>
-            <th>External Customer Id</th>
-            <th>Name</th>
+            <th>מזהה לקוח חיצוני</th>
+            <th>שם</th>
             <th></th>
         </tr>
     </thead>
@@ -22,9 +22,15 @@
                 {
                     <td colspan="2">
                         <EditForm Model="_editModel" OnValidSubmit="() => SaveRenameAsync(customer.Id)">
-                            <InputText @bind-Value="_editModel!.Name" required maxlength="200" />
-                            <button type="submit">Save</button>
-                            <button type="button" @onclick="CancelEdit">Cancel</button>
+                            <div class="row g-2 align-items-center">
+                                <div class="col-auto">
+                                    <InputText @bind-Value="_editModel!.Name" required maxlength="200" class="form-control form-control-sm" />
+                                </div>
+                                <div class="col-auto">
+                                    <button type="submit" class="btn btn-sm btn-primary">שמור</button>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="CancelEdit">בטל</button>
+                                </div>
+                            </div>
                         </EditForm>
                     </td>
                 }
@@ -36,9 +42,9 @@
                 <td>
                     @if (_editingId != customer.Id)
                     {
-                        <button @onclick="() => StartEdit(customer)">Edit</button>
+                        <button class="btn btn-sm btn-outline-secondary" @onclick="() => StartEdit(customer)">ערוך</button>
                     }
-                    <button @onclick="() => DeactivateAsync(customer.Id)">Deactivate</button>
+                    <button class="btn btn-sm btn-outline-danger" @onclick="() => DeactivateAsync(customer.Id)">השבת</button>
                 </td>
             </tr>
         }
@@ -46,19 +52,23 @@
 </table>
 
 <EditForm Model="_newCustomer" OnValidSubmit="CreateCustomerAsync">
-    <label>
-        External Customer Id:
-        <InputText @bind-Value="_newCustomer.ExternalCustomerId" required maxlength="200" />
-    </label>
-    <label>
-        Name:
-        <InputText @bind-Value="_newCustomer.Name" required maxlength="200" />
-    </label>
-    <button type="submit">Add Customer</button>
+    <div class="row g-3 align-items-end">
+        <div class="col-auto">
+            <label class="form-label">מזהה לקוח חיצוני</label>
+            <InputText @bind-Value="_newCustomer.ExternalCustomerId" required maxlength="200" class="form-control" />
+        </div>
+        <div class="col-auto">
+            <label class="form-label">שם</label>
+            <InputText @bind-Value="_newCustomer.Name" required maxlength="200" class="form-control" />
+        </div>
+        <div class="col-auto">
+            <button type="submit" class="btn btn-primary">הוסף Customer</button>
+        </div>
+    </div>
 </EditForm>
 @if (_createError is not null)
 {
-    <p style="color:red">@_createError</p>
+    <div class="alert alert-danger mt-3">@_createError</div>
 }
 
 @code {
@@ -94,7 +104,7 @@
         }
         catch (DbUpdateException ex) when (ex.IsUniqueViolation())
         {
-            _createError = $"A customer with external id '{_newCustomer.ExternalCustomerId}' already exists.";
+            _createError = $"Customer עם מזהה חיצוני '{_newCustomer.ExternalCustomerId}' כבר קיים.";
         }
     }
 
