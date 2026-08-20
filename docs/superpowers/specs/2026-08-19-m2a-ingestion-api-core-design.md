@@ -80,7 +80,7 @@ Response, `202 Accepted` (per `07` §2, OTLP-inspired):
   "hierarchyWarnings": [ { "index": 0, "field": "operation", "reason": "not found, event stored without operation reference" } ] }
 ```
 
-Single-event convenience: the same endpoint accepts either a single JSON object or an array — a lone object is treated as a one-element batch.
+The endpoint accepts a JSON array only, even for a single event (`[{...}]`, not a bare `{...}`) — the real `LogsPlatform.Client` (M2b) always batches internally per `07` §7, so single-object convenience-binding has no real consumer in V1; scoped out to avoid custom model-binding complexity for a case nothing needs yet.
 
 ## Auth: `X-Api-Key` → `Application`
 
