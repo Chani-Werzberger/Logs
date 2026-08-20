@@ -24,6 +24,7 @@
     <ProjectReference Include="..\..\src\LogsPlatform.Domain\LogsPlatform.Domain.csproj" />
     <ProjectReference Include="..\..\src\LogsPlatform.Infrastructure\LogsPlatform.Infrastructure.csproj" />
     <ProjectReference Include="..\..\src\LogsPlatform.Web\LogsPlatform.Web.csproj" />
+    <ProjectReference Include="..\..\src\LogsPlatform.Client\LogsPlatform.Client.csproj" />
   </ItemGroup>
 
 </Project>
