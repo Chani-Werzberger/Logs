@@ -6,11 +6,11 @@
 @inject IAppVersionRepository VersionRepository
 
 <h4>Versions</h4>
-<table>
+<table class="table table-sm table-striped align-middle">
     <thead>
         <tr>
-            <th>Version Number</th>
-            <th>Release Notes</th>
+            <th>מספר גרסה</th>
+            <th>הערות גרסה</th>
             <th></th>
         </tr>
     </thead>
@@ -22,9 +22,15 @@
                 {
                     <td colspan="2">
                         <EditForm Model="_editModel" OnValidSubmit="() => SaveRenameAsync(version.Id)">
-                            <InputText @bind-Value="_editModel!.ReleaseNotes" />
-                            <button type="submit">Save</button>
-                            <button type="button" @onclick="CancelEdit">Cancel</button>
+                            <div class="row g-2 align-items-center">
+                                <div class="col-auto">
+                                    <InputText @bind-Value="_editModel!.ReleaseNotes" class="form-control form-control-sm" aria-label="הערות גרסה" />
+                                </div>
+                                <div class="col-auto">
+                                    <button type="submit" class="btn btn-sm btn-primary">שמור</button>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="CancelEdit">בטל</button>
+                                </div>
+                            </div>
                         </EditForm>
                     </td>
                 }
@@ -36,9 +42,9 @@
                 <td>
                     @if (_editingId != version.Id)
                     {
-                        <button @onclick="() => StartEdit(version)">Edit</button>
+                        <button class="btn btn-sm btn-outline-secondary" @onclick="() => StartEdit(version)">ערוך</button>
                     }
-                    <button @onclick="() => DeactivateAsync(version.Id)">Deactivate</button>
+                    <button class="btn btn-sm btn-outline-danger" @onclick="() => DeactivateAsync(version.Id)">השבת</button>
                 </td>
             </tr>
         }
@@ -46,19 +52,23 @@
 </table>
 
 <EditForm Model="_newVersion" OnValidSubmit="CreateVersionAsync">
-    <label>
-        Version Number:
-        <InputText @bind-Value="_newVersion.VersionNumber" required maxlength="200" />
-    </label>
-    <label>
-        Release Notes:
-        <InputText @bind-Value="_newVersion.ReleaseNotes" />
-    </label>
-    <button type="submit">Add Version</button>
+    <div class="row g-3 align-items-end">
+        <div class="col-auto">
+            <label class="form-label">מספר גרסה</label>
+            <InputText @bind-Value="_newVersion.VersionNumber" required maxlength="200" class="form-control" aria-label="מספר גרסה" />
+        </div>
+        <div class="col-auto">
+            <label class="form-label">הערות גרסה</label>
+            <InputText @bind-Value="_newVersion.ReleaseNotes" class="form-control" aria-label="הערות גרסה" />
+        </div>
+        <div class="col-auto">
+            <button type="submit" class="btn btn-primary">הוסף Version</button>
+        </div>
+    </div>
 </EditForm>
 @if (_createError is not null)
 {
-    <p style="color:red">@_createError</p>
+    <div class="alert alert-danger mt-3">@_createError</div>
 }
 
 @code {
@@ -105,7 +115,7 @@
         }
         catch (DbUpdateException ex) when (ex.IsUniqueViolation())
         {
-            _createError = $"A version '{_newVersion.VersionNumber}' already exists.";
+            _createError = $"Version '{_newVersion.VersionNumber}' כבר קיימת.";
         }
     }
 

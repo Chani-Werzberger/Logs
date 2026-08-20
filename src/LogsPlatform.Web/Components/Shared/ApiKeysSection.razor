@@ -6,14 +6,14 @@
 <h4>API Keys</h4>
 @if (_newRawKey is not null)
 {
-    <p style="color:darkred">This is the only time you will see this key — copy it now.</p>
-    <pre>@_newRawKey</pre>
+    <div class="alert alert-warning">זוהי הפעם היחידה שבה תוכל/י לראות את המפתח הזה — העתק/י אותו עכשיו.</div>
+    <pre class="bg-light border rounded p-2" dir="ltr">@_newRawKey</pre>
 }
-<table>
+<table class="table table-sm table-striped align-middle">
     <thead>
         <tr>
-            <th>Label</th>
-            <th>Created At</th>
+            <th>תווית</th>
+            <th>נוצר בתאריך</th>
             <th></th>
         </tr>
     </thead>
@@ -24,7 +24,7 @@
                 <td>@apiKey.Label</td>
                 <td>@apiKey.CreatedAt.ToString("yyyy-MM-dd HH:mm:ss", System.Globalization.CultureInfo.InvariantCulture) UTC</td>
                 <td>
-                    <button @onclick="() => RevokeAsync(apiKey.Id)">Revoke</button>
+                    <button class="btn btn-sm btn-outline-danger" @onclick="() => RevokeAsync(apiKey.Id)">בטל תוקף</button>
                 </td>
             </tr>
         }
@@ -32,11 +32,15 @@
 </table>
 
 <EditForm Model="_newApiKey" OnValidSubmit="CreateApiKeyAsync">
-    <label>
-        Label:
-        <InputText @bind-Value="_newApiKey.Label" required maxlength="200" />
-    </label>
-    <button type="submit">Add API Key</button>
+    <div class="row g-3 align-items-end">
+        <div class="col-auto">
+            <label class="form-label">תווית</label>
+            <InputText @bind-Value="_newApiKey.Label" required maxlength="200" class="form-control" aria-label="תווית" />
+        </div>
+        <div class="col-auto">
+            <button type="submit" class="btn btn-primary">הוסף API Key</button>
+        </div>
+    </div>
 </EditForm>
 
 @code {

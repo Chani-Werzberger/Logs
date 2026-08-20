@@ -6,11 +6,11 @@
 @inject ILogSourceRepository LogSourceRepository
 
 <h4>Log Sources</h4>
-<table>
+<table class="table table-sm table-striped align-middle">
     <thead>
         <tr>
-            <th>Name</th>
-            <th>Description</th>
+            <th>שם</th>
+            <th>תיאור</th>
             <th></th>
         </tr>
     </thead>
@@ -22,14 +22,22 @@
                 {
                     <td colspan="2">
                         <EditForm Model="_editModel" OnValidSubmit="() => SaveRenameAsync(logSource.Id)">
-                            <InputText @bind-Value="_editModel!.Name" required maxlength="200" />
-                            <InputText @bind-Value="_editModel!.Description" />
-                            <button type="submit">Save</button>
-                            <button type="button" @onclick="CancelEdit">Cancel</button>
+                            <div class="row g-2 align-items-center">
+                                <div class="col-auto">
+                                    <InputText @bind-Value="_editModel!.Name" required maxlength="200" class="form-control form-control-sm" aria-label="שם" />
+                                </div>
+                                <div class="col-auto">
+                                    <InputText @bind-Value="_editModel!.Description" class="form-control form-control-sm" aria-label="תיאור" />
+                                </div>
+                                <div class="col-auto">
+                                    <button type="submit" class="btn btn-sm btn-primary">שמור</button>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="CancelEdit">בטל</button>
+                                </div>
+                            </div>
                         </EditForm>
                         @if (_editError is not null)
                         {
-                            <p style="color:red">@_editError</p>
+                            <div class="alert alert-danger mt-2 mb-0 py-1">@_editError</div>
                         }
                     </td>
                 }
@@ -41,9 +49,9 @@
                 <td>
                     @if (_editingId != logSource.Id)
                     {
-                        <button @onclick="() => StartEdit(logSource)">Edit</button>
+                        <button class="btn btn-sm btn-outline-secondary" @onclick="() => StartEdit(logSource)">ערוך</button>
                     }
-                    <button @onclick="() => DeactivateAsync(logSource.Id)">Deactivate</button>
+                    <button class="btn btn-sm btn-outline-danger" @onclick="() => DeactivateAsync(logSource.Id)">השבת</button>
                 </td>
             </tr>
         }
@@ -51,19 +59,23 @@
 </table>
 
 <EditForm Model="_newLogSource" OnValidSubmit="CreateLogSourceAsync">
-    <label>
-        Name:
-        <InputText @bind-Value="_newLogSource.Name" required maxlength="200" />
-    </label>
-    <label>
-        Description:
-        <InputText @bind-Value="_newLogSource.Description" />
-    </label>
-    <button type="submit">Add Log Source</button>
+    <div class="row g-3 align-items-end">
+        <div class="col-auto">
+            <label class="form-label">שם</label>
+            <InputText @bind-Value="_newLogSource.Name" required maxlength="200" class="form-control" aria-label="שם" />
+        </div>
+        <div class="col-auto">
+            <label class="form-label">תיאור</label>
+            <InputText @bind-Value="_newLogSource.Description" class="form-control" aria-label="תיאור" />
+        </div>
+        <div class="col-auto">
+            <button type="submit" class="btn btn-primary">הוסף Log Source</button>
+        </div>
+    </div>
 </EditForm>
 @if (_createError is not null)
 {
-    <p style="color:red">@_createError</p>
+    <div class="alert alert-danger mt-3">@_createError</div>
 }
 
 @code {
@@ -100,7 +112,7 @@
         }
         catch (DbUpdateException ex) when (ex.IsUniqueViolation())
         {
-            _createError = $"A log source named '{_newLogSource.Name}' already exists.";
+            _createError = $"Log Source בשם '{_newLogSource.Name}' כבר קיים.";
         }
     }
 
@@ -130,7 +142,7 @@
         }
         catch (DbUpdateException ex) when (ex.IsUniqueViolation())
         {
-            _editError = $"A log source named '{_editModel!.Name}' already exists.";
+            _editError = $"Log Source בשם '{_editModel!.Name}' כבר קיים.";
         }
     }
 

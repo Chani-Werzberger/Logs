@@ -2,14 +2,16 @@
     <Found Context="routeData">
         <ErrorBoundary>
             <ChildContent>
-                <RouteView RouteData="routeData" />
+                <RouteView RouteData="routeData" DefaultLayout="typeof(LogsPlatform.Web.Components.Layout.MainLayout)" />
             </ChildContent>
             <ErrorContent>
-                <p>Something went wrong loading this page. The link may be invalid, or point to something that no longer exists.</p>
+                <p>אירעה שגיאה בטעינת הדף. ייתכן שהקישור שגוי או שהדף כבר לא קיים.</p>
             </ErrorContent>
         </ErrorBoundary>
     </Found>
     <NotFound>
-        <p>Page not found.</p>
+        <LayoutView Layout="typeof(LogsPlatform.Web.Components.Layout.MainLayout)">
+            <p>הדף לא נמצא.</p>
+        </LayoutView>
     </NotFound>
 </Router>

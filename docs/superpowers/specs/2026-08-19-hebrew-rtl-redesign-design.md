@@ -32,22 +32,22 @@ Confirmed with the user: **technical/entity nouns stay in English** inside the H
 | Is Production | סביבת ייצור |
 | Version Number / Release Notes | מספר גרסה / הערות גרסה |
 | External Customer/User Id / Display Name | מזהה לקוח/משתמש חיצוני / שם תצוגה |
-| "already exists" / "not found" errors | translated per-message, same wording pattern as today (e.g. `An application named 'X' already exists.` → `Application בשם 'X' כבר קיים.`) |
+| "already exists" / "not found" errors | translated per-message, same wording pattern as today (e.g. `An application named 'X' already exists.` → `Application בשם 'X' כבר קיימת.` — feminine agreement, since אפליקציה is a feminine Hebrew noun; masculine `כבר קיים` is used for entities with masculine Hebrew nouns instead, e.g. Module/מודול) |
 
 ## Foundation (new)
 
 - **Vendor Bootstrap 5.3, RTL build**, self-hosted (no CDN): `wwwroot/lib/bootstrap/bootstrap.rtl.min.css` + `wwwroot/lib/bootstrap/bootstrap.bundle.min.js`, downloaded once and committed. `app.UseStaticFiles()` is already wired in `Program.cs`; `wwwroot` itself doesn't exist yet and gets created by this change.
 - `wwwroot/css/site.css` — small app-specific tweaks only (e.g. spacing for the nested row-expansion sections in `ApplicationsAdmin.razor`).
 - `App.razor` — `<html lang="he" dir="rtl">`, links the two vendored assets, `<title>` becomes `LogsPlatform` (kept as the product name, unchanged).
-- **New `Components/Layout/MainLayout.razor`** — Bootstrap navbar header + `@Body` in a container. Applied as the default layout so all five existing pages stop being orphaned/bare (wired via `_Imports.razor`'s `@layout`, no per-page changes needed).
+- **New `Components/Layout/MainLayout.razor`** — Bootstrap navbar header + `@Body` in a container. Applied as the default layout so all five existing pages stop being orphaned/bare (wired via `Routes.razor`'s `RouteView DefaultLayout` parameter — the standard Blazor idiom — no per-page changes needed).
 - **New `Components/Layout/NavMenu.razor`** — full IA from `09-UI-Design.md` §2: **מה חריג** (What's Unusual), **חיפוש** (Search), **חריגות** (Exceptions) rendered as disabled nav links with a "בקרוב" badge (not yet built — M2+), and **ניהול** (Admin) active, linking to `/admin/applications`.
 
 ## Page/Component Restyling Pattern
 
-Applied identically across all 11 CRUD files:
+Applied across all 11 CRUD files:
 
 - Tables → `table table-striped table-hover align-middle`
-- Create forms → wrapped in a `card` titled "הוספת [X]", `form-label`/`form-control` on inputs
+- Create forms → `form-label`/`form-control` on inputs everywhere. The 5 page-level forms (one per hierarchy page) are additionally wrapped in a `card` titled "הוספת [X]"; the 6 nested Shared-section forms are left bare (no card) since they already render inside an expanded table row inside `ApplicationsAdmin.razor` — a second nested box there would add visual clutter, not clarity.
 - Buttons → `btn btn-primary` (create/save), `btn btn-outline-secondary` (cancel/edit), `btn btn-outline-danger` (deactivate/revoke)
 - Error messages → Bootstrap `alert alert-danger` (replaces `<p style="color:red">`)
 - `ModulesAdmin.razor`'s manual breadcrumb (hand-built `&gt;` separator loop) → Bootstrap `<nav><ol class="breadcrumb">`, which renders the separator correctly under `dir="rtl"` automatically. **No change to `BreadcrumbBuilder.cs`** — it already returns plain `(Label, Url)` segments; only the markup consuming them changes.
