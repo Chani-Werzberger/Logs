@@ -4,6 +4,7 @@ using LogsPlatform.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace LogsPlatform.Infrastructure.Migrations
 {
     [DbContext(typeof(LogsPlatformDbContext))]
-    partial class LogsPlatformDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260820070005_AddEventAndExceptionGroup")]
+    partial class AddEventAndExceptionGroup
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

@@ -21,6 +21,8 @@ public class LogsPlatformDbContext : DbContext
     public DbSet<ApiKey> ApiKeys => Set<ApiKey>();
     public DbSet<AppVersion> Versions => Set<AppVersion>();
     public DbSet<Deployment> Deployments => Set<Deployment>();
+    public DbSet<Event> Events => Set<Event>();
+    public DbSet<ExceptionGroup> ExceptionGroups => Set<ExceptionGroup>();
 
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
     {
@@ -153,6 +155,47 @@ public class LogsPlatformDbContext : DbContext
                 .HasForeignKey(d => d.VersionId)
                 .OnDelete(DeleteBehavior.Restrict);
             entity.HasIndex(d => new { d.EnvironmentId, d.VersionId, d.DeployedAt });
+        });
+
+        modelBuilder.Entity<ExceptionGroup>(entity =>
+        {
+            entity.Property(g => g.Fingerprint).HasMaxLength(200).IsRequired();
+            entity.Property(g => g.ExceptionType).HasMaxLength(500).IsRequired();
+            entity.Property(g => g.MessageTemplate).HasMaxLength(1000).IsRequired();
+            entity.HasOne(g => g.Application)
+                .WithMany()
+                .HasForeignKey(g => g.ApplicationId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasIndex(g => new { g.ApplicationId, g.Fingerprint }).IsUnique();
+        });
+
+        modelBuilder.Entity<Event>(entity =>
+        {
+            entity.Property(e => e.Message).IsRequired();
+            entity.Property(e => e.EventKey).HasMaxLength(100);
+            entity.Property(e => e.CorrelationId).HasMaxLength(100);
+            entity.Property(e => e.TraceId).HasMaxLength(100);
+            entity.Property(e => e.SpanId).HasMaxLength(100);
+            entity.Property(e => e.ParentSpanId).HasMaxLength(100);
+            entity.Property(e => e.MessageTemplate).HasMaxLength(1000);
+
+            entity.HasOne(e => e.Application).WithMany().HasForeignKey(e => e.ApplicationId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(e => e.Environment).WithMany().HasForeignKey(e => e.EnvironmentId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(e => e.Version).WithMany().HasForeignKey(e => e.VersionId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(e => e.Module).WithMany().HasForeignKey(e => e.ModuleId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(e => e.ScreenService).WithMany().HasForeignKey(e => e.ScreenServiceId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(e => e.Process).WithMany().HasForeignKey(e => e.ProcessId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(e => e.Operation).WithMany().HasForeignKey(e => e.OperationId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(e => e.Customer).WithMany().HasForeignKey(e => e.CustomerId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(e => e.AppUser).WithMany().HasForeignKey(e => e.AppUserId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(e => e.ExceptionGroup).WithMany().HasForeignKey(e => e.ExceptionGroupId).OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasIndex(e => new { e.ApplicationId, e.EnvironmentId, e.Timestamp });
+            entity.HasIndex(e => new { e.ApplicationId, e.OperationId, e.Timestamp });
+            entity.HasIndex(e => e.CorrelationId);
+            entity.HasIndex(e => e.TraceId);
+            entity.HasIndex(e => e.ExceptionGroupId);
+            entity.HasIndex(e => new { e.ApplicationId, e.EventKey }).IsUnique().HasFilter("[EventKey] IS NOT NULL");
         });
     }
 }

@@ -224,4 +224,52 @@ public class LogsPlatformDbContextTests
         Assert.Equal("First deploy", loadedApp.Deployments.First().Notes);
         Assert.True(loadedApp.Deployments.First().IsActive);
     }
+
+    [Fact]
+    public async Task CanInsertAndRetrieveEventAndExceptionGroup()
+    {
+        using var context = TestDatabase.CreateContext();
+
+        var application = new Application { Name = "M2aDbContextTestApp", CreatedAt = DateTime.UtcNow };
+        var environment = new AppEnvironment { Name = "Production", IsProduction = true };
+        application.Environments.Add(environment);
+        context.Applications.Add(application);
+        await context.SaveChangesAsync();
+
+        var group = new ExceptionGroup
+        {
+            ApplicationId = application.Id,
+            Fingerprint = "abc123",
+            ExceptionType = "System.InvalidOperationException",
+            MessageTemplate = "Something failed",
+            RepresentativeStackTrace = "at Foo.Bar()",
+            FirstSeenAt = DateTime.UtcNow,
+            LastSeenAt = DateTime.UtcNow,
+            OccurrenceCount = 1
+        };
+        context.ExceptionGroups.Add(group);
+        await context.SaveChangesAsync();
+
+        context.Events.Add(new Event
+        {
+            ApplicationId = application.Id,
+            EnvironmentId = environment.Id,
+            Timestamp = DateTime.UtcNow,
+            Severity = 17,
+            Message = "Card authorization failed",
+            ExceptionGroupId = group.Id,
+            EventKey = "evt-1"
+        });
+        await context.SaveChangesAsync();
+
+        using var readContext = new LogsPlatformDbContext(
+            new DbContextOptionsBuilder<LogsPlatformDbContext>().UseSqlServer(TestDatabase.ConnectionString).Options);
+
+        var loadedEvent = await readContext.Events.SingleAsync(e => e.EventKey == "evt-1");
+        Assert.Equal("Card authorization failed", loadedEvent.Message);
+        Assert.Equal(group.Id, loadedEvent.ExceptionGroupId);
+
+        var loadedGroup = await readContext.ExceptionGroups.SingleAsync(g => g.Fingerprint == "abc123");
+        Assert.Equal(1, loadedGroup.OccurrenceCount);
+    }
 }
