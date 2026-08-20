@@ -6,11 +6,11 @@
 @inject IAppUserRepository AppUserRepository
 
 <h4>Users</h4>
-<table>
+<table class="table table-sm table-striped align-middle">
     <thead>
         <tr>
-            <th>External User Id</th>
-            <th>Display Name</th>
+            <th>מזהה משתמש חיצוני</th>
+            <th>שם תצוגה</th>
             <th></th>
         </tr>
     </thead>
@@ -22,9 +22,15 @@
                 {
                     <td colspan="2">
                         <EditForm Model="_editModel" OnValidSubmit="() => SaveRenameAsync(user.Id)">
-                            <InputText @bind-Value="_editModel!.DisplayName" required maxlength="200" />
-                            <button type="submit">Save</button>
-                            <button type="button" @onclick="CancelEdit">Cancel</button>
+                            <div class="row g-2 align-items-center">
+                                <div class="col-auto">
+                                    <InputText @bind-Value="_editModel!.DisplayName" required maxlength="200" class="form-control form-control-sm" />
+                                </div>
+                                <div class="col-auto">
+                                    <button type="submit" class="btn btn-sm btn-primary">שמור</button>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="CancelEdit">בטל</button>
+                                </div>
+                            </div>
                         </EditForm>
                     </td>
                 }
@@ -36,9 +42,9 @@
                 <td>
                     @if (_editingId != user.Id)
                     {
-                        <button @onclick="() => StartEdit(user)">Edit</button>
+                        <button class="btn btn-sm btn-outline-secondary" @onclick="() => StartEdit(user)">ערוך</button>
                     }
-                    <button @onclick="() => DeactivateAsync(user.Id)">Deactivate</button>
+                    <button class="btn btn-sm btn-outline-danger" @onclick="() => DeactivateAsync(user.Id)">השבת</button>
                 </td>
             </tr>
         }
@@ -46,19 +52,23 @@
 </table>
 
 <EditForm Model="_newUser" OnValidSubmit="CreateUserAsync">
-    <label>
-        External User Id:
-        <InputText @bind-Value="_newUser.ExternalUserId" required maxlength="200" />
-    </label>
-    <label>
-        Display Name:
-        <InputText @bind-Value="_newUser.DisplayName" required maxlength="200" />
-    </label>
-    <button type="submit">Add User</button>
+    <div class="row g-3 align-items-end">
+        <div class="col-auto">
+            <label class="form-label">מזהה משתמש חיצוני</label>
+            <InputText @bind-Value="_newUser.ExternalUserId" required maxlength="200" class="form-control" />
+        </div>
+        <div class="col-auto">
+            <label class="form-label">שם תצוגה</label>
+            <InputText @bind-Value="_newUser.DisplayName" required maxlength="200" class="form-control" />
+        </div>
+        <div class="col-auto">
+            <button type="submit" class="btn btn-primary">הוסף User</button>
+        </div>
+    </div>
 </EditForm>
 @if (_createError is not null)
 {
-    <p style="color:red">@_createError</p>
+    <div class="alert alert-danger mt-3">@_createError</div>
 }
 
 @code {
@@ -94,7 +104,7 @@
         }
         catch (DbUpdateException ex) when (ex.IsUniqueViolation())
         {
-            _createError = $"A user with external id '{_newUser.ExternalUserId}' already exists.";
+            _createError = $"User עם מזהה חיצוני '{_newUser.ExternalUserId}' כבר קיים.";
         }
     }
 
