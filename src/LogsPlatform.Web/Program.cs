@@ -41,6 +41,8 @@ builder.Services.AddScoped<IExceptionGroupRepository, ExceptionGroupRepository>(
 builder.Services.AddScoped<HierarchyResolver>();
 builder.Services.AddScoped<IngestionProcessor>();
 builder.Services.AddScoped<IMetricsRepository, MetricsRepository>();
+builder.Services.AddScoped<IBaselineRepository, BaselineRepository>();
+builder.Services.AddScoped<LogsPlatform.Web.Services.Analysis.BaselineCalculator>();
 
 var app = builder.Build();
 
