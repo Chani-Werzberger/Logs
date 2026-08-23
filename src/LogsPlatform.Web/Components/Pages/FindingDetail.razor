@@ -1,0 +1,181 @@
+@* src/LogsPlatform.Web/Components/Pages/FindingDetail.razor *@
+@page "/findings/{Id:long}"
+@using LogsPlatform.Domain.Entities
+@using LogsPlatform.Domain.Repositories
+@inject IFindingRepository FindingRepository
+@inject IApplicationRepository ApplicationRepository
+@inject IOperationRepository OperationRepository
+@rendermode InteractiveServer
+
+@if (_details is null)
+{
+    <p>לא נמצא.</p>
+}
+else
+{
+    <h1>@_details.Finding.Title</h1>
+    <p>
+        <span class="badge @SeverityBadgeClass(_details.Finding.Severity)">@_details.Finding.Severity</span>
+        <span class="badge @ConfidenceBadgeClass(_details.Finding.ConfidenceLevel)">@_details.Finding.ConfidenceLevel</span>
+        <span class="badge text-bg-light text-dark">@_details.Finding.Status</span>
+    </p>
+
+    <div class="mb-4">
+        @foreach (var statement in _details.Statements)
+        {
+            <div class="card mb-2 @StatementCardClass(statement.Kind)">
+                <div class="card-body py-2">
+                    <span class="badge @StatementBadgeClass(statement.Kind) mb-1">@StatementKindLabel(statement.Kind)</span>
+                    <p class="mb-1">@statement.Text</p>
+                    @if (statement.Kind == FindingStatementKind.Conclusion)
+                    {
+                        <p class="text-muted small mb-0">אושר ע"י @statement.ApprovedBy ב-@statement.ApprovedAt?.ToString("u")</p>
+                    }
+                    else if (statement.Kind == FindingStatementKind.Hypothesis)
+                    {
+                        @if (_promotingStatementId == statement.Id)
+                        {
+                            <div class="d-flex gap-2 align-items-center mt-2">
+                                <input class="form-control form-control-sm" placeholder="הערת אישור" @bind="_approvalNote" @bind:event="oninput" style="max-width:300px" />
+                                <button class="btn btn-sm btn-success" disabled="@string.IsNullOrWhiteSpace(_approvalNote)" @onclick="PromoteAsync">אשר/י</button>
+                                <button class="btn btn-sm btn-outline-secondary" @onclick="() => _promotingStatementId = null">בטל/י</button>
+                            </div>
+                        }
+                        else
+                        {
+                            <button class="btn btn-sm btn-outline-success mt-1" @onclick="() => StartPromoting(statement.Id)">קדם/י ל-Conclusion</button>
+                        }
+                    }
+                </div>
+            </div>
+        }
+    </div>
+
+    <h4>ראיות</h4>
+    <ul class="list-group mb-4">
+        @foreach (var item in _details.Evidence)
+        {
+            <li class="list-group-item">
+                @if (item.EvidenceType.ToString() == "Event")
+                {
+                    <a href="@SearchLink()">@item.Description</a>
+                }
+                else if (item.EvidenceType.ToString() == "ExceptionGroup")
+                {
+                    <a href="/exceptions/@item.ReferenceId">@item.Description</a>
+                }
+                else if (item.EvidenceType.ToString() == "Deployment")
+                {
+                    <a href="/admin/applications">@item.Description</a>
+                }
+                else
+                {
+                    @item.Description
+                }
+            </li>
+        }
+    </ul>
+
+    <div class="d-flex gap-2 mb-4">
+        <button class="btn btn-sm btn-outline-primary" @onclick="() => UpdateStatusAsync(FindingStatus.Acknowledged)">אשר קבלה</button>
+        <button class="btn btn-sm btn-outline-success" @onclick="() => UpdateStatusAsync(FindingStatus.Resolved)">סמן כנפתר</button>
+        <button class="btn btn-sm btn-outline-secondary" @onclick="() => UpdateStatusAsync(FindingStatus.Dismissed)">התעלם</button>
+    </div>
+
+    @if (_operationName is not null)
+    {
+        <a class="btn btn-sm btn-outline-primary" href="@SearchLink()">צפייה באירועים המקוריים</a>
+    }
+    @if (_details.Finding.ScopeType == AnalysisScopeType.ExceptionGroup)
+    {
+        <a class="btn btn-sm btn-outline-primary" href="/exceptions/@_details.Finding.ScopeId">צפייה בקבוצת ה-Exception</a>
+    }
+}
+
+@code {
+    [Parameter] public long Id { get; set; }
+
+    private FindingWithDetails? _details;
+    private string? _operationName;
+    private long? _promotingStatementId;
+    private string _approvalNote = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _details = await FindingRepository.GetByIdAsync(Id);
+        _operationName = null;
+        if (_details is not null && _details.Finding.ScopeType == AnalysisScopeType.Operation)
+        {
+            var operation = await OperationRepository.GetByIdAsync((int)_details.Finding.ScopeId);
+            _operationName = operation?.Name;
+        }
+    }
+
+    private string SearchLink() =>
+        $"/search?applicationId={_details!.Finding.ApplicationId}&environmentId={_details.Finding.EnvironmentId}";
+
+    private void StartPromoting(long statementId)
+    {
+        _promotingStatementId = statementId;
+        _approvalNote = string.Empty;
+    }
+
+    private async Task UpdateStatusAsync(FindingStatus status)
+    {
+        await FindingRepository.UpdateStatusAsync(Id, status);
+        await LoadAsync();
+    }
+
+    private async Task PromoteAsync()
+    {
+        if (_promotingStatementId is null || string.IsNullOrWhiteSpace(_approvalNote)) return;
+        await FindingRepository.PromoteToConclusionAsync(Id, _promotingStatementId.Value, _approvalNote);
+        _promotingStatementId = null;
+        _approvalNote = string.Empty;
+        await LoadAsync();
+    }
+
+    private static string SeverityBadgeClass(FindingSeverity severity) => severity switch
+    {
+        FindingSeverity.High => "text-bg-danger",
+        FindingSeverity.Medium => "text-bg-warning",
+        _ => "text-bg-secondary"
+    };
+
+    private static string ConfidenceBadgeClass(ConfidenceLevel confidence) => confidence switch
+    {
+        ConfidenceLevel.High => "text-bg-success",
+        ConfidenceLevel.Medium => "text-bg-warning",
+        _ => "text-bg-secondary"
+    };
+
+    private static string StatementCardClass(FindingStatementKind kind) => kind switch
+    {
+        FindingStatementKind.Observation => "border-primary",
+        FindingStatementKind.Hypothesis => "border-warning",
+        FindingStatementKind.Conclusion => "border-success",
+        _ => ""
+    };
+
+    private static string StatementBadgeClass(FindingStatementKind kind) => kind switch
+    {
+        FindingStatementKind.Observation => "text-bg-primary",
+        FindingStatementKind.Hypothesis => "text-bg-warning",
+        FindingStatementKind.Conclusion => "text-bg-success",
+        _ => "text-bg-secondary"
+    };
+
+    private static string StatementKindLabel(FindingStatementKind kind) => kind switch
+    {
+        FindingStatementKind.Fact => "עובדה",
+        FindingStatementKind.Observation => "תצפית",
+        FindingStatementKind.Hypothesis => "השערה — טרם אושר",
+        FindingStatementKind.Conclusion => "מסקנה",
+        _ => kind.ToString()
+    };
+}
