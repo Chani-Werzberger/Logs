@@ -32,7 +32,7 @@ public class AnalysisEngineTickRunnerTests
         var writer = new FindingWriter(findingRepository);
         var downstreamFailureCorrelator = new DownstreamFailureCorrelator(findingRepository, context);
         var baselineCalculator = new BaselineCalculator(metricsRepository, baselineRepository);
-        var rateAnomalyDetector = new RateAnomalyDetector(metricsRepository, baselineRepository, writer);
+        var rateAnomalyDetector = new RateAnomalyDetector(metricsRepository, baselineRepository, writer, downstreamFailureCorrelator, context);
         var newExceptionDetector = new NewExceptionDetector(context, writer, downstreamFailureCorrelator);
         var customerOutlierDetector = new CustomerOutlierDetector(metricsRepository, writer);
         var deploymentCorrelator = new DeploymentCorrelator(findingRepository, deploymentRepository);
