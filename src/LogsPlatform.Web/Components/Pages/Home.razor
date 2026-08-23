@@ -1,0 +1,44 @@
+@* src/LogsPlatform.Web/Components/Pages/Home.razor *@
+@page "/"
+
+<h1>LogsPlatform</h1>
+<p class="text-muted">מערכת לניהול, חקירה ואבחון לוגים</p>
+
+<div class="row g-3 mt-2">
+    <div class="col-md-3">
+        <div class="card h-100">
+            <div class="card-body d-flex flex-column">
+                <h5 class="card-title">מה חריג</h5>
+                <p class="card-text flex-grow-1">חריגות שהמערכת זיהתה אוטומטית.</p>
+                <span class="badge text-bg-secondary align-self-start">בקרוב</span>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card h-100">
+            <div class="card-body d-flex flex-column">
+                <h5 class="card-title">חיפוש</h5>
+                <p class="card-text flex-grow-1">חיפוש וסינון חופשי של אירועים שנקלטו.</p>
+                <a href="/search" class="btn btn-primary align-self-start">מעבר לחיפוש</a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card h-100">
+            <div class="card-body d-flex flex-column">
+                <h5 class="card-title">חריגות</h5>
+                <p class="card-text flex-grow-1">קבוצות Exceptions, מגמות ותדירות הופעה.</p>
+                <a href="/exceptions" class="btn btn-primary align-self-start">מעבר לחריגות</a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card h-100">
+            <div class="card-body d-flex flex-column">
+                <h5 class="card-title">ניהול</h5>
+                <p class="card-text flex-grow-1">הגדרת אפליקציות, סביבות, היררכיה ומפתחות API.</p>
+                <a href="/admin/applications" class="btn btn-primary align-self-start">מעבר לניהול</a>
+            </div>
+        </div>
+    </div>
+</div>

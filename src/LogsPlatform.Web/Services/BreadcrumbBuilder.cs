@@ -28,7 +28,7 @@ public class BreadcrumbBuilder
     {
         var segments = new List<BreadcrumbSegment>
         {
-            new BreadcrumbSegment("Applications", "/admin/applications")
+            new BreadcrumbSegment("אפליקציות", "/admin/applications")
         };
 
         var application = await _applications.GetByIdAsync(appId)

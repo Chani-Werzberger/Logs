@@ -26,10 +26,10 @@
     </ol>
 </nav>
 
-<h1>Processes</h1>
+<h1>תהליכים</h1>
 
 <div class="card mb-4">
-    <div class="card-header">הוספת Process</div>
+    <div class="card-header">הוספת תהליך</div>
     <div class="card-body">
         <EditForm Model="_newProcess" OnValidSubmit="CreateProcessAsync">
             <div class="row g-3 align-items-end">
@@ -145,7 +145,7 @@
         }
         catch (DbUpdateException ex) when (ex.IsUniqueViolation())
         {
-            _createError = $"Process בשם '{_newProcess.Name}' כבר קיים.";
+            _createError = $"תהליך בשם '{_newProcess.Name}' כבר קיים.";
         }
     }
 
@@ -175,7 +175,7 @@
         }
         catch (DbUpdateException ex) when (ex.IsUniqueViolation())
         {
-            _editError = $"Process בשם '{_editModel!.Name}' כבר קיים.";
+            _editError = $"תהליך בשם '{_editModel!.Name}' כבר קיים.";
         }
     }
 

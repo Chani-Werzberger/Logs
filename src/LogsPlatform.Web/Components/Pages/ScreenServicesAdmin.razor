@@ -26,10 +26,10 @@
     </ol>
 </nav>
 
-<h1>Screen/Services</h1>
+<h1>מסכים/שירותים</h1>
 
 <div class="card mb-4">
-    <div class="card-header">הוספת Screen/Service</div>
+    <div class="card-header">הוספת מסך/שירות</div>
     <div class="card-body">
         <EditForm Model="_newScreenService" OnValidSubmit="CreateScreenServiceAsync">
             <div class="row g-3 align-items-end">
@@ -40,8 +40,8 @@
                 <div class="col-auto">
                     <label class="form-label">סוג</label>
                     <InputSelect @bind-Value="_newScreenService.Type" class="form-select" aria-label="סוג">
-                        <option value="@ScreenServiceType.Screen">Screen</option>
-                        <option value="@ScreenServiceType.Service">Service</option>
+                        <option value="@ScreenServiceType.Screen">מסך</option>
+                        <option value="@ScreenServiceType.Service">שירות</option>
                     </InputSelect>
                 </div>
                 <div class="col-auto">
@@ -101,7 +101,7 @@
                     <td>
                         <a href="/admin/applications/@AppId/modules/@ModuleId/screen-services/@screenService.Id/processes">@screenService.Name</a>
                     </td>
-                    <td>@screenService.Type</td>
+                    <td>@TypeLabel(screenService.Type)</td>
                     <td>@screenService.Description</td>
                 }
                 <td>
@@ -155,9 +155,16 @@
         }
         catch (DbUpdateException ex) when (ex.IsUniqueViolation())
         {
-            _createError = $"Screen/Service בשם '{_newScreenService.Name}' כבר קיים.";
+            _createError = $"מסך/שירות בשם '{_newScreenService.Name}' כבר קיים.";
         }
     }
+
+    private static string TypeLabel(ScreenServiceType type) => type switch
+    {
+        ScreenServiceType.Screen => "מסך",
+        ScreenServiceType.Service => "שירות",
+        _ => type.ToString()
+    };
 
     private void StartEdit(ScreenService screenService)
     {
@@ -185,7 +192,7 @@
         }
         catch (DbUpdateException ex) when (ex.IsUniqueViolation())
         {
-            _editError = $"Screen/Service בשם '{_editModel!.Name}' כבר קיים.";
+            _editError = $"מסך/שירות בשם '{_editModel!.Name}' כבר קיים.";
         }
     }
 

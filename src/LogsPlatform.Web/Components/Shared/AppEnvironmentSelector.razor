@@ -5,18 +5,18 @@
 @inject IAppEnvironmentRepository EnvironmentRepository
 
 <div class="d-flex gap-2 align-items-center mb-3">
-    <label class="form-label mb-0">Application</label>
+    <label class="form-label mb-0">אפליקציה</label>
     <select class="form-select form-select-sm w-auto" value="@_selectedApplicationId" @onchange="OnApplicationChangedAsync">
-        <option value="">-- select --</option>
+        <option value="">-- בחר/י --</option>
         @foreach (var app in _applications)
         {
             <option value="@app.Id">@app.Name</option>
         }
     </select>
 
-    <label class="form-label mb-0">Environment</label>
+    <label class="form-label mb-0">סביבה</label>
     <select class="form-select form-select-sm w-auto" value="@_selectedEnvironmentId" @onchange="OnEnvironmentChangedAsync" disabled="@(_selectedApplicationId is null)">
-        <option value="">-- select --</option>
+        <option value="">-- בחר/י --</option>
         @foreach (var env in _environments)
         {
             <option value="@env.Id">@env.Name</option>

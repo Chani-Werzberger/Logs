@@ -5,7 +5,7 @@
 @using Microsoft.EntityFrameworkCore
 @inject IAppVersionRepository VersionRepository
 
-<h4>Versions</h4>
+<h4>גרסאות</h4>
 <table class="table table-sm table-striped align-middle">
     <thead>
         <tr>
@@ -62,7 +62,7 @@
             <InputText @bind-Value="_newVersion.ReleaseNotes" class="form-control" aria-label="הערות גרסה" />
         </div>
         <div class="col-auto">
-            <button type="submit" class="btn btn-primary">הוסף Version</button>
+            <button type="submit" class="btn btn-primary">הוסף גרסה</button>
         </div>
     </div>
 </EditForm>
@@ -115,7 +115,7 @@
         }
         catch (DbUpdateException ex) when (ex.IsUniqueViolation())
         {
-            _createError = $"Version '{_newVersion.VersionNumber}' כבר קיימת.";
+            _createError = $"גרסה '{_newVersion.VersionNumber}' כבר קיימת.";
         }
     }
 

@@ -5,7 +5,7 @@
 @using Microsoft.EntityFrameworkCore
 @inject IAppUserRepository AppUserRepository
 
-<h4>Users</h4>
+<h4>משתמשים</h4>
 <table class="table table-sm table-striped align-middle">
     <thead>
         <tr>
@@ -62,7 +62,7 @@
             <InputText @bind-Value="_newUser.DisplayName" required maxlength="200" class="form-control" aria-label="שם תצוגה" />
         </div>
         <div class="col-auto">
-            <button type="submit" class="btn btn-primary">הוסף User</button>
+            <button type="submit" class="btn btn-primary">הוסף משתמש</button>
         </div>
     </div>
 </EditForm>
@@ -104,7 +104,7 @@
         }
         catch (DbUpdateException ex) when (ex.IsUniqueViolation())
         {
-            _createError = $"User עם מזהה חיצוני '{_newUser.ExternalUserId}' כבר קיים.";
+            _createError = $"משתמש עם מזהה חיצוני '{_newUser.ExternalUserId}' כבר קיים.";
         }
     }
 

@@ -5,12 +5,12 @@
 @inject IAppEnvironmentRepository EnvironmentRepository
 @inject IAppVersionRepository VersionRepository
 
-<h4>Deployments</h4>
+<h4>פריסות</h4>
 <table class="table table-sm table-striped align-middle">
     <thead>
         <tr>
-            <th>Environment</th>
-            <th>Version</th>
+            <th>סביבה</th>
+            <th>גרסה</th>
             <th>תאריך פריסה</th>
             <th>הערות</th>
             <th></th>
@@ -58,8 +58,8 @@
 <EditForm Model="_newDeployment" OnValidSubmit="CreateDeploymentAsync">
     <div class="row g-3 align-items-end">
         <div class="col-auto">
-            <label class="form-label">Environment</label>
-            <InputSelect @bind-Value="_newDeployment.EnvironmentId" class="form-select" aria-label="Environment">
+            <label class="form-label">סביבה</label>
+            <InputSelect @bind-Value="_newDeployment.EnvironmentId" class="form-select" aria-label="סביבה">
                 <option value="0">-- בחר/י --</option>
                 @foreach (var environment in _environments)
                 {
@@ -68,8 +68,8 @@
             </InputSelect>
         </div>
         <div class="col-auto">
-            <label class="form-label">Version</label>
-            <InputSelect @bind-Value="_newDeployment.VersionId" class="form-select" aria-label="Version">
+            <label class="form-label">גרסה</label>
+            <InputSelect @bind-Value="_newDeployment.VersionId" class="form-select" aria-label="גרסה">
                 <option value="0">-- בחר/י --</option>
                 @foreach (var version in _versions)
                 {
@@ -86,7 +86,7 @@
             <InputText @bind-Value="_newDeployment.Notes" class="form-control" aria-label="הערות" />
         </div>
         <div class="col-auto">
-            <button type="submit" class="btn btn-primary">הוסף Deployment</button>
+            <button type="submit" class="btn btn-primary">הוסף פריסה</button>
         </div>
     </div>
 </EditForm>
@@ -135,13 +135,13 @@
         _createError = null;
         if (_newDeployment.EnvironmentId == 0 || _newDeployment.VersionId == 0)
         {
-            _createError = "יש לבחור Environment ו-Version.";
+            _createError = "יש לבחור סביבה וגרסה.";
             return;
         }
 
         if (!_environments.Any(e => e.Id == _newDeployment.EnvironmentId) || !_versions.Any(v => v.Id == _newDeployment.VersionId))
         {
-            _createError = "יש לבחור Environment ו-Version תקינים עבור Application זה.";
+            _createError = "יש לבחור סביבה וגרסה תקינות עבור אפליקציה זו.";
             return;
         }
 

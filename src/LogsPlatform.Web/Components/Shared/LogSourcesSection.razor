@@ -5,7 +5,7 @@
 @using Microsoft.EntityFrameworkCore
 @inject ILogSourceRepository LogSourceRepository
 
-<h4>Log Sources</h4>
+<h4>מקורות לוגים</h4>
 <table class="table table-sm table-striped align-middle">
     <thead>
         <tr>
@@ -69,7 +69,7 @@
             <InputText @bind-Value="_newLogSource.Description" class="form-control" aria-label="תיאור" />
         </div>
         <div class="col-auto">
-            <button type="submit" class="btn btn-primary">הוסף Log Source</button>
+            <button type="submit" class="btn btn-primary">הוסף מקור לוגים</button>
         </div>
     </div>
 </EditForm>
@@ -112,7 +112,7 @@
         }
         catch (DbUpdateException ex) when (ex.IsUniqueViolation())
         {
-            _createError = $"Log Source בשם '{_newLogSource.Name}' כבר קיים.";
+            _createError = $"מקור לוגים בשם '{_newLogSource.Name}' כבר קיים.";
         }
     }
 
@@ -142,7 +142,7 @@
         }
         catch (DbUpdateException ex) when (ex.IsUniqueViolation())
         {
-            _editError = $"Log Source בשם '{_editModel!.Name}' כבר קיים.";
+            _editError = $"מקור לוגים בשם '{_editModel!.Name}' כבר קיים.";
         }
     }
 

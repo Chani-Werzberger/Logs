@@ -5,7 +5,7 @@
 @using Microsoft.EntityFrameworkCore
 @inject ICustomerRepository CustomerRepository
 
-<h4>Customers</h4>
+<h4>לקוחות</h4>
 <table class="table table-sm table-striped align-middle">
     <thead>
         <tr>
@@ -62,7 +62,7 @@
             <InputText @bind-Value="_newCustomer.Name" required maxlength="200" class="form-control" aria-label="שם" />
         </div>
         <div class="col-auto">
-            <button type="submit" class="btn btn-primary">הוסף Customer</button>
+            <button type="submit" class="btn btn-primary">הוסף לקוח</button>
         </div>
     </div>
 </EditForm>
@@ -104,7 +104,7 @@
         }
         catch (DbUpdateException ex) when (ex.IsUniqueViolation())
         {
-            _createError = $"Customer עם מזהה חיצוני '{_newCustomer.ExternalCustomerId}' כבר קיים.";
+            _createError = $"לקוח עם מזהה חיצוני '{_newCustomer.ExternalCustomerId}' כבר קיים.";
         }
     }
 

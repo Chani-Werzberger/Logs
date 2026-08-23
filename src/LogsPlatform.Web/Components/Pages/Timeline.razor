@@ -7,22 +7,22 @@
 @inject NavigationManager Navigation
 @rendermode InteractiveServer
 
-<h1>Timeline</h1>
+<h1>ציר זמן</h1>
 
 @if (_events.Count == 0)
 {
-    <p>No events found for this lookup.</p>
+    <p>לא נמצאו אירועים עבור חיפוש זה.</p>
 }
 else
 {
     <table class="table table-striped align-middle">
         <thead>
             <tr>
-                <th>+ms</th>
-                <th>Operation</th>
-                <th>Severity</th>
-                <th>Duration</th>
-                <th>Message</th>
+                <th>+מ"ש</th>
+                <th>פעולה</th>
+                <th>חומרה</th>
+                <th>משך</th>
+                <th>הודעה</th>
             </tr>
         </thead>
         <tbody>

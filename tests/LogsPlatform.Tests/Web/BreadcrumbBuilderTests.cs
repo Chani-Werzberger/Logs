@@ -42,7 +42,7 @@ public class BreadcrumbBuilderTests
         var segments = await builder.BuildAsync(appId);
 
         Assert.Equal(2, segments.Count);
-        Assert.Equal("Applications", segments[0].Label);
+        Assert.Equal("אפליקציות", segments[0].Label);
         Assert.Equal("/admin/applications", segments[0].Url);
         Assert.Equal("BreadcrumbTestApp", segments[1].Label);
         Assert.Equal($"/admin/applications/{appId}/modules", segments[1].Url);
@@ -72,7 +72,7 @@ public class BreadcrumbBuilderTests
         var segments = await builder.BuildAsync(appId, moduleId, screenServiceId, processId);
 
         Assert.Equal(5, segments.Count);
-        Assert.Equal("Applications", segments[0].Label);
+        Assert.Equal("אפליקציות", segments[0].Label);
         Assert.Equal("BreadcrumbTestApp", segments[1].Label);
         Assert.Equal("Payments", segments[2].Label);
         Assert.Equal("PaymentGateway", segments[3].Label);

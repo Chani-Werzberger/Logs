@@ -26,10 +26,10 @@
     </ol>
 </nav>
 
-<h1>Operations</h1>
+<h1>פעולות</h1>
 
 <div class="card mb-4">
-    <div class="card-header">הוספת Operation</div>
+    <div class="card-header">הוספת פעולה</div>
     <div class="card-body">
         <EditForm Model="_newOperation" OnValidSubmit="CreateOperationAsync">
             <div class="row g-3 align-items-end">
@@ -144,7 +144,7 @@
         }
         catch (DbUpdateException ex) when (ex.IsUniqueViolation())
         {
-            _createError = $"Operation בשם '{_newOperation.Name}' כבר קיימת.";
+            _createError = $"פעולה בשם '{_newOperation.Name}' כבר קיימת.";
         }
     }
 
@@ -174,7 +174,7 @@
         }
         catch (DbUpdateException ex) when (ex.IsUniqueViolation())
         {
-            _editError = $"Operation בשם '{_editModel!.Name}' כבר קיימת.";
+            _editError = $"פעולה בשם '{_editModel!.Name}' כבר קיימת.";
         }
     }
 

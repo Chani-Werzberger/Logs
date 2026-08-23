@@ -9,10 +9,10 @@
 @inject IAppEnvironmentRepository EnvironmentRepository
 @rendermode InteractiveServer
 
-<h1>Applications</h1>
+<h1>אפליקציות</h1>
 
 <div class="card mb-4">
-    <div class="card-header">הוספת Application</div>
+    <div class="card-header">הוספת אפליקציה</div>
     <div class="card-body">
         <EditForm Model="_newApplication" OnValidSubmit="CreateApplicationAsync">
             <div class="row g-3 align-items-end">
@@ -55,7 +55,7 @@
                         @(_expandedAppIds.Contains(application.Id) ? "-" : "+")
                     </button>
                 </td>
-                <td><a href="/admin/applications/@application.Id/modules">Modules</a></td>
+                <td><a href="/admin/applications/@application.Id/modules">מודולים</a></td>
                 <td>@application.Name</td>
                 <td>@application.Description</td>
                 <td>@application.CreatedAt</td>
@@ -66,7 +66,7 @@
                     <td colspan="5">
                         <div class="app-row-details">
                             <div>
-                                <h4>Environments</h4>
+                                <h4>סביבות</h4>
                                 <table class="table table-sm table-striped align-middle">
                                     <thead>
                                         <tr>
@@ -101,7 +101,7 @@
                                                 <label class="form-check-label" for="@($"isProduction-{application.Id}")">סביבת ייצור</label>
                                             </div>
                                             <div class="col-auto">
-                                                <button type="submit" class="btn btn-primary">הוסף Environment</button>
+                                                <button type="submit" class="btn btn-primary">הוסף סביבה</button>
                                             </div>
                                         </div>
                                     </EditForm>
@@ -154,7 +154,7 @@
         }
         catch (DbUpdateException ex) when (ex.InnerException is SqlException { Number: 2601 or 2627 })
         {
-            _createError = $"Application בשם '{_newApplication.Name}' כבר קיימת.";
+            _createError = $"אפליקציה בשם '{_newApplication.Name}' כבר קיימת.";
         }
     }
 

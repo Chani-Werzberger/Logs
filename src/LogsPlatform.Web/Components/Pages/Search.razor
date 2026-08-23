@@ -12,7 +12,7 @@
 @inject NavigationManager Navigation
 @rendermode InteractiveServer
 
-<h1>Search</h1>
+<h1>חיפוש</h1>
 
 <AppEnvironmentSelector ApplicationId="_applicationId" EnvironmentId="_environmentId" OnSelectionChanged="OnAppEnvironmentChangedAsync" />
 
@@ -22,9 +22,9 @@
         <div class="card-body">
             <div class="row g-3">
                 <div class="col-auto">
-                    <label class="form-label">Severity</label>
+                    <label class="form-label">חומרה</label>
                     <select class="form-select form-select-sm" @bind="_severity">
-                        <option value="">-- any --</option>
+                        <option value="">-- הכל --</option>
                         @foreach (var name in SeverityLevels.ByName.Keys)
                         {
                             <option value="@name">@name</option>
@@ -32,9 +32,9 @@
                     </select>
                 </div>
                 <div class="col-auto">
-                    <label class="form-label">Module</label>
+                    <label class="form-label">מודול</label>
                     <select class="form-select form-select-sm" value="@_moduleId" @onchange="OnModuleChangedAsync">
-                        <option value="">-- any --</option>
+                        <option value="">-- הכל --</option>
                         @foreach (var m in _modules)
                         {
                             <option value="@m.Id">@m.Name</option>
@@ -42,9 +42,9 @@
                     </select>
                 </div>
                 <div class="col-auto">
-                    <label class="form-label">ScreenService</label>
+                    <label class="form-label">מסך/שירות</label>
                     <select class="form-select form-select-sm" value="@_screenServiceId" @onchange="OnScreenServiceChangedAsync" disabled="@(_moduleId is null)">
-                        <option value="">-- any --</option>
+                        <option value="">-- הכל --</option>
                         @foreach (var s in _screenServices)
                         {
                             <option value="@s.Id">@s.Name</option>
@@ -52,9 +52,9 @@
                     </select>
                 </div>
                 <div class="col-auto">
-                    <label class="form-label">Process</label>
+                    <label class="form-label">תהליך</label>
                     <select class="form-select form-select-sm" value="@_processId" @onchange="OnProcessChangedAsync" disabled="@(_screenServiceId is null)">
-                        <option value="">-- any --</option>
+                        <option value="">-- הכל --</option>
                         @foreach (var p in _processes)
                         {
                             <option value="@p.Id">@p.Name</option>
@@ -62,9 +62,9 @@
                     </select>
                 </div>
                 <div class="col-auto">
-                    <label class="form-label">Operation</label>
+                    <label class="form-label">פעולה</label>
                     <select class="form-select form-select-sm" @bind="_operationId" disabled="@(_processId is null)">
-                        <option value="">-- any --</option>
+                        <option value="">-- הכל --</option>
                         @foreach (var o in _operations)
                         {
                             <option value="@o.Id">@o.Name</option>
@@ -72,15 +72,15 @@
                     </select>
                 </div>
                 <div class="col-auto">
-                    <label class="form-label">Correlation Id</label>
+                    <label class="form-label">מזהה קורלציה</label>
                     <input class="form-control form-control-sm" @bind="_correlationId" @bind:event="oninput" />
                 </div>
                 <div class="col-auto">
-                    <label class="form-label">Message contains</label>
+                    <label class="form-label">הודעה מכילה</label>
                     <input class="form-control form-control-sm" @bind="_messageContains" @bind:event="oninput" />
                 </div>
                 <div class="col-auto align-self-end">
-                    <button class="btn btn-primary btn-sm" @onclick="() => SearchAsync(resetPage: true)">Search</button>
+                    <button class="btn btn-primary btn-sm" @onclick="() => SearchAsync(resetPage: true)">חיפוש</button>
                 </div>
             </div>
         </div>
@@ -89,12 +89,12 @@
     <table class="table table-striped table-hover align-middle">
         <thead>
             <tr>
-                <th>Timestamp</th>
-                <th>Severity</th>
-                <th>Operation</th>
-                <th>Message</th>
-                <th>Duration</th>
-                <th>CorrelationId</th>
+                <th>זמן</th>
+                <th>חומרה</th>
+                <th>פעולה</th>
+                <th>הודעה</th>
+                <th>משך</th>
+                <th>מזהה קורלציה</th>
             </tr>
         </thead>
         <tbody>
@@ -113,42 +113,42 @@
     </table>
 
     <div class="d-flex gap-2 align-items-center">
-        <button class="btn btn-sm btn-outline-secondary" disabled="@(_page <= 1)" @onclick="() => ChangePageAsync(_page - 1)">Previous</button>
-        <span>Page @_page (@_totalCount total)</span>
-        <button class="btn btn-sm btn-outline-secondary" disabled="@(_page * _pageSize >= _totalCount)" @onclick="() => ChangePageAsync(_page + 1)">Next</button>
+        <button class="btn btn-sm btn-outline-secondary" disabled="@(_page <= 1)" @onclick="() => ChangePageAsync(_page - 1)">הקודם</button>
+        <span>עמוד @_page (סה"כ @_totalCount)</span>
+        <button class="btn btn-sm btn-outline-secondary" disabled="@(_page * _pageSize >= _totalCount)" @onclick="() => ChangePageAsync(_page + 1)">הבא</button>
     </div>
 
     @if (_selectedEvent is not null)
     {
         <div class="card mt-4">
             <div class="card-header d-flex justify-content-between">
-                <span>Event @_selectedEvent.Id</span>
+                <span>אירוע @_selectedEvent.Id</span>
                 <button class="btn-close" @onclick="() => _selectedEvent = null"></button>
             </div>
             <div class="card-body">
                 <dl class="row">
-                    <dt class="col-sm-2">Timestamp</dt><dd class="col-sm-10">@_selectedEvent.Timestamp.ToString("u")</dd>
-                    <dt class="col-sm-2">Severity</dt><dd class="col-sm-10">@SeverityLevels.ByValue[_selectedEvent.Severity]</dd>
-                    <dt class="col-sm-2">Operation</dt><dd class="col-sm-10">@BuildOperationPath(_selectedEvent)</dd>
-                    <dt class="col-sm-2">Message</dt><dd class="col-sm-10">@_selectedEvent.Message</dd>
-                    <dt class="col-sm-2">CorrelationId</dt><dd class="col-sm-10">@_selectedEvent.CorrelationId</dd>
-                    <dt class="col-sm-2">TraceId</dt><dd class="col-sm-10">@_selectedEvent.TraceId</dd>
+                    <dt class="col-sm-2">זמן</dt><dd class="col-sm-10">@_selectedEvent.Timestamp.ToString("u")</dd>
+                    <dt class="col-sm-2">חומרה</dt><dd class="col-sm-10">@SeverityLevels.ByValue[_selectedEvent.Severity]</dd>
+                    <dt class="col-sm-2">פעולה</dt><dd class="col-sm-10">@BuildOperationPath(_selectedEvent)</dd>
+                    <dt class="col-sm-2">הודעה</dt><dd class="col-sm-10">@_selectedEvent.Message</dd>
+                    <dt class="col-sm-2">מזהה קורלציה</dt><dd class="col-sm-10">@_selectedEvent.CorrelationId</dd>
+                    <dt class="col-sm-2">מזהה Trace</dt><dd class="col-sm-10">@_selectedEvent.TraceId</dd>
                     @if (_selectedEvent.MetadataJson is not null)
                     {
-                        <dt class="col-sm-2">Metadata</dt><dd class="col-sm-10"><pre>@_selectedEvent.MetadataJson</pre></dd>
+                        <dt class="col-sm-2">מטא-דאטה</dt><dd class="col-sm-10"><pre>@_selectedEvent.MetadataJson</pre></dd>
                     }
                     @if (_selectedEvent.StackTrace is not null)
                     {
-                        <dt class="col-sm-2">StackTrace</dt><dd class="col-sm-10"><pre>@_selectedEvent.StackTrace</pre></dd>
+                        <dt class="col-sm-2">Stack Trace</dt><dd class="col-sm-10"><pre>@_selectedEvent.StackTrace</pre></dd>
                     }
                 </dl>
                 @if (_selectedEvent.CorrelationId is not null)
                 {
-                    <a class="btn btn-sm btn-outline-primary" href="/timeline?applicationId=@_applicationId&correlationId=@Uri.EscapeDataString(_selectedEvent.CorrelationId)">View Timeline</a>
+                    <a class="btn btn-sm btn-outline-primary" href="/timeline?applicationId=@_applicationId&correlationId=@Uri.EscapeDataString(_selectedEvent.CorrelationId)">צפייה בציר זמן</a>
                 }
                 else if (_selectedEvent.TraceId is not null)
                 {
-                    <a class="btn btn-sm btn-outline-primary" href="/timeline?applicationId=@_applicationId&traceId=@Uri.EscapeDataString(_selectedEvent.TraceId)">View Timeline</a>
+                    <a class="btn btn-sm btn-outline-primary" href="/timeline?applicationId=@_applicationId&traceId=@Uri.EscapeDataString(_selectedEvent.TraceId)">צפייה בציר זמן</a>
                 }
             </div>
         </div>

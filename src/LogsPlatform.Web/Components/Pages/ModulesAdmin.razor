@@ -26,10 +26,10 @@
     </ol>
 </nav>
 
-<h1>Modules</h1>
+<h1>מודולים</h1>
 
 <div class="card mb-4">
-    <div class="card-header">הוספת Module</div>
+    <div class="card-header">הוספת מודול</div>
     <div class="card-body">
         <EditForm Model="_newModule" OnValidSubmit="CreateModuleAsync">
             <div class="row g-3 align-items-end">
@@ -141,7 +141,7 @@
         }
         catch (DbUpdateException ex) when (ex.IsUniqueViolation())
         {
-            _createError = $"Module בשם '{_newModule.Name}' כבר קיים.";
+            _createError = $"מודול בשם '{_newModule.Name}' כבר קיים.";
         }
     }
 
@@ -171,7 +171,7 @@
         }
         catch (DbUpdateException ex) when (ex.IsUniqueViolation())
         {
-            _editError = $"Module בשם '{_editModel!.Name}' כבר קיים.";
+            _editError = $"מודול בשם '{_editModel!.Name}' כבר קיים.";
         }
     }
 
