@@ -76,4 +76,46 @@ public class FindingRepository : IFindingRepository
         await _context.Findings.AsNoTracking()
             .Where(f => f.ApplicationId == applicationId && f.EnvironmentId == environmentId && f.DetectedAt >= since)
             .ToListAsync();
+
+    public async Task<IReadOnlyList<Finding>> QueryAsync(FindingQueryParameters parameters)
+    {
+        var query = _context.Findings.AsNoTracking()
+            .Where(f => f.ApplicationId == parameters.ApplicationId && f.EnvironmentId == parameters.EnvironmentId);
+
+        if (parameters.Status is not null) query = query.Where(f => f.Status == parameters.Status);
+        if (parameters.Severity is not null) query = query.Where(f => f.Severity == parameters.Severity);
+        if (parameters.Type is not null) query = query.Where(f => f.Type == parameters.Type);
+        if (parameters.From is not null) query = query.Where(f => f.DetectedAt >= parameters.From);
+        if (parameters.To is not null) query = query.Where(f => f.DetectedAt <= parameters.To);
+
+        return await query.OrderByDescending(f => f.Severity).ThenByDescending(f => f.DetectedAt).ToListAsync();
+    }
+
+    public async Task<Finding?> UpdateStatusAsync(long findingId, FindingStatus status)
+    {
+        var finding = await _context.Findings.FirstOrDefaultAsync(f => f.Id == findingId);
+        if (finding is null)
+        {
+            return null;
+        }
+
+        finding.Status = status;
+        await _context.SaveChangesAsync();
+        return finding;
+    }
+
+    public async Task<FindingStatement?> PromoteToConclusionAsync(long findingId, long statementId, string approvedBy)
+    {
+        var statement = await _context.FindingStatements.FirstOrDefaultAsync(s => s.Id == statementId && s.FindingId == findingId);
+        if (statement is null || statement.Kind != FindingStatementKind.Hypothesis)
+        {
+            return null;
+        }
+
+        statement.Kind = FindingStatementKind.Conclusion;
+        statement.ApprovedBy = approvedBy;
+        statement.ApprovedAt = DateTime.UtcNow;
+        await _context.SaveChangesAsync();
+        return statement;
+    }
 }

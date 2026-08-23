@@ -3,6 +3,7 @@ using LogsPlatform.Domain.Repositories;
 using LogsPlatform.Infrastructure;
 using LogsPlatform.Infrastructure.Repositories;
 using LogsPlatform.Tests.Infrastructure;
+using Microsoft.EntityFrameworkCore;
 
 namespace LogsPlatform.Tests.Infrastructure;
 
@@ -77,5 +78,118 @@ public class FindingRepositoryTests
         var reloaded = await repository.GetByIdAsync(finding.Id);
         Assert.Single(reloaded!.Statements);
         Assert.Equal(FindingStatementKind.Fact, reloaded.Statements[0].Kind);
+    }
+
+    [Fact]
+    public async Task QueryAsync_FiltersByStatusAndOrdersBySeverityThenDetectedAt()
+    {
+        using var context = TestDatabase.CreateContext();
+        var (appId, envId) = await SeedAppEnvAsync(context, "FindingRepoQueryTestApp");
+        var repository = new FindingRepository(context);
+
+        var now = DateTime.UtcNow;
+        await repository.AddAsync(new Finding
+        {
+            ApplicationId = appId, EnvironmentId = envId, Type = FindingType.ErrorSpike,
+            ScopeType = AnalysisScopeType.Operation, ScopeId = 1, Title = "low, older",
+            DetectedAt = now.AddMinutes(-10), Severity = FindingSeverity.Low, ConfidenceLevel = ConfidenceLevel.Medium, Status = FindingStatus.New
+        });
+        var high = await repository.AddAsync(new Finding
+        {
+            ApplicationId = appId, EnvironmentId = envId, Type = FindingType.ErrorSpike,
+            ScopeType = AnalysisScopeType.Operation, ScopeId = 2, Title = "high, newer",
+            DetectedAt = now, Severity = FindingSeverity.High, ConfidenceLevel = ConfidenceLevel.High, Status = FindingStatus.New
+        });
+        await repository.AddAsync(new Finding
+        {
+            ApplicationId = appId, EnvironmentId = envId, Type = FindingType.ErrorSpike,
+            ScopeType = AnalysisScopeType.Operation, ScopeId = 3, Title = "high, but resolved",
+            DetectedAt = now.AddMinutes(-5), Severity = FindingSeverity.High, ConfidenceLevel = ConfidenceLevel.High, Status = FindingStatus.Resolved
+        });
+
+        var results = await repository.QueryAsync(new FindingQueryParameters(appId, envId, FindingStatus.New, null, null, null, null));
+
+        Assert.Equal(2, results.Count);
+        Assert.Equal(high.Id, results[0].Id);
+    }
+
+    [Fact]
+    public async Task UpdateStatusAsync_ExistingFinding_UpdatesAndReturnsIt()
+    {
+        using var context = TestDatabase.CreateContext();
+        var (appId, envId) = await SeedAppEnvAsync(context, "FindingRepoUpdateStatusTestApp");
+        var repository = new FindingRepository(context);
+        var finding = await repository.AddAsync(new Finding
+        {
+            ApplicationId = appId, EnvironmentId = envId, Type = FindingType.ErrorSpike,
+            ScopeType = AnalysisScopeType.Operation, ScopeId = 1, Title = "test",
+            DetectedAt = DateTime.UtcNow, Severity = FindingSeverity.High, ConfidenceLevel = ConfidenceLevel.High, Status = FindingStatus.New
+        });
+
+        var updated = await repository.UpdateStatusAsync(finding.Id, FindingStatus.Acknowledged);
+
+        Assert.NotNull(updated);
+        Assert.Equal(FindingStatus.Acknowledged, updated!.Status);
+
+        var options = new Microsoft.EntityFrameworkCore.DbContextOptionsBuilder<LogsPlatformDbContext>().UseSqlServer(TestDatabase.ConnectionString).Options;
+        await using var verifyContext = new LogsPlatformDbContext(options);
+        var reloaded = await verifyContext.Findings.FindAsync(finding.Id);
+        Assert.Equal(FindingStatus.Acknowledged, reloaded!.Status);
+    }
+
+    [Fact]
+    public async Task UpdateStatusAsync_NoSuchFinding_ReturnsNull()
+    {
+        using var context = TestDatabase.CreateContext();
+        var repository = new FindingRepository(context);
+
+        var updated = await repository.UpdateStatusAsync(999999, FindingStatus.Acknowledged);
+
+        Assert.Null(updated);
+    }
+
+    [Fact]
+    public async Task PromoteToConclusionAsync_HypothesisStatement_PromotesWithApprovalMetadata()
+    {
+        using var context = TestDatabase.CreateContext();
+        var (appId, envId) = await SeedAppEnvAsync(context, "FindingRepoPromoteTestApp");
+        var repository = new FindingRepository(context);
+        var finding = await repository.AddAsync(new Finding
+        {
+            ApplicationId = appId, EnvironmentId = envId, Type = FindingType.ErrorSpike,
+            ScopeType = AnalysisScopeType.Operation, ScopeId = 1, Title = "test",
+            DetectedAt = DateTime.UtcNow, Severity = FindingSeverity.High, ConfidenceLevel = ConfidenceLevel.High, Status = FindingStatus.New
+        });
+        await repository.AddStatementAsync(finding.Id, DetectorStatementKind.Hypothesis, "Maybe a deployment caused this.");
+        var reloaded = await repository.GetByIdAsync(finding.Id);
+        var statementId = reloaded!.Statements[0].Id;
+
+        var promoted = await repository.PromoteToConclusionAsync(finding.Id, statementId, "Dana");
+
+        Assert.NotNull(promoted);
+        Assert.Equal(FindingStatementKind.Conclusion, promoted!.Kind);
+        Assert.Equal("Dana", promoted.ApprovedBy);
+        Assert.NotNull(promoted.ApprovedAt);
+    }
+
+    [Fact]
+    public async Task PromoteToConclusionAsync_StatementNotHypothesis_ReturnsNull()
+    {
+        using var context = TestDatabase.CreateContext();
+        var (appId, envId) = await SeedAppEnvAsync(context, "FindingRepoPromoteFactTestApp");
+        var repository = new FindingRepository(context);
+        var finding = await repository.AddAsync(new Finding
+        {
+            ApplicationId = appId, EnvironmentId = envId, Type = FindingType.ErrorSpike,
+            ScopeType = AnalysisScopeType.Operation, ScopeId = 1, Title = "test",
+            DetectedAt = DateTime.UtcNow, Severity = FindingSeverity.High, ConfidenceLevel = ConfidenceLevel.High, Status = FindingStatus.New
+        });
+        await repository.AddStatementAsync(finding.Id, DetectorStatementKind.Fact, "A measured fact.");
+        var reloaded = await repository.GetByIdAsync(finding.Id);
+        var statementId = reloaded!.Statements[0].Id;
+
+        var promoted = await repository.PromoteToConclusionAsync(finding.Id, statementId, "Dana");
+
+        Assert.Null(promoted);
     }
 }
