@@ -10,11 +10,13 @@ public class NewExceptionDetector
 
     private readonly LogsPlatformDbContext _context;
     private readonly FindingWriter _writer;
+    private readonly DownstreamFailureCorrelator _downstreamCorrelator;
 
-    public NewExceptionDetector(LogsPlatformDbContext context, FindingWriter writer)
+    public NewExceptionDetector(LogsPlatformDbContext context, FindingWriter writer, DownstreamFailureCorrelator downstreamCorrelator)
     {
         _context = context;
         _writer = writer;
+        _downstreamCorrelator = downstreamCorrelator;
     }
 
     public async Task RunAsync(int applicationId, int environmentId)
@@ -27,11 +29,12 @@ public class NewExceptionDetector
 
         foreach (var group in newGroups)
         {
-            var environmentIds = await _context.Events.AsNoTracking()
+            var events = await _context.Events.AsNoTracking()
                 .Where(e => e.ExceptionGroupId == group.Id && e.EnvironmentId == environmentId)
-                .Select(e => e.EnvironmentId)
-                .Distinct()
+                .OrderBy(e => e.Timestamp)
                 .ToListAsync();
+
+            var environmentIds = events.Select(e => e.EnvironmentId).Distinct();
 
             foreach (var envId in environmentIds)
             {
@@ -40,7 +43,13 @@ public class NewExceptionDetector
                     $"New exception: {group.ExceptionType}", FindingSeverity.High, ConfidenceLevel.High,
                     new[] { (DetectorStatementKind.Fact, $"This exception type ({group.ExceptionType}) has never been seen before. First occurrence at {group.FirstSeenAt:u}.") });
 
-                await _writer.WriteAsync(draft);
+                var finding = await _writer.WriteAsync(draft);
+
+                var triggerEvent = events.First(e => e.EnvironmentId == envId);
+                if (triggerEvent.CorrelationId is not null && triggerEvent.OperationId is not null)
+                {
+                    await _downstreamCorrelator.RunAsync(finding, triggerEvent.CorrelationId, triggerEvent.OperationId.Value, triggerEvent.Timestamp);
+                }
             }
         }
     }
