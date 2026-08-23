@@ -25,6 +25,7 @@
     <ProjectReference Include="..\..\src\LogsPlatform.Infrastructure\LogsPlatform.Infrastructure.csproj" />
     <ProjectReference Include="..\..\src\LogsPlatform.Web\LogsPlatform.Web.csproj" />
     <ProjectReference Include="..\..\src\LogsPlatform.Client\LogsPlatform.Client.csproj" />
+    <ProjectReference Include="..\SyntheticDataGenerator\LogsPlatform.SyntheticDataGenerator.csproj" />
   </ItemGroup>
 
 </Project>
