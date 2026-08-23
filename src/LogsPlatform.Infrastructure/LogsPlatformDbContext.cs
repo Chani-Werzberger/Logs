@@ -23,6 +23,10 @@ public class LogsPlatformDbContext : DbContext
     public DbSet<Deployment> Deployments => Set<Deployment>();
     public DbSet<Event> Events => Set<Event>();
     public DbSet<ExceptionGroup> ExceptionGroups => Set<ExceptionGroup>();
+    public DbSet<Baseline> Baselines => Set<Baseline>();
+    public DbSet<Finding> Findings => Set<Finding>();
+    public DbSet<FindingStatement> FindingStatements => Set<FindingStatement>();
+    public DbSet<Evidence> Evidence => Set<Evidence>();
 
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
     {
@@ -196,6 +200,36 @@ public class LogsPlatformDbContext : DbContext
             entity.HasIndex(e => e.TraceId);
             entity.HasIndex(e => e.ExceptionGroupId);
             entity.HasIndex(e => new { e.ApplicationId, e.EventKey }).IsUnique().HasFilter("[EventKey] IS NOT NULL");
+        });
+
+        modelBuilder.Entity<Baseline>(entity =>
+        {
+            entity.HasOne(b => b.Application).WithMany().HasForeignKey(b => b.ApplicationId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(b => b.Environment).WithMany().HasForeignKey(b => b.EnvironmentId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasIndex(b => new { b.ApplicationId, b.EnvironmentId, b.ScopeType, b.ScopeId, b.MetricType, b.BucketHourOfDay }).IsUnique();
+        });
+
+        modelBuilder.Entity<Finding>(entity =>
+        {
+            entity.Property(f => f.Title).HasMaxLength(500).IsRequired();
+            entity.HasOne(f => f.Application).WithMany().HasForeignKey(f => f.ApplicationId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(f => f.Environment).WithMany().HasForeignKey(f => f.EnvironmentId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasIndex(f => new { f.ApplicationId, f.EnvironmentId, f.ScopeType, f.ScopeId, f.Type, f.Status });
+        });
+
+        modelBuilder.Entity<FindingStatement>(entity =>
+        {
+            entity.Property(s => s.Text).HasMaxLength(2000).IsRequired();
+            entity.Property(s => s.ApprovedBy).HasMaxLength(200);
+            entity.HasOne(s => s.Finding).WithMany().HasForeignKey(s => s.FindingId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasIndex(s => new { s.FindingId, s.OrderIndex });
+        });
+
+        modelBuilder.Entity<Evidence>(entity =>
+        {
+            entity.Property(e => e.Description).HasMaxLength(1000).IsRequired();
+            entity.HasOne(e => e.Finding).WithMany().HasForeignKey(e => e.FindingId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasIndex(e => e.FindingId);
         });
     }
 }

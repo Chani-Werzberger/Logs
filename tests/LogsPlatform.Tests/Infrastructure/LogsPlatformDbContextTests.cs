@@ -272,4 +272,58 @@ public class LogsPlatformDbContextTests
         var loadedGroup = await readContext.ExceptionGroups.SingleAsync(g => g.Fingerprint == "abc123");
         Assert.Equal(1, loadedGroup.OccurrenceCount);
     }
+
+    [Fact]
+    public async Task Baseline_Finding_FindingStatement_Evidence_RoundTrip()
+    {
+        using var context = TestDatabase.CreateContext();
+
+        var app = new Application { Name = "AnalysisEntitiesTestApp", CreatedAt = DateTime.UtcNow };
+        context.Applications.Add(app);
+        await context.SaveChangesAsync();
+
+        var env = new AppEnvironment { ApplicationId = app.Id, Name = "Production", IsProduction = true };
+        context.AppEnvironments.Add(env);
+        await context.SaveChangesAsync();
+
+        var baseline = new Baseline
+        {
+            ApplicationId = app.Id, EnvironmentId = env.Id,
+            ScopeType = AnalysisScopeType.Operation, ScopeId = 1,
+            MetricType = AnalysisMetricType.EventCount, BucketHourOfDay = 14,
+            MeanValue = 6.7, StdDevValue = 2.1, SampleCount = 21, LastUpdatedAt = DateTime.UtcNow
+        };
+        context.Baselines.Add(baseline);
+        await context.SaveChangesAsync();
+
+        var finding = new Finding
+        {
+            ApplicationId = app.Id, EnvironmentId = env.Id,
+            Type = FindingType.ErrorSpike, ScopeType = AnalysisScopeType.Operation, ScopeId = 1,
+            Title = "Error spike on ChargePayment", DetectedAt = DateTime.UtcNow,
+            Severity = FindingSeverity.High, ConfidenceLevel = ConfidenceLevel.High, Status = FindingStatus.New
+        };
+        context.Findings.Add(finding);
+        await context.SaveChangesAsync();
+
+        context.FindingStatements.Add(new FindingStatement
+        {
+            FindingId = finding.Id, Kind = FindingStatementKind.Fact,
+            Text = "Operation ChargePayment recorded 42 errors between 02:00-03:00.", OrderIndex = 0
+        });
+        context.Evidence.Add(new Evidence
+        {
+            FindingId = finding.Id, EvidenceType = EvidenceType.Baseline,
+            ReferenceId = baseline.Id, Description = "Baseline row used for detection"
+        });
+        await context.SaveChangesAsync();
+
+        var options = new DbContextOptionsBuilder<LogsPlatformDbContext>().UseSqlServer(TestDatabase.ConnectionString).Options;
+        await using var verifyContext = new LogsPlatformDbContext(options);
+
+        Assert.Equal(1, await verifyContext.Baselines.CountAsync(b => b.Id == baseline.Id));
+        Assert.Equal(1, await verifyContext.Findings.CountAsync(f => f.Id == finding.Id));
+        Assert.Equal(1, await verifyContext.FindingStatements.CountAsync(s => s.FindingId == finding.Id));
+        Assert.Equal(1, await verifyContext.Evidence.CountAsync(e => e.FindingId == finding.Id));
+    }
 }
