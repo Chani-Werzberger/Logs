@@ -1,0 +1,79 @@
+@* src/LogsPlatform.Web/Components/Pages/Timeline.razor *@
+@page "/timeline"
+@using LogsPlatform.Domain.Entities
+@using LogsPlatform.Domain.Repositories
+@using LogsPlatform.Web.Services
+@inject IEventRepository EventRepository
+@inject NavigationManager Navigation
+@rendermode InteractiveServer
+
+<h1>Timeline</h1>
+
+@if (_events.Count == 0)
+{
+    <p>No events found for this lookup.</p>
+}
+else
+{
+    <table class="table table-striped align-middle">
+        <thead>
+            <tr>
+                <th>+ms</th>
+                <th>Operation</th>
+                <th>Severity</th>
+                <th>Duration</th>
+                <th>Message</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var evt in _events)
+            {
+                <tr @key="evt.Id">
+                    <td>+@((evt.Timestamp - _events[0].Timestamp).TotalMilliseconds)ms</td>
+                    <td>@BuildOperationPath(evt)</td>
+                    <td>@SeverityLevels.ByValue[evt.Severity]</td>
+                    <td>@evt.DurationMs</td>
+                    <td>@evt.Message</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private List<Event> _events = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        var uri = Navigation.ToAbsoluteUri(Navigation.Uri);
+        var query = System.Web.HttpUtility.ParseQueryString(uri.Query);
+
+        if (!int.TryParse(query["applicationId"], out var applicationId))
+        {
+            return;
+        }
+
+        var correlationId = query["correlationId"];
+        var traceId = query["traceId"];
+        var customerId = query["customerId"];
+        int.TryParse(query["operationId"], out var operationId);
+        var userId = query["userId"];
+
+        var lookupQuery = new TimelineQuery(
+            applicationId,
+            correlationId,
+            traceId,
+            operationId == 0 ? null : operationId,
+            userId,
+            customerId);
+
+        _events = (await EventRepository.GetTimelineAsync(lookupQuery)).ToList();
+    }
+
+    private static string BuildOperationPath(Event evt)
+    {
+        var segments = new[] { evt.Module?.Name, evt.ScreenService?.Name, evt.Process?.Name, evt.Operation?.Name }
+            .Where(name => name is not null);
+        return string.Join(" / ", segments);
+    }
+}
