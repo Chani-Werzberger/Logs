@@ -47,4 +47,14 @@ public class ScenarioInjectorTests
         var fiveMinutesAgo = DateTime.UtcNow.AddMinutes(-5);
         Assert.True(trigger.Timestamp >= fiveMinutesAgo, "Trigger event must fall inside NewExceptionDetector's 5-minute window.");
     }
+
+    [Fact]
+    public void DeploymentAnomalyInjector_InjectEvents_ProducesEventsInCurrentHourOnAggregateJobs()
+    {
+        var events = DeploymentAnomalyInjector.InjectEvents();
+
+        Assert.Equal(ScenarioConstants.DeploymentAnomalyEventCount, events.Count);
+        Assert.All(events, e => Assert.Equal(ScenarioConstants.AggregateJobsOperation, e.Operation));
+        Assert.All(events, e => Assert.Equal("Error", e.Severity));
+    }
 }
