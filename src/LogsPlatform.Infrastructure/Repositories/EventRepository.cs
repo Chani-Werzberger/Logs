@@ -107,4 +107,92 @@ public class EventRepository : IEventRepository
     // which isn't reachable from this layer: LogsPlatform.Infrastructure doesn't reference LogsPlatform.Web.
     private static bool IsUniqueViolation(DbUpdateException ex) =>
         ex.InnerException is Microsoft.Data.SqlClient.SqlException { Number: 2601 or 2627 };
+
+    private const int MaxPageSize = 200;
+
+    public async Task<(IReadOnlyList<Event> Items, int TotalCount)> QueryAsync(EventQueryParameters parameters)
+    {
+        var query = _context.Events.AsNoTracking()
+            .Where(e => e.ApplicationId == parameters.ApplicationId && e.EnvironmentId == parameters.EnvironmentId);
+
+        if (parameters.From is not null) query = query.Where(e => e.Timestamp >= parameters.From);
+        if (parameters.To is not null) query = query.Where(e => e.Timestamp <= parameters.To);
+        if (parameters.Severity is not null) query = query.Where(e => e.Severity == parameters.Severity);
+        if (parameters.ModuleId is not null) query = query.Where(e => e.ModuleId == parameters.ModuleId);
+        if (parameters.ScreenServiceId is not null) query = query.Where(e => e.ScreenServiceId == parameters.ScreenServiceId);
+        if (parameters.ProcessId is not null) query = query.Where(e => e.ProcessId == parameters.ProcessId);
+        if (parameters.OperationId is not null) query = query.Where(e => e.OperationId == parameters.OperationId);
+        if (parameters.CorrelationId is not null) query = query.Where(e => e.CorrelationId == parameters.CorrelationId);
+        if (parameters.TraceId is not null) query = query.Where(e => e.TraceId == parameters.TraceId);
+        if (int.TryParse(parameters.UserId, out var userId)) query = query.Where(e => e.AppUserId == userId);
+        if (int.TryParse(parameters.CustomerId, out var customerId)) query = query.Where(e => e.CustomerId == customerId);
+        if (parameters.ExceptionGroupId is not null) query = query.Where(e => e.ExceptionGroupId == parameters.ExceptionGroupId);
+        if (parameters.VersionId is not null) query = query.Where(e => e.VersionId == parameters.VersionId);
+        if (parameters.DurationMinMs is not null) query = query.Where(e => e.DurationMs >= parameters.DurationMinMs);
+        if (parameters.DurationMaxMs is not null) query = query.Where(e => e.DurationMs <= parameters.DurationMaxMs);
+        if (!string.IsNullOrWhiteSpace(parameters.MessageContains)) query = query.Where(e => e.Message.Contains(parameters.MessageContains));
+
+        var totalCount = await query.CountAsync();
+
+        var pageSize = Math.Clamp(parameters.PageSize, 1, MaxPageSize);
+        var page = Math.Max(parameters.Page, 1);
+
+        var items = await query
+            .OrderByDescending(e => e.Timestamp)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .Include(e => e.Module)
+            .Include(e => e.ScreenService)
+            .Include(e => e.Process)
+            .Include(e => e.Operation)
+            .ToListAsync();
+
+        return (items, totalCount);
+    }
+
+    public async Task<Event?> GetByIdAsync(int applicationId, long id)
+    {
+        var evt = await _context.Events.AsNoTracking()
+            .Include(e => e.Module)
+            .Include(e => e.ScreenService)
+            .Include(e => e.Process)
+            .Include(e => e.Operation)
+            .FirstOrDefaultAsync(e => e.Id == id);
+
+        return evt is null || evt.ApplicationId != applicationId ? null : evt;
+    }
+
+    public async Task<IReadOnlyList<Event>> GetTimelineAsync(TimelineQuery query)
+    {
+        var events = _context.Events.AsNoTracking().Where(e => e.ApplicationId == query.ApplicationId);
+
+        if (query.CorrelationId is not null)
+        {
+            events = events.Where(e => e.CorrelationId == query.CorrelationId);
+        }
+        else if (query.TraceId is not null)
+        {
+            events = events.Where(e => e.TraceId == query.TraceId);
+        }
+        else if (query.OperationId is not null && int.TryParse(query.UserId, out var userId))
+        {
+            events = events.Where(e => e.OperationId == query.OperationId && e.AppUserId == userId);
+        }
+        else if (int.TryParse(query.CustomerId, out var customerId))
+        {
+            events = events.Where(e => e.CustomerId == customerId);
+        }
+        else
+        {
+            return Array.Empty<Event>();
+        }
+
+        return await events
+            .OrderBy(e => e.Timestamp)
+            .Include(e => e.Module)
+            .Include(e => e.ScreenService)
+            .Include(e => e.Process)
+            .Include(e => e.Operation)
+            .ToListAsync();
+    }
 }
