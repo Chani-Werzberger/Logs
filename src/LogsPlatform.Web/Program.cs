@@ -43,6 +43,8 @@ builder.Services.AddScoped<IngestionProcessor>();
 builder.Services.AddScoped<IMetricsRepository, MetricsRepository>();
 builder.Services.AddScoped<IBaselineRepository, BaselineRepository>();
 builder.Services.AddScoped<LogsPlatform.Web.Services.Analysis.BaselineCalculator>();
+builder.Services.AddScoped<IFindingRepository, FindingRepository>();
+builder.Services.AddScoped<LogsPlatform.Web.Services.Analysis.FindingWriter>();
 
 var app = builder.Build();
 
