@@ -68,4 +68,30 @@ public class FindingsController : ControllerBase
             details.Finding.ConfidenceLevel.ToString(), details.Status.ToString(), details.Finding.DetectedAt,
             application?.Name ?? string.Empty, environment?.Name ?? string.Empty, statements, evidence);
     }
+
+    [HttpPatch("{id:long}/status")]
+    public async Task<IActionResult> UpdateStatus(long id, [FromBody] UpdateFindingStatusRequest request)
+    {
+        if (!Enum.TryParse<FindingStatus>(request.Status, ignoreCase: true, out var status))
+        {
+            return ValidationProblem($"status: invalid value '{request.Status}'.");
+        }
+
+        var finding = await _findings.UpdateStatusAsync(id, status);
+        if (finding is null) return NotFound();
+        return NoContent();
+    }
+
+    [HttpPost("{id:long}/statements/{statementId:long}/promote")]
+    public async Task<IActionResult> Promote(long id, long statementId, [FromBody] PromoteStatementRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.ApprovedBy))
+        {
+            return ValidationProblem("approvedBy is required.");
+        }
+
+        var statement = await _findings.PromoteToConclusionAsync(id, statementId, request.ApprovedBy);
+        if (statement is null) return NotFound();
+        return NoContent();
+    }
 }

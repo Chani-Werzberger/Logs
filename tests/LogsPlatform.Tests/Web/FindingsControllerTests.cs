@@ -88,4 +88,82 @@ public class FindingsControllerTests : IClassFixture<TestWebApplicationFactory>
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
+
+    [Fact]
+    public async Task UpdateStatus_ValidStatus_Returns204AndPersists()
+    {
+        var client = _factory.CreateClient();
+        var (appId, envId) = await CreateAppWithEnvironmentAsync(client, "FindingsStatusTestApp");
+        var finding = await SeedFindingAsync(appId, envId, FindingStatus.New, FindingSeverity.High);
+
+        var response = await client.PatchAsJsonAsync($"/api/v1/findings/{finding.Id}/status", new UpdateFindingStatusRequest("Acknowledged"));
+
+        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+
+        var detailResponse = await client.GetAsync($"/api/v1/findings/{finding.Id}");
+        var detail = await detailResponse.Content.ReadFromJsonAsync<FindingDetail>();
+        Assert.Equal("Acknowledged", detail!.Status);
+    }
+
+    [Fact]
+    public async Task UpdateStatus_InvalidStatusValue_Returns400()
+    {
+        var client = _factory.CreateClient();
+        var (appId, envId) = await CreateAppWithEnvironmentAsync(client, "FindingsStatusInvalidTestApp");
+        var finding = await SeedFindingAsync(appId, envId, FindingStatus.New, FindingSeverity.High);
+
+        var response = await client.PatchAsJsonAsync($"/api/v1/findings/{finding.Id}/status", new UpdateFindingStatusRequest("NotAStatus"));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task PromoteStatement_HypothesisStatement_Returns204AndPersists()
+    {
+        var client = _factory.CreateClient();
+        var (appId, envId) = await CreateAppWithEnvironmentAsync(client, "FindingsPromoteTestApp");
+        var finding = await SeedFindingAsync(appId, envId, FindingStatus.New, FindingSeverity.High);
+
+        long statementId;
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var context = scope.ServiceProvider.GetRequiredService<LogsPlatformDbContext>();
+            var statement = new FindingStatement { FindingId = finding.Id, Kind = FindingStatementKind.Hypothesis, Text = "Maybe a deployment.", OrderIndex = 1 };
+            context.FindingStatements.Add(statement);
+            await context.SaveChangesAsync();
+            statementId = statement.Id;
+        }
+
+        var response = await client.PostAsJsonAsync($"/api/v1/findings/{finding.Id}/statements/{statementId}/promote", new PromoteStatementRequest("Dana"));
+
+        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+
+        var detailResponse = await client.GetAsync($"/api/v1/findings/{finding.Id}");
+        var detail = await detailResponse.Content.ReadFromJsonAsync<FindingDetail>();
+        var promoted = detail!.Statements.Single(s => s.Id == statementId);
+        Assert.Equal("Conclusion", promoted.Kind);
+        Assert.Equal("Dana", promoted.ApprovedBy);
+    }
+
+    [Fact]
+    public async Task PromoteStatement_BlankApprovedBy_Returns400()
+    {
+        var client = _factory.CreateClient();
+        var (appId, envId) = await CreateAppWithEnvironmentAsync(client, "FindingsPromoteBlankTestApp");
+        var finding = await SeedFindingAsync(appId, envId, FindingStatus.New, FindingSeverity.High);
+
+        long statementId;
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var context = scope.ServiceProvider.GetRequiredService<LogsPlatformDbContext>();
+            var statement = new FindingStatement { FindingId = finding.Id, Kind = FindingStatementKind.Hypothesis, Text = "Maybe.", OrderIndex = 1 };
+            context.FindingStatements.Add(statement);
+            await context.SaveChangesAsync();
+            statementId = statement.Id;
+        }
+
+        var response = await client.PostAsJsonAsync($"/api/v1/findings/{finding.Id}/statements/{statementId}/promote", new PromoteStatementRequest("   "));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
 }
