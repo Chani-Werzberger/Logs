@@ -47,6 +47,7 @@ builder.Services.AddScoped<IFindingRepository, FindingRepository>();
 builder.Services.AddScoped<LogsPlatform.Web.Services.Analysis.FindingWriter>();
 builder.Services.AddScoped<LogsPlatform.Web.Services.Analysis.RateAnomalyDetector>();
 builder.Services.AddScoped<LogsPlatform.Web.Services.Analysis.NewExceptionDetector>();
+builder.Services.AddScoped<LogsPlatform.Web.Services.Analysis.CustomerOutlierDetector>();
 
 var app = builder.Build();
 
