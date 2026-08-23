@@ -27,4 +27,24 @@ public class ScenarioInjectorTests
         Assert.All(events, e => Assert.Equal(ScenarioConstants.MatchAvailabilityOperation, e.Operation));
         Assert.All(events, e => Assert.Equal(ScenarioConstants.PerformanceDegradationDurationMs, e.DurationMs));
     }
+
+    [Fact]
+    public void NewExceptionInjector_ProducesTriggerAndDownstreamEventsSharingCorrelationId()
+    {
+        var events = NewExceptionInjector.Inject();
+
+        Assert.Equal(2, events.Count);
+
+        var trigger = events.Single(e => e.Operation == ScenarioConstants.ReserveStockOperation);
+        Assert.NotNull(trigger.ExceptionType);
+        Assert.NotNull(trigger.CorrelationId);
+
+        var downstream = events.Single(e => e.Operation == ScenarioConstants.ValidateCartOperation);
+        Assert.Equal(trigger.CorrelationId, downstream.CorrelationId);
+        Assert.Equal("Error", downstream.Severity);
+        Assert.True(downstream.Timestamp > trigger.Timestamp);
+
+        var fiveMinutesAgo = DateTime.UtcNow.AddMinutes(-5);
+        Assert.True(trigger.Timestamp >= fiveMinutesAgo, "Trigger event must fall inside NewExceptionDetector's 5-minute window.");
+    }
 }
