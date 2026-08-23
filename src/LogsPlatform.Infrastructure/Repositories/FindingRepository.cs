@@ -71,4 +71,9 @@ public class FindingRepository : IFindingRepository
 
         return new FindingWithDetails(finding, statements, evidence);
     }
+
+    public async Task<IReadOnlyList<Finding>> GetDetectedSinceAsync(int applicationId, int environmentId, DateTime since) =>
+        await _context.Findings.AsNoTracking()
+            .Where(f => f.ApplicationId == applicationId && f.EnvironmentId == environmentId && f.DetectedAt >= since)
+            .ToListAsync();
 }

@@ -9,6 +9,7 @@ public interface IFindingRepository
     Task AddStatementAsync(long findingId, DetectorStatementKind kind, string text);
     Task AddEvidenceAsync(long findingId, EvidenceType evidenceType, long referenceId, string description);
     Task<FindingWithDetails?> GetByIdAsync(long id);
+    Task<IReadOnlyList<Finding>> GetDetectedSinceAsync(int applicationId, int environmentId, DateTime since);
 }
 
 public record FindingWithDetails(Finding Finding, IReadOnlyList<FindingStatement> Statements, IReadOnlyList<Evidence> Evidence)
