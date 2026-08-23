@@ -1,0 +1,63 @@
+@* src/LogsPlatform.Web/Components/Pages/ExceptionDetail.razor *@
+@page "/exceptions/{Id:long}"
+@using LogsPlatform.Domain.Entities
+@using LogsPlatform.Domain.Repositories
+@using LogsPlatform.Web.Services
+@inject IExceptionGroupRepository ExceptionGroupRepository
+@rendermode InteractiveServer
+
+@if (_group is null)
+{
+    <p>Not found.</p>
+}
+else
+{
+    <h1>@_group.ExceptionType</h1>
+    <p class="text-muted">Fingerprint: @_group.Fingerprint</p>
+
+    <div class="mb-3">@((MarkupString)SparklineRenderer.Render(_dailyCounts, width: 400, height: 80))</div>
+
+    <dl class="row">
+        <dt class="col-sm-2">Occurrences</dt><dd class="col-sm-10">@_group.OccurrenceCount</dd>
+        <dt class="col-sm-2">First Seen</dt><dd class="col-sm-10">@_group.FirstSeenAt.ToString("u")</dd>
+        <dt class="col-sm-2">Last Seen</dt><dd class="col-sm-10">@_group.LastSeenAt.ToString("u")</dd>
+    </dl>
+
+    <h4>Stack Trace</h4>
+    <pre>@_group.RepresentativeStackTrace</pre>
+
+    <h4>Affected</h4>
+    <table class="table table-sm">
+        <thead><tr><th>Application</th><th>Environment</th><th>Version</th><th>Operation</th></tr></thead>
+        <tbody>
+            @foreach (var context in _contexts)
+            {
+                <tr>
+                    <td>@context.ApplicationName</td>
+                    <td>@context.EnvironmentName</td>
+                    <td>@context.VersionNumber</td>
+                    <td>
+                        <a href="/search?applicationId=@_group.ApplicationId&environmentId=&exceptionGroupId=@_group.Id">@context.OperationName</a>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    [Parameter] public long Id { get; set; }
+
+    private ExceptionGroup? _group;
+    private IReadOnlyDictionary<DateOnly, int> _dailyCounts = new Dictionary<DateOnly, int>();
+    private IReadOnlyList<AffectedContext> _contexts = new List<AffectedContext>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        _group = await ExceptionGroupRepository.GetByIdAsync(Id);
+        if (_group is null) return;
+
+        _dailyCounts = await ExceptionGroupRepository.GetDailyCountsAsync(Id, days: 14);
+        _contexts = await ExceptionGroupRepository.GetAffectedContextsAsync(Id);
+    }
+}

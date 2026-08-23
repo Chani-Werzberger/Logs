@@ -1,0 +1,100 @@
+@* src/LogsPlatform.Web/Components/Pages/Exceptions.razor *@
+@page "/exceptions"
+@using LogsPlatform.Domain.Entities
+@using LogsPlatform.Domain.Repositories
+@using LogsPlatform.Web.Services
+@inject IApplicationRepository ApplicationRepository
+@inject IExceptionGroupRepository ExceptionGroupRepository
+@rendermode InteractiveServer
+
+<h1>Exceptions</h1>
+
+<div class="d-flex gap-2 align-items-center mb-3">
+    <label class="form-label mb-0">Application</label>
+    <select class="form-select form-select-sm w-auto" value="@_applicationId" @onchange="OnApplicationChangedAsync">
+        <option value="">-- select --</option>
+        @foreach (var app in _applications)
+        {
+            <option value="@app.Id">@app.Name</option>
+        }
+    </select>
+
+    <label class="form-label mb-0">Sort by</label>
+    <select class="form-select form-select-sm w-auto" @bind="_sortBy" @bind:after="LoadAsync">
+        <option value="LastSeenAt">Last Seen</option>
+        <option value="OccurrenceCount">Occurrence Count</option>
+    </select>
+</div>
+
+@if (_groups.Count > 0)
+{
+    <table class="table table-striped table-hover align-middle">
+        <thead>
+            <tr>
+                <th>Fingerprint</th>
+                <th>Type</th>
+                <th>Count</th>
+                <th>First Seen</th>
+                <th>Last Seen</th>
+                <th>Trend</th>
+                <th>Operations</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var group in _groups)
+            {
+                <tr @key="group.Id">
+                    <td><a href="/exceptions/@group.Id">@group.Fingerprint[..Math.Min(8, group.Fingerprint.Length)]</a></td>
+                    <td>@group.ExceptionType</td>
+                    <td>@group.OccurrenceCount</td>
+                    <td>@group.FirstSeenAt.ToString("d")</td>
+                    <td>@group.LastSeenAt.ToString("d")</td>
+                    <td>@((MarkupString)SparklineRenderer.Render(group.DailyCounts, width: 100, height: 24))</td>
+                    <td>@string.Join(", ", group.AffectedOperations)</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private List<Application> _applications = new();
+    private int? _applicationId;
+    private string _sortBy = "LastSeenAt";
+    private List<ExceptionGroupRow> _groups = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        _applications = (await ApplicationRepository.GetAllAsync()).ToList();
+    }
+
+    private async Task OnApplicationChangedAsync(ChangeEventArgs e)
+    {
+        _applicationId = int.TryParse(e.Value?.ToString(), out var id) ? id : null;
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        if (_applicationId is null)
+        {
+            _groups = new();
+            return;
+        }
+
+        var groups = await ExceptionGroupRepository.QueryAsync(new ExceptionGroupQueryParameters(
+            ApplicationId: _applicationId.Value, From: null, To: null, SortBy: _sortBy));
+
+        var rows = new List<ExceptionGroupRow>();
+        foreach (var group in groups)
+        {
+            var dailyCounts = await ExceptionGroupRepository.GetDailyCountsAsync(group.Id, days: 14);
+            var contexts = await ExceptionGroupRepository.GetAffectedContextsAsync(group.Id);
+            var operations = contexts.Select(c => c.OperationName).Where(name => name is not null).Distinct().Select(name => name!).ToList();
+            rows.Add(new ExceptionGroupRow(group.Id, group.Fingerprint, group.ExceptionType, group.OccurrenceCount, group.FirstSeenAt, group.LastSeenAt, dailyCounts, operations));
+        }
+        _groups = rows;
+    }
+
+    private record ExceptionGroupRow(long Id, string Fingerprint, string ExceptionType, int OccurrenceCount, DateTime FirstSeenAt, DateTime LastSeenAt, IReadOnlyDictionary<DateOnly, int> DailyCounts, IReadOnlyList<string> AffectedOperations);
+}
