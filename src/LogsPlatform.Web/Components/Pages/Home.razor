@@ -1,44 +1,181 @@
 @* src/LogsPlatform.Web/Components/Pages/Home.razor *@
 @page "/"
+@using LogsPlatform.Domain.Entities
+@using LogsPlatform.Domain.Repositories
+@using LogsPlatform.Web.Components.Shared
+@inject IFindingRepository FindingRepository
+@inject IApplicationRepository ApplicationRepository
+@inject IOperationRepository OperationRepository
+@inject NavigationManager Navigation
+@rendermode InteractiveServer
 
-<h1>LogsPlatform</h1>
-<p class="text-muted">מערכת לניהול, חקירה ואבחון לוגים</p>
+<h1>מה חריג</h1>
 
-<div class="row g-3 mt-2">
-    <div class="col-md-3">
-        <div class="card h-100">
-            <div class="card-body d-flex flex-column">
-                <h5 class="card-title">מה חריג</h5>
-                <p class="card-text flex-grow-1">חריגות שהמערכת זיהתה אוטומטית.</p>
-                <span class="badge text-bg-secondary align-self-start">בקרוב</span>
+<AppEnvironmentSelector ApplicationId="_applicationId" EnvironmentId="_environmentId" OnSelectionChanged="OnAppEnvironmentChangedAsync" />
+
+@if (_applicationId is not null && _environmentId is not null)
+{
+    <div class="card mb-4">
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-auto">
+                    <label class="form-label">חומרה</label>
+                    <select class="form-select form-select-sm" value="@_severity" @onchange="OnSeverityChangedAsync">
+                        <option value="">-- הכל --</option>
+                        @foreach (var value in Enum.GetValues<FindingSeverity>())
+                        {
+                            <option value="@value">@value</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-auto">
+                    <label class="form-label">רמת ביטחון</label>
+                    <select class="form-select form-select-sm" value="@_confidence" @onchange="OnConfidenceChangedAsync">
+                        <option value="">-- הכל --</option>
+                        @foreach (var value in Enum.GetValues<ConfidenceLevel>())
+                        {
+                            <option value="@value">@value</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-auto">
+                    <label class="form-label">סטטוס</label>
+                    <select class="form-select form-select-sm" value="@_status" @onchange="OnStatusChangedAsync">
+                        <option value="">-- הכל --</option>
+                        @foreach (var value in Enum.GetValues<FindingStatus>())
+                        {
+                            <option value="@value">@value</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-auto">
+                    <label class="form-label">סוג</label>
+                    <select class="form-select form-select-sm" value="@_type" @onchange="OnTypeChangedAsync">
+                        <option value="">-- הכל --</option>
+                        @foreach (var value in Enum.GetValues<FindingType>())
+                        {
+                            <option value="@value">@value</option>
+                        }
+                    </select>
+                </div>
             </div>
         </div>
     </div>
-    <div class="col-md-3">
-        <div class="card h-100">
-            <div class="card-body d-flex flex-column">
-                <h5 class="card-title">חיפוש</h5>
-                <p class="card-text flex-grow-1">חיפוש וסינון חופשי של אירועים שנקלטו.</p>
-                <a href="/search" class="btn btn-primary align-self-start">מעבר לחיפוש</a>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card h-100">
-            <div class="card-body d-flex flex-column">
-                <h5 class="card-title">חריגות</h5>
-                <p class="card-text flex-grow-1">קבוצות Exceptions, מגמות ותדירות הופעה.</p>
-                <a href="/exceptions" class="btn btn-primary align-self-start">מעבר לחריגות</a>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card h-100">
-            <div class="card-body d-flex flex-column">
-                <h5 class="card-title">ניהול</h5>
-                <p class="card-text flex-grow-1">הגדרת אפליקציות, סביבות, היררכיה ומפתחות API.</p>
-                <a href="/admin/applications" class="btn btn-primary align-self-start">מעבר לניהול</a>
-            </div>
-        </div>
-    </div>
-</div>
+
+    @if (_results.Count == 0)
+    {
+        <p class="text-muted">לא נמצאו חריגות בטווח הזמן/הסינון הנוכחי.</p>
+    }
+    else
+    {
+        <table class="table table-striped table-hover align-middle">
+            <thead>
+                <tr>
+                    <th>סוג</th>
+                    <th>חומרה</th>
+                    <th>ביטחון</th>
+                    <th>כותרת</th>
+                    <th>אפליקציה / פעולה</th>
+                    <th>זוהה ב-</th>
+                    <th>סטטוס</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var finding in _results)
+                {
+                    <tr @key="finding.Id" style="cursor:pointer" @onclick="() => NavigateToFinding(finding.Id)">
+                        <td>@finding.Type</td>
+                        <td><span class="badge @SeverityBadgeClass(finding.Severity)">@finding.Severity</span></td>
+                        <td><span class="badge @ConfidenceBadgeClass(finding.ConfidenceLevel)">@finding.ConfidenceLevel</span></td>
+                        <td>@finding.Title</td>
+                        <td>@_applicationName@(_operationNames.TryGetValue(finding.Id, out var name) ? $" / {name}" : "")</td>
+                        <td>@finding.DetectedAt.ToString("u")</td>
+                        <td>@finding.Status</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+}
+
+@code {
+    private int? _applicationId;
+    private int? _environmentId;
+    private string _applicationName = string.Empty;
+
+    private FindingSeverity? _severity;
+    private ConfidenceLevel? _confidence;
+    private FindingStatus? _status;
+    private FindingType? _type;
+
+    private List<Finding> _results = new();
+    private Dictionary<long, string> _operationNames = new();
+
+    private async Task OnAppEnvironmentChangedAsync((int ApplicationId, int EnvironmentId) selection)
+    {
+        _applicationId = selection.ApplicationId;
+        _environmentId = selection.EnvironmentId;
+        var application = await ApplicationRepository.GetByIdAsync(_applicationId.Value);
+        _applicationName = application?.Name ?? string.Empty;
+        await SearchAsync();
+    }
+
+    private async Task OnSeverityChangedAsync(ChangeEventArgs e)
+    {
+        _severity = Enum.TryParse<FindingSeverity>(e.Value?.ToString(), out var value) ? value : null;
+        await SearchAsync();
+    }
+
+    private async Task OnConfidenceChangedAsync(ChangeEventArgs e)
+    {
+        _confidence = Enum.TryParse<ConfidenceLevel>(e.Value?.ToString(), out var value) ? value : null;
+        await SearchAsync();
+    }
+
+    private async Task OnStatusChangedAsync(ChangeEventArgs e)
+    {
+        _status = Enum.TryParse<FindingStatus>(e.Value?.ToString(), out var value) ? value : null;
+        await SearchAsync();
+    }
+
+    private async Task OnTypeChangedAsync(ChangeEventArgs e)
+    {
+        _type = Enum.TryParse<FindingType>(e.Value?.ToString(), out var value) ? value : null;
+        await SearchAsync();
+    }
+
+    private async Task SearchAsync()
+    {
+        if (_applicationId is null || _environmentId is null) return;
+
+        _results = (await FindingRepository.QueryAsync(new FindingQueryParameters(
+            _applicationId.Value, _environmentId.Value, _status, _severity, _type, null, null))).ToList();
+
+        _operationNames.Clear();
+        foreach (var finding in _results.Where(f => f.ScopeType == AnalysisScopeType.Operation))
+        {
+            if (_operationNames.ContainsKey(finding.Id)) continue;
+            var operation = await OperationRepository.GetByIdAsync((int)finding.ScopeId);
+            if (operation is not null)
+            {
+                _operationNames[finding.Id] = operation.Name;
+            }
+        }
+    }
+
+    private void NavigateToFinding(long id) => Navigation.NavigateTo($"/findings/{id}");
+
+    private static string SeverityBadgeClass(FindingSeverity severity) => severity switch
+    {
+        FindingSeverity.High => "text-bg-danger",
+        FindingSeverity.Medium => "text-bg-warning",
+        _ => "text-bg-secondary"
+    };
+
+    private static string ConfidenceBadgeClass(ConfidenceLevel confidence) => confidence switch
+    {
+        ConfidenceLevel.High => "text-bg-success",
+        ConfidenceLevel.Medium => "text-bg-warning",
+        _ => "text-bg-secondary"
+    };
+}
