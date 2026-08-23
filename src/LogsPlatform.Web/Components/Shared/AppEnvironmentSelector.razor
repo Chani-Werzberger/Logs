@@ -1,0 +1,66 @@
+@* src/LogsPlatform.Web/Components/Shared/AppEnvironmentSelector.razor *@
+@using LogsPlatform.Domain.Entities
+@using LogsPlatform.Domain.Repositories
+@inject IApplicationRepository ApplicationRepository
+@inject IAppEnvironmentRepository EnvironmentRepository
+
+<div class="d-flex gap-2 align-items-center mb-3">
+    <label class="form-label mb-0">Application</label>
+    <select class="form-select form-select-sm w-auto" value="@_selectedApplicationId" @onchange="OnApplicationChangedAsync">
+        <option value="">-- select --</option>
+        @foreach (var app in _applications)
+        {
+            <option value="@app.Id">@app.Name</option>
+        }
+    </select>
+
+    <label class="form-label mb-0">Environment</label>
+    <select class="form-select form-select-sm w-auto" value="@_selectedEnvironmentId" @onchange="OnEnvironmentChangedAsync" disabled="@(_selectedApplicationId is null)">
+        <option value="">-- select --</option>
+        @foreach (var env in _environments)
+        {
+            <option value="@env.Id">@env.Name</option>
+        }
+    </select>
+</div>
+
+@code {
+    [Parameter] public int? ApplicationId { get; set; }
+    [Parameter] public int? EnvironmentId { get; set; }
+    [Parameter] public EventCallback<(int ApplicationId, int EnvironmentId)> OnSelectionChanged { get; set; }
+
+    private List<Application> _applications = new();
+    private List<AppEnvironment> _environments = new();
+    private int? _selectedApplicationId;
+    private int? _selectedEnvironmentId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _applications = (await ApplicationRepository.GetAllAsync()).ToList();
+        _selectedApplicationId = ApplicationId;
+        _selectedEnvironmentId = EnvironmentId;
+
+        if (_selectedApplicationId is not null)
+        {
+            _environments = (await EnvironmentRepository.GetByApplicationIdAsync(_selectedApplicationId.Value)).ToList();
+        }
+    }
+
+    private async Task OnApplicationChangedAsync(ChangeEventArgs e)
+    {
+        _selectedApplicationId = int.TryParse(e.Value?.ToString(), out var id) ? id : null;
+        _selectedEnvironmentId = null;
+        _environments = _selectedApplicationId is null
+            ? new List<AppEnvironment>()
+            : (await EnvironmentRepository.GetByApplicationIdAsync(_selectedApplicationId.Value)).ToList();
+    }
+
+    private async Task OnEnvironmentChangedAsync(ChangeEventArgs e)
+    {
+        _selectedEnvironmentId = int.TryParse(e.Value?.ToString(), out var id) ? id : null;
+        if (_selectedApplicationId is not null && _selectedEnvironmentId is not null)
+        {
+            await OnSelectionChanged.InvokeAsync((_selectedApplicationId.Value, _selectedEnvironmentId.Value));
+        }
+    }
+}
