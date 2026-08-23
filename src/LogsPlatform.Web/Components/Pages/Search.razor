@@ -1,0 +1,266 @@
+@* src/LogsPlatform.Web/Components/Pages/Search.razor *@
+@page "/search"
+@using LogsPlatform.Domain.Entities
+@using LogsPlatform.Domain.Repositories
+@using LogsPlatform.Web.Components.Shared
+@using LogsPlatform.Web.Services
+@inject IEventRepository EventRepository
+@inject IAppModuleRepository ModuleRepository
+@inject IScreenServiceRepository ScreenServiceRepository
+@inject IProcessNodeRepository ProcessRepository
+@inject IOperationRepository OperationRepository
+@inject NavigationManager Navigation
+@rendermode InteractiveServer
+
+<h1>Search</h1>
+
+<AppEnvironmentSelector ApplicationId="_applicationId" EnvironmentId="_environmentId" OnSelectionChanged="OnAppEnvironmentChangedAsync" />
+
+@if (_applicationId is not null && _environmentId is not null)
+{
+    <div class="card mb-4">
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-auto">
+                    <label class="form-label">Severity</label>
+                    <select class="form-select form-select-sm" @bind="_severity">
+                        <option value="">-- any --</option>
+                        @foreach (var name in SeverityLevels.ByName.Keys)
+                        {
+                            <option value="@name">@name</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-auto">
+                    <label class="form-label">Module</label>
+                    <select class="form-select form-select-sm" value="@_moduleId" @onchange="OnModuleChangedAsync">
+                        <option value="">-- any --</option>
+                        @foreach (var m in _modules)
+                        {
+                            <option value="@m.Id">@m.Name</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-auto">
+                    <label class="form-label">ScreenService</label>
+                    <select class="form-select form-select-sm" value="@_screenServiceId" @onchange="OnScreenServiceChangedAsync" disabled="@(_moduleId is null)">
+                        <option value="">-- any --</option>
+                        @foreach (var s in _screenServices)
+                        {
+                            <option value="@s.Id">@s.Name</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-auto">
+                    <label class="form-label">Process</label>
+                    <select class="form-select form-select-sm" value="@_processId" @onchange="OnProcessChangedAsync" disabled="@(_screenServiceId is null)">
+                        <option value="">-- any --</option>
+                        @foreach (var p in _processes)
+                        {
+                            <option value="@p.Id">@p.Name</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-auto">
+                    <label class="form-label">Operation</label>
+                    <select class="form-select form-select-sm" @bind="_operationId" disabled="@(_processId is null)">
+                        <option value="">-- any --</option>
+                        @foreach (var o in _operations)
+                        {
+                            <option value="@o.Id">@o.Name</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-auto">
+                    <label class="form-label">Correlation Id</label>
+                    <input class="form-control form-control-sm" @bind="_correlationId" @bind:event="oninput" />
+                </div>
+                <div class="col-auto">
+                    <label class="form-label">Message contains</label>
+                    <input class="form-control form-control-sm" @bind="_messageContains" @bind:event="oninput" />
+                </div>
+                <div class="col-auto align-self-end">
+                    <button class="btn btn-primary btn-sm" @onclick="() => SearchAsync(resetPage: true)">Search</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <table class="table table-striped table-hover align-middle">
+        <thead>
+            <tr>
+                <th>Timestamp</th>
+                <th>Severity</th>
+                <th>Operation</th>
+                <th>Message</th>
+                <th>Duration</th>
+                <th>CorrelationId</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var evt in _results)
+            {
+                <tr @key="evt.Id" @onclick="() => SelectEvent(evt.Id)" style="cursor:pointer">
+                    <td>@evt.Timestamp.ToString("u")</td>
+                    <td>@SeverityLevels.ByValue[evt.Severity]</td>
+                    <td>@BuildOperationPath(evt)</td>
+                    <td>@Truncate(evt.Message, 80)</td>
+                    <td>@evt.DurationMs</td>
+                    <td>@evt.CorrelationId</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+
+    <div class="d-flex gap-2 align-items-center">
+        <button class="btn btn-sm btn-outline-secondary" disabled="@(_page <= 1)" @onclick="() => ChangePageAsync(_page - 1)">Previous</button>
+        <span>Page @_page (@_totalCount total)</span>
+        <button class="btn btn-sm btn-outline-secondary" disabled="@(_page * _pageSize >= _totalCount)" @onclick="() => ChangePageAsync(_page + 1)">Next</button>
+    </div>
+
+    @if (_selectedEvent is not null)
+    {
+        <div class="card mt-4">
+            <div class="card-header d-flex justify-content-between">
+                <span>Event @_selectedEvent.Id</span>
+                <button class="btn-close" @onclick="() => _selectedEvent = null"></button>
+            </div>
+            <div class="card-body">
+                <dl class="row">
+                    <dt class="col-sm-2">Timestamp</dt><dd class="col-sm-10">@_selectedEvent.Timestamp.ToString("u")</dd>
+                    <dt class="col-sm-2">Severity</dt><dd class="col-sm-10">@SeverityLevels.ByValue[_selectedEvent.Severity]</dd>
+                    <dt class="col-sm-2">Operation</dt><dd class="col-sm-10">@BuildOperationPath(_selectedEvent)</dd>
+                    <dt class="col-sm-2">Message</dt><dd class="col-sm-10">@_selectedEvent.Message</dd>
+                    <dt class="col-sm-2">CorrelationId</dt><dd class="col-sm-10">@_selectedEvent.CorrelationId</dd>
+                    <dt class="col-sm-2">TraceId</dt><dd class="col-sm-10">@_selectedEvent.TraceId</dd>
+                    @if (_selectedEvent.MetadataJson is not null)
+                    {
+                        <dt class="col-sm-2">Metadata</dt><dd class="col-sm-10"><pre>@_selectedEvent.MetadataJson</pre></dd>
+                    }
+                    @if (_selectedEvent.StackTrace is not null)
+                    {
+                        <dt class="col-sm-2">StackTrace</dt><dd class="col-sm-10"><pre>@_selectedEvent.StackTrace</pre></dd>
+                    }
+                </dl>
+                @if (_selectedEvent.CorrelationId is not null)
+                {
+                    <a class="btn btn-sm btn-outline-primary" href="/timeline?applicationId=@_applicationId&correlationId=@Uri.EscapeDataString(_selectedEvent.CorrelationId)">View Timeline</a>
+                }
+                else if (_selectedEvent.TraceId is not null)
+                {
+                    <a class="btn btn-sm btn-outline-primary" href="/timeline?applicationId=@_applicationId&traceId=@Uri.EscapeDataString(_selectedEvent.TraceId)">View Timeline</a>
+                }
+            </div>
+        </div>
+    }
+}
+
+@code {
+    private int? _applicationId;
+    private int? _environmentId;
+
+    private List<AppModule> _modules = new();
+    private List<ScreenService> _screenServices = new();
+    private List<ProcessNode> _processes = new();
+    private List<Operation> _operations = new();
+
+    private string _severity = string.Empty;
+    private int? _moduleId;
+    private int? _screenServiceId;
+    private int? _processId;
+    private int? _operationId;
+    private string _correlationId = string.Empty;
+    private string _messageContains = string.Empty;
+
+    private List<Event> _results = new();
+    private int _totalCount;
+    private int _page = 1;
+    private const int _pageSize = 50;
+
+    private Event? _selectedEvent;
+
+    private async Task OnAppEnvironmentChangedAsync((int ApplicationId, int EnvironmentId) selection)
+    {
+        _applicationId = selection.ApplicationId;
+        _environmentId = selection.EnvironmentId;
+        _modules = (await ModuleRepository.GetByApplicationIdAsync(_applicationId.Value)).ToList();
+        await SearchAsync(resetPage: true);
+    }
+
+    private async Task OnModuleChangedAsync(ChangeEventArgs e)
+    {
+        _moduleId = int.TryParse(e.Value?.ToString(), out var id) ? id : null;
+        _screenServiceId = null; _processId = null; _operationId = null;
+        _screenServices = _moduleId is null ? new() : (await ScreenServiceRepository.GetByModuleIdAsync(_moduleId.Value)).ToList();
+        _processes = new(); _operations = new();
+    }
+
+    private async Task OnScreenServiceChangedAsync(ChangeEventArgs e)
+    {
+        _screenServiceId = int.TryParse(e.Value?.ToString(), out var id) ? id : null;
+        _processId = null; _operationId = null;
+        _processes = _screenServiceId is null ? new() : (await ProcessRepository.GetByScreenServiceIdAsync(_screenServiceId.Value)).ToList();
+        _operations = new();
+    }
+
+    private async Task OnProcessChangedAsync(ChangeEventArgs e)
+    {
+        _processId = int.TryParse(e.Value?.ToString(), out var id) ? id : null;
+        _operationId = null;
+        _operations = _processId is null ? new() : (await OperationRepository.GetByProcessIdAsync(_processId.Value)).ToList();
+    }
+
+    private async Task ChangePageAsync(int page)
+    {
+        _page = page;
+        await SearchAsync(resetPage: false);
+    }
+
+    private async Task SearchAsync(bool resetPage)
+    {
+        if (_applicationId is null || _environmentId is null) return;
+        if (resetPage) _page = 1;
+
+        int? severityValue = string.IsNullOrEmpty(_severity) ? null : SeverityLevels.ByName[_severity];
+
+        var (items, totalCount) = await EventRepository.QueryAsync(new EventQueryParameters(
+            ApplicationId: _applicationId.Value,
+            EnvironmentId: _environmentId.Value,
+            From: null,
+            To: null,
+            Severity: severityValue,
+            ModuleId: _moduleId,
+            ScreenServiceId: _screenServiceId,
+            ProcessId: _processId,
+            OperationId: _operationId,
+            CorrelationId: string.IsNullOrEmpty(_correlationId) ? null : _correlationId,
+            TraceId: null,
+            UserId: null,
+            CustomerId: null,
+            ExceptionGroupId: null,
+            VersionId: null,
+            DurationMinMs: null,
+            DurationMaxMs: null,
+            MessageContains: string.IsNullOrEmpty(_messageContains) ? null : _messageContains,
+            Page: _page,
+            PageSize: _pageSize));
+
+        _results = items.ToList();
+        _totalCount = totalCount;
+    }
+
+    private void SelectEvent(long id)
+    {
+        _selectedEvent = _results.FirstOrDefault(e => e.Id == id);
+    }
+
+    private static string BuildOperationPath(Event evt)
+    {
+        var segments = new[] { evt.Module?.Name, evt.ScreenService?.Name, evt.Process?.Name, evt.Operation?.Name }
+            .Where(name => name is not null);
+        return string.Join(" / ", segments);
+    }
+
+    private static string Truncate(string value, int maxLength) =>
+        value.Length <= maxLength ? value : value[..maxLength] + "...";
+}
