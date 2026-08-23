@@ -65,4 +65,32 @@ public class ScenarioInjectorTests
 
         Assert.Empty(events);
     }
+
+    [Fact]
+    public void CustomerAnomalyInjector_Inject_GivesOneCustomerFarMoreEventsThanPeers()
+    {
+        var customerIds = Enumerable.Range(0, ScenarioConstants.CustomerAnomalyPeerCount + 1).Select(i => $"cust-{i}").ToList();
+        var beforeCall = DateTime.UtcNow;
+
+        var events = CustomerAnomalyInjector.Inject(customerIds);
+
+        var byCustomer = events.GroupBy(e => e.CustomerId).ToDictionary(g => g.Key!, g => g.Count());
+        Assert.Equal(ScenarioConstants.CustomerAnomalyPeerCount + 1, byCustomer.Count);
+
+        var outlierId = customerIds[^1];
+        Assert.Equal(ScenarioConstants.CustomerAnomalyOutlierConfirmOrderCount, byCustomer[outlierId]);
+
+        foreach (var peerId in customerIds.Take(ScenarioConstants.CustomerAnomalyPeerCount))
+        {
+            Assert.Equal(ScenarioConstants.CustomerAnomalyPeerConfirmOrderCount, byCustomer[peerId]);
+        }
+
+        Assert.All(events, e => Assert.Equal(ScenarioConstants.ConfirmOrderOperation, e.Operation));
+
+        var oneDayAgo = beforeCall.AddHours(-24);
+        var outlierEvents = events.Where(e => e.CustomerId == outlierId).ToList();
+        Assert.True(outlierEvents.Select(e => e.Timestamp.Hour).Distinct().Count() > 1,
+            "Outlier's events must be spread across multiple hours, not concentrated in one.");
+        Assert.All(outlierEvents, e => Assert.InRange(e.Timestamp, oneDayAgo, DateTime.UtcNow));
+    }
 }
