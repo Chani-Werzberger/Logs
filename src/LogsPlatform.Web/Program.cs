@@ -48,6 +48,8 @@ builder.Services.AddScoped<LogsPlatform.Web.Services.Analysis.FindingWriter>();
 builder.Services.AddScoped<LogsPlatform.Web.Services.Analysis.RateAnomalyDetector>();
 builder.Services.AddScoped<LogsPlatform.Web.Services.Analysis.NewExceptionDetector>();
 builder.Services.AddScoped<LogsPlatform.Web.Services.Analysis.CustomerOutlierDetector>();
+builder.Services.AddScoped<LogsPlatform.Web.Services.Analysis.DeploymentCorrelator>();
+builder.Services.AddScoped<LogsPlatform.Web.Services.Analysis.DownstreamFailureCorrelator>();
 
 var app = builder.Build();
 

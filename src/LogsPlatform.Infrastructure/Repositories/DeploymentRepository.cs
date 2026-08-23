@@ -26,6 +26,13 @@ public class DeploymentRepository : IDeploymentRepository
         return await query.OrderBy(d => d.DeployedAt).ThenBy(d => d.Id).ToListAsync();
     }
 
+    public async Task<IReadOnlyList<Deployment>> GetInWindowAsync(int applicationId, int environmentId, DateTime windowStart, DateTime windowEnd) =>
+        await _context.Deployments.AsNoTracking()
+            .Where(d => d.ApplicationId == applicationId && d.EnvironmentId == environmentId
+                && d.DeployedAt >= windowStart && d.DeployedAt <= windowEnd)
+            .OrderByDescending(d => d.DeployedAt)
+            .ToListAsync();
+
     public async Task<Deployment> AddAsync(Deployment deployment)
     {
         _context.Deployments.Add(deployment);
