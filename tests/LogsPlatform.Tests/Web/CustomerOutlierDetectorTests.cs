@@ -107,4 +107,44 @@ public class CustomerOutlierDetectorTests
 
         Assert.Equal(0, findingCount);
     }
+
+    [Fact]
+    public async Task RunAsync_FourteenOrMoreCustomersCompared_ConfidenceIsHigh()
+    {
+        using var context = TestDatabase.CreateContext();
+        var (appId, envId, opId) = await SeedAppEnvOperationAsync(context, "CustomerOutlierHighConfidenceTestApp");
+
+        var customers = new List<Customer>();
+        for (var i = 0; i < 15; i++)
+        {
+            customers.Add(new Customer { ApplicationId = appId, ExternalCustomerId = $"cust-{i}", Name = $"Customer {i}" });
+        }
+        context.Customers.AddRange(customers);
+        await context.SaveChangesAsync();
+
+        var now = DateTime.UtcNow;
+        for (var i = 0; i < 14; i++)
+        {
+            context.Events.Add(new Event { ApplicationId = appId, EnvironmentId = envId, OperationId = opId, CustomerId = customers[i].Id, Timestamp = now, Severity = 17, Message = $"peer-{i}" });
+        }
+        for (var i = 0; i < 60; i++)
+        {
+            context.Events.Add(new Event { ApplicationId = appId, EnvironmentId = envId, OperationId = opId, CustomerId = customers[14].Id, Timestamp = now, Severity = 17, Message = $"outlier-{i}" });
+        }
+        await context.SaveChangesAsync();
+
+        var metrics = new MetricsRepository(context);
+        var findingRepository = new FindingRepository(context);
+        var writer = new FindingWriter(findingRepository);
+        var detector = new CustomerOutlierDetector(metrics, writer);
+
+        await detector.RunAsync(appId, envId);
+
+        var options = new DbContextOptionsBuilder<LogsPlatformDbContext>().UseSqlServer(TestDatabase.ConnectionString).Options;
+        await using var verifyContext = new LogsPlatformDbContext(options);
+        var finding = await verifyContext.Findings.FirstOrDefaultAsync(f => f.ApplicationId == appId && f.Type == FindingType.CustomerAnomaly);
+
+        Assert.NotNull(finding);
+        Assert.Equal(ConfidenceLevel.High, finding!.ConfidenceLevel);
+    }
 }

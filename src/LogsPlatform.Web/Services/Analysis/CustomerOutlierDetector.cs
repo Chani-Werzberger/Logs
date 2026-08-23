@@ -8,6 +8,7 @@ public class CustomerOutlierDetector
     private const int MinPeerCustomers = 5;
     private const double CustomerOutlierThreshold = 3;
     private const double MinStdDevFloor = 0.5;
+    private const int MinSamplesForHighConfidence = 14;
     private static readonly TimeSpan Window = TimeSpan.FromDays(1);
 
     private readonly IMetricsRepository _metrics;
@@ -58,13 +59,17 @@ public class CustomerOutlierDetector
 
             if (Math.Abs(z) > CustomerOutlierThreshold)
             {
-                var severity = Math.Abs(z) > 5 ? FindingSeverity.High : FindingSeverity.Medium;
+                var absZ = Math.Abs(z);
+                var severity = absZ > 5 ? FindingSeverity.High : FindingSeverity.Medium;
+                var confidence = absZ > 5 && rates.Count >= MinSamplesForHighConfidence ? ConfidenceLevel.High
+                    : ConfidenceLevel.Medium;
+
                 var fact = $"Customer {customerId} recorded a rate of {rate:F1} in the last 24 hours.";
-                var observation = $"That is {Math.Abs(z):F1} standard deviations from its {peerRates.Count} peers (peer average: {populationMean:F1}±{populationStdDev:F1}).";
+                var observation = $"That is {absZ:F1} standard deviations from its {peerRates.Count} peers (peer average: {populationMean:F1}±{populationStdDev:F1}).";
 
                 var draft = new FindingDraft(
                     applicationId, environmentId, FindingType.CustomerAnomaly, scopeType, scopeId,
-                    $"Customer {customerId}: unusual activity", severity, ConfidenceLevel.Medium,
+                    $"Customer {customerId}: unusual activity", severity, confidence,
                     new[] { (DetectorStatementKind.Fact, fact), (DetectorStatementKind.Observation, observation) });
 
                 await _writer.WriteAsync(draft);
