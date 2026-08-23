@@ -45,6 +45,7 @@ builder.Services.AddScoped<IBaselineRepository, BaselineRepository>();
 builder.Services.AddScoped<LogsPlatform.Web.Services.Analysis.BaselineCalculator>();
 builder.Services.AddScoped<IFindingRepository, FindingRepository>();
 builder.Services.AddScoped<LogsPlatform.Web.Services.Analysis.FindingWriter>();
+builder.Services.AddScoped<LogsPlatform.Web.Services.Analysis.RateAnomalyDetector>();
 
 var app = builder.Build();
 
