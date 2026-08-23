@@ -16,3 +16,11 @@ public record EventListResponse(IReadOnlyList<EventSummary> Items, int TotalCoun
 public record ExceptionGroupSummary(long Id, string Fingerprint, string ExceptionType, int OccurrenceCount, DateTime FirstSeenAt, DateTime LastSeenAt, IReadOnlyDictionary<DateOnly, int> DailyCounts, IReadOnlyList<string> AffectedOperations);
 
 public record ExceptionGroupDetail(long Id, string Fingerprint, string ExceptionType, string RepresentativeStackTrace, int OccurrenceCount, DateTime FirstSeenAt, DateTime LastSeenAt, IReadOnlyDictionary<DateOnly, int> DailyCounts, IReadOnlyList<AffectedContext> AffectedContexts);
+
+public record FindingSummary(long Id, string Type, string Title, string Severity, string ConfidenceLevel, string Status, DateTime DetectedAt, string ApplicationName, string? OperationName);
+
+public record FindingStatementDto(long Id, string Kind, string Text, int OrderIndex, string? ApprovedBy, DateTime? ApprovedAt);
+
+public record EvidenceDto(long Id, string EvidenceType, long ReferenceId, string Description);
+
+public record FindingDetail(long Id, string Type, string Title, string Severity, string ConfidenceLevel, string Status, DateTime DetectedAt, string ApplicationName, string EnvironmentName, IReadOnlyList<FindingStatementDto> Statements, IReadOnlyList<EvidenceDto> Evidence);
