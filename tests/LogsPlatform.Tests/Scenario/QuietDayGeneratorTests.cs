@@ -9,9 +9,10 @@ public class QuietDayGeneratorTests
     public void GenerateHourlyEventCounts_ExcludesToday_WhenIncludeTodayFalse()
     {
         var random = new Random(42);
-        var counts = QuietDayGenerator.GenerateHourlyEventCounts(hour => 50, daysBack: 5, includeToday: false, random);
+        var referenceTime = DateTime.UtcNow;
+        var counts = QuietDayGenerator.GenerateHourlyEventCounts(hour => 50, daysBack: 5, includeToday: false, random, referenceTime);
 
-        var today = DateTime.UtcNow.Date;
+        var today = referenceTime.Date;
         Assert.DoesNotContain(counts, c => c.HourStart.Date == today);
         Assert.Equal(5 * 24, counts.Count);
     }
@@ -20,9 +21,10 @@ public class QuietDayGeneratorTests
     public void GenerateHourlyEventCounts_IncludesToday_WhenIncludeTodayTrue()
     {
         var random = new Random(42);
-        var counts = QuietDayGenerator.GenerateHourlyEventCounts(hour => 50, daysBack: 5, includeToday: true, random);
+        var referenceTime = DateTime.UtcNow;
+        var counts = QuietDayGenerator.GenerateHourlyEventCounts(hour => 50, daysBack: 5, includeToday: true, random, referenceTime);
 
-        var currentHour = DateTime.UtcNow.Date.AddHours(DateTime.UtcNow.Hour);
+        var currentHour = referenceTime.Date.AddHours(referenceTime.Hour);
         Assert.Contains(counts, c => c.HourStart == currentHour);
     }
 
@@ -30,7 +32,8 @@ public class QuietDayGeneratorTests
     public void GenerateHourlyEventCounts_CountsVaryAroundMean_NotConstant()
     {
         var random = new Random(42);
-        var counts = QuietDayGenerator.GenerateHourlyEventCounts(hour => 50, daysBack: 10, includeToday: false, random);
+        var referenceTime = DateTime.UtcNow;
+        var counts = QuietDayGenerator.GenerateHourlyEventCounts(hour => 50, daysBack: 10, includeToday: false, random, referenceTime);
 
         var distinctValues = counts.Select(c => c.Count).Distinct().Count();
         Assert.True(distinctValues > 1, "Noise model produced a constant value across all hours.");

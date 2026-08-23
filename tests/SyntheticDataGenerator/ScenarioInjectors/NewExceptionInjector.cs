@@ -9,14 +9,16 @@ namespace LogsPlatform.SyntheticDataGenerator.ScenarioInjectors;
 /// also carries a Downstream-Failure Hypothesis + Evidence, per 11-Test-Strategy.md §3's criterion.
 /// Neither Operation ever appears in quiet-day generation, so no historical Baseline exists for
 /// either — RateAnomalyDetector silently skips both (see Global Constraints), avoiding any
-/// confounding rate-based Finding.
+/// confounding rate-based Finding. referenceTime must be within NewExceptionDetector's 5-minute
+/// window of when the tick actually runs — see QuietDayGenerator's remarks on why this is caller-
+/// supplied rather than read internally.
 /// </summary>
 public static class NewExceptionInjector
 {
-    public static IReadOnlyList<SimulatedEvent> Inject()
+    public static IReadOnlyList<SimulatedEvent> Inject(DateTime referenceTime)
     {
         var correlationId = $"order-{Guid.NewGuid():N}";
-        var triggerTime = DateTime.UtcNow.AddSeconds(-30);
+        var triggerTime = referenceTime.AddSeconds(-30);
 
         var trigger = new SimulatedEvent(
             triggerTime, "Error", ScenarioConstants.OrdersModule, ScenarioConstants.OrderApiServiceScreenService,

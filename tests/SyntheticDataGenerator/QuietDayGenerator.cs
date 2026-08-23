@@ -4,17 +4,28 @@ public static class QuietDayGenerator
 {
     /// <summary>
     /// Produces one (hour bucket start, event count) pair per hour, for `daysBack` historical days
-    /// (day-offset 1..daysBack relative to "today") and optionally today's hours up to the current
-    /// one (inclusive) when includeToday is true. Each count is drawn from hourlyMean(hourOfDay) with
-    /// ±ScenarioConstants.NoiseRelativeRange relative jitter — never a fixed value, so BaselineCalculator
-    /// sees real variance, but bounded predictably enough to reason about scenario magnitudes.
+    /// (day-offset 1..daysBack relative to referenceTime's date) and optionally referenceTime's own
+    /// day's hours up to its current one (inclusive) when includeToday is true. Each count is drawn
+    /// from hourlyMean(hourOfDay) with ±ScenarioConstants.NoiseRelativeRange relative jitter — never a
+    /// fixed value, so BaselineCalculator sees real variance, but bounded predictably enough to reason
+    /// about scenario magnitudes.
+    ///
+    /// referenceTime is caller-supplied rather than read internally from DateTime.UtcNow: a full
+    /// history-generation-and-ingestion pass can take minutes, and RateAnomalyDetector only ever
+    /// evaluates whatever the real clock says "now" is at tick time. If every call in a test read its
+    /// own fresh UtcNow, an hour boundary crossed mid-run could leave one Operation's "today" data
+    /// stopping at the old hour while the tick checks the new one — a real bug this project's own
+    /// false-positive test caught: a genuinely quiet Operation looked like MissingActivity purely
+    /// because its data generation finished in a different hour than the tick that read it back.
+    /// Callers should capture referenceTime once, as close as practical to running the tick, and pass
+    /// the same value to every generator/injector call in that test.
     /// </summary>
     public static IReadOnlyList<(DateTime HourStart, int Count)> GenerateHourlyEventCounts(
-        Func<int, double> hourlyMean, int daysBack, bool includeToday, Random random)
+        Func<int, double> hourlyMean, int daysBack, bool includeToday, Random random, DateTime referenceTime)
     {
         var results = new List<(DateTime HourStart, int Count)>();
-        var today = DateTime.UtcNow.Date;
-        var currentHour = DateTime.UtcNow.Hour;
+        var today = referenceTime.Date;
+        var currentHour = referenceTime.Hour;
 
         for (var dayOffset = daysBack; dayOffset >= 1; dayOffset--)
         {

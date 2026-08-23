@@ -15,17 +15,19 @@ namespace LogsPlatform.Web.Controllers;
 [Authorize(AuthenticationSchemes = ApiKeyAuthenticationOptions.SchemeName)]
 public class IngestionController : ControllerBase
 {
-    private const int RateLimitPerMinute = 1000;
+    private const int DefaultRateLimitPerMinute = 1000;
 
     private readonly IngestionProcessor _processor;
     private readonly IEventRepository _events;
     private readonly IMemoryCache _cache;
+    private readonly int _rateLimitPerMinute;
 
-    public IngestionController(IngestionProcessor processor, IEventRepository events, IMemoryCache cache)
+    public IngestionController(IngestionProcessor processor, IEventRepository events, IMemoryCache cache, IConfiguration configuration)
     {
         _processor = processor;
         _events = events;
         _cache = cache;
+        _rateLimitPerMinute = configuration.GetValue("Ingestion:RateLimitPerMinute", DefaultRateLimitPerMinute);
     }
 
     [HttpPost("events")]
@@ -38,7 +40,7 @@ public class IngestionController : ControllerBase
             entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(1);
             return new RateCounter();
         })!;
-        if (Interlocked.Add(ref counter.Count, Math.Max(requests.Count, 1)) > RateLimitPerMinute)
+        if (Interlocked.Add(ref counter.Count, Math.Max(requests.Count, 1)) > _rateLimitPerMinute)
         {
             Response.Headers["Retry-After"] = "60";
             return StatusCode(StatusCodes.Status429TooManyRequests, new { title = "Rate limit exceeded", status = 429 });

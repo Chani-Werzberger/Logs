@@ -9,19 +9,20 @@ public class ScenarioInjectorTests
     [Fact]
     public void ErrorSpikeInjector_ProducesEventsInCurrentHourOnChargePayment()
     {
-        var events = ErrorSpikeInjector.Inject();
+        var referenceTime = DateTime.UtcNow;
+        var events = ErrorSpikeInjector.Inject(referenceTime);
 
         Assert.Equal(ScenarioConstants.ErrorSpikeEventCount, events.Count);
         Assert.All(events, e => Assert.Equal(ScenarioConstants.ChargePaymentOperation, e.Operation));
         Assert.All(events, e => Assert.Equal("Error", e.Severity));
-        var currentHourStart = DateTime.UtcNow.Date.AddHours(DateTime.UtcNow.Hour);
+        var currentHourStart = referenceTime.Date.AddHours(referenceTime.Hour);
         Assert.All(events, e => Assert.InRange(e.Timestamp, currentHourStart, currentHourStart.AddHours(1)));
     }
 
     [Fact]
     public void PerformanceDegradationInjector_ProducesElevatedDurationOnMatchAvailability()
     {
-        var events = PerformanceDegradationInjector.Inject(eventCount: 20);
+        var events = PerformanceDegradationInjector.Inject(eventCount: 20, DateTime.UtcNow);
 
         Assert.Equal(20, events.Count);
         Assert.All(events, e => Assert.Equal(ScenarioConstants.MatchAvailabilityOperation, e.Operation));
@@ -31,7 +32,8 @@ public class ScenarioInjectorTests
     [Fact]
     public void NewExceptionInjector_ProducesTriggerAndDownstreamEventsSharingCorrelationId()
     {
-        var events = NewExceptionInjector.Inject();
+        var beforeCall = DateTime.UtcNow;
+        var events = NewExceptionInjector.Inject(beforeCall);
 
         Assert.Equal(2, events.Count);
 
@@ -44,14 +46,14 @@ public class ScenarioInjectorTests
         Assert.Equal("Error", downstream.Severity);
         Assert.True(downstream.Timestamp > trigger.Timestamp);
 
-        var fiveMinutesAgo = DateTime.UtcNow.AddMinutes(-5);
+        var fiveMinutesAgo = beforeCall.AddMinutes(-5);
         Assert.True(trigger.Timestamp >= fiveMinutesAgo, "Trigger event must fall inside NewExceptionDetector's 5-minute window.");
     }
 
     [Fact]
     public void DeploymentAnomalyInjector_InjectEvents_ProducesEventsInCurrentHourOnAggregateJobs()
     {
-        var events = DeploymentAnomalyInjector.InjectEvents();
+        var events = DeploymentAnomalyInjector.InjectEvents(DateTime.UtcNow);
 
         Assert.Equal(ScenarioConstants.DeploymentAnomalyEventCount, events.Count);
         Assert.All(events, e => Assert.Equal(ScenarioConstants.AggregateJobsOperation, e.Operation));
@@ -72,7 +74,7 @@ public class ScenarioInjectorTests
         var customerIds = Enumerable.Range(0, ScenarioConstants.CustomerAnomalyPeerCount + 1).Select(i => $"cust-{i}").ToList();
         var beforeCall = DateTime.UtcNow;
 
-        var events = CustomerAnomalyInjector.Inject(customerIds);
+        var events = CustomerAnomalyInjector.Inject(customerIds, beforeCall);
 
         var byCustomer = events.GroupBy(e => e.CustomerId).ToDictionary(g => g.Key!, g => g.Count());
         Assert.Equal(ScenarioConstants.CustomerAnomalyPeerCount + 1, byCustomer.Count);

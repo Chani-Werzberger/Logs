@@ -16,7 +16,7 @@ public class DeploymentAnomalyInjectorTests
         var client = factory.CreateClient();
         var fieldOps = await DomainFixture.BuildFieldOpsAsync(client);
 
-        await DeploymentAnomalyInjector.CreateDeploymentAsync(client, fieldOps);
+        await DeploymentAnomalyInjector.CreateDeploymentAsync(client, fieldOps, DateTime.UtcNow);
 
         var response = await client.GetAsync($"/api/v1/admin/applications/{fieldOps.ApplicationId}/deployments");
         response.EnsureSuccessStatusCode();

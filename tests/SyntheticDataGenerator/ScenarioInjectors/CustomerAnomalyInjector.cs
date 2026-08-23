@@ -1,8 +1,12 @@
 namespace LogsPlatform.SyntheticDataGenerator.ScenarioInjectors;
 
+/// <summary>
+/// referenceTime must be the same value the caller passes to every other generator/injector call in
+/// the same test — see QuietDayGenerator's remarks.
+/// </summary>
 public static class CustomerAnomalyInjector
 {
-    public static IReadOnlyList<SimulatedEvent> Inject(IReadOnlyList<string> customerIds)
+    public static IReadOnlyList<SimulatedEvent> Inject(IReadOnlyList<string> customerIds, DateTime referenceTime)
     {
         if (customerIds.Count < ScenarioConstants.CustomerAnomalyPeerCount + 1)
         {
@@ -10,7 +14,7 @@ public static class CustomerAnomalyInjector
         }
 
         var events = new List<SimulatedEvent>();
-        var windowStart = DateTime.UtcNow.AddHours(-24);
+        var windowStart = referenceTime.AddHours(-24);
 
         for (var i = 0; i < ScenarioConstants.CustomerAnomalyPeerCount; i++)
         {
