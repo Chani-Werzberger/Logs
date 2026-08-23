@@ -8,11 +8,6 @@ public record ProcessedEvent(Event? Event, string? RejectReason, IReadOnlyList<(
 
 public class IngestionProcessor
 {
-    private static readonly Dictionary<string, int> SeverityMap = new()
-    {
-        ["Trace"] = 1, ["Debug"] = 5, ["Info"] = 9, ["Warn"] = 13, ["Error"] = 17, ["Fatal"] = 21
-    };
-
     private readonly IAppEnvironmentRepository _environments;
     private readonly IAppVersionRepository _versions;
     private readonly ICustomerRepository _customers;
@@ -42,7 +37,7 @@ public class IngestionProcessor
         {
             return Reject("timestamp: required field missing");
         }
-        if (string.IsNullOrWhiteSpace(request.Severity) || !SeverityMap.TryGetValue(request.Severity, out var severityValue))
+        if (string.IsNullOrWhiteSpace(request.Severity) || !SeverityLevels.ByName.TryGetValue(request.Severity, out var severityValue))
         {
             return Reject($"severity: invalid value '{request.Severity}'");
         }
