@@ -57,4 +57,12 @@ public class ScenarioInjectorTests
         Assert.All(events, e => Assert.Equal(ScenarioConstants.AggregateJobsOperation, e.Operation));
         Assert.All(events, e => Assert.Equal("Error", e.Severity));
     }
+
+    [Fact]
+    public void MissingActivityInjector_Inject_ProducesNoEvents()
+    {
+        var events = MissingActivityInjector.Inject();
+
+        Assert.Empty(events);
+    }
 }
