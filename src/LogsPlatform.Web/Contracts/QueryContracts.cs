@@ -1,3 +1,5 @@
+using LogsPlatform.Domain.Repositories;
+
 namespace LogsPlatform.Web.Contracts;
 
 public record EventSummary(long Id, DateTime Timestamp, string Severity, string? OperationPath, string Message, double? DurationMs, string? CorrelationId);
@@ -10,3 +12,7 @@ public record EventDetail(
     long? ExceptionGroupId, string? StackTrace, string? MetadataJson, string? OperationPath);
 
 public record EventListResponse(IReadOnlyList<EventSummary> Items, int TotalCount);
+
+public record ExceptionGroupSummary(long Id, string Fingerprint, string ExceptionType, int OccurrenceCount, DateTime FirstSeenAt, DateTime LastSeenAt, IReadOnlyDictionary<DateOnly, int> DailyCounts, IReadOnlyList<string> AffectedOperations);
+
+public record ExceptionGroupDetail(long Id, string Fingerprint, string ExceptionType, string RepresentativeStackTrace, int OccurrenceCount, DateTime FirstSeenAt, DateTime LastSeenAt, IReadOnlyDictionary<DateOnly, int> DailyCounts, IReadOnlyList<AffectedContext> AffectedContexts);
