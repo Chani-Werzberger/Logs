@@ -69,4 +69,53 @@ public class ExceptionGroupRepository : IExceptionGroupRepository
     // which isn't reachable from this layer: LogsPlatform.Infrastructure doesn't reference LogsPlatform.Web.
     private static bool IsUniqueViolation(DbUpdateException ex) =>
         ex.InnerException is Microsoft.Data.SqlClient.SqlException { Number: 2601 or 2627 };
+
+    public async Task<IReadOnlyList<ExceptionGroup>> QueryAsync(ExceptionGroupQueryParameters parameters)
+    {
+        var query = _context.ExceptionGroups.AsNoTracking()
+            .Where(g => g.ApplicationId == parameters.ApplicationId);
+
+        if (parameters.From is not null) query = query.Where(g => g.LastSeenAt >= parameters.From);
+        if (parameters.To is not null) query = query.Where(g => g.LastSeenAt <= parameters.To);
+
+        query = parameters.SortBy == "OccurrenceCount"
+            ? query.OrderByDescending(g => g.OccurrenceCount)
+            : query.OrderByDescending(g => g.LastSeenAt);
+
+        return await query.ToListAsync();
+    }
+
+    public async Task<ExceptionGroup?> GetByIdAsync(long id) =>
+        await _context.ExceptionGroups.AsNoTracking().FirstOrDefaultAsync(g => g.Id == id);
+
+    public async Task<IReadOnlyDictionary<DateOnly, int>> GetDailyCountsAsync(long exceptionGroupId, int days)
+    {
+        var since = DateTime.UtcNow.Date.AddDays(-(days - 1));
+
+        var rows = await _context.Events.AsNoTracking()
+            .Where(e => e.ExceptionGroupId == exceptionGroupId && e.Timestamp >= since)
+            .Select(e => e.Timestamp)
+            .ToListAsync();
+
+        return rows
+            .GroupBy(timestamp => DateOnly.FromDateTime(timestamp.Date))
+            .ToDictionary(group => group.Key, group => group.Count());
+    }
+
+    public async Task<IReadOnlyList<AffectedContext>> GetAffectedContextsAsync(long exceptionGroupId)
+    {
+        var rows = await _context.Events.AsNoTracking()
+            .Where(e => e.ExceptionGroupId == exceptionGroupId)
+            .Select(e => new
+            {
+                ApplicationName = e.Application.Name,
+                EnvironmentName = e.Environment.Name,
+                VersionNumber = e.Version != null ? e.Version.VersionNumber : null,
+                OperationName = e.Operation != null ? e.Operation.Name : null
+            })
+            .Distinct()
+            .ToListAsync();
+
+        return rows.Select(r => new AffectedContext(r.ApplicationName, r.EnvironmentName, r.VersionNumber, r.OperationName)).ToList();
+    }
 }
