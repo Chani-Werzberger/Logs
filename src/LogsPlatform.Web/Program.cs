@@ -40,6 +40,7 @@ builder.Services.AddScoped<IEventRepository, EventRepository>();
 builder.Services.AddScoped<IExceptionGroupRepository, ExceptionGroupRepository>();
 builder.Services.AddScoped<HierarchyResolver>();
 builder.Services.AddScoped<IngestionProcessor>();
+builder.Services.AddScoped<IMetricsRepository, MetricsRepository>();
 
 var app = builder.Build();
 
