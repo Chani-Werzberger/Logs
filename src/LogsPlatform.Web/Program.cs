@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+using LogsPlatform.Domain.Entities;
 using LogsPlatform.Domain.Repositories;
 using LogsPlatform.Infrastructure;
 using LogsPlatform.Infrastructure.Repositories;
@@ -83,6 +85,28 @@ builder.Services.AddScoped<LogsPlatform.Web.Services.Analysis.AnalysisEngineTick
 builder.Services.AddHostedService<LogsPlatform.Web.Services.Analysis.AnalysisEngineBackgroundService>();
 
 var app = builder.Build();
+
+using (var scope = app.Services.CreateScope())
+{
+    var platformUsers = scope.ServiceProvider.GetRequiredService<IPlatformUserRepository>();
+    if (!await platformUsers.AnyAsync())
+    {
+        var generatedPassword = Convert.ToBase64String(RandomNumberGenerator.GetBytes(12));
+        await platformUsers.AddAsync(new PlatformUser
+        {
+            Username = "admin",
+            PasswordHash = PasswordHasher.Hash(generatedPassword),
+            IsAdmin = true,
+            CreatedAt = DateTime.UtcNow
+        });
+        Console.WriteLine("=================================================================");
+        Console.WriteLine("No PlatformUser exists yet — seeded a default admin account:");
+        Console.WriteLine($"  Username: admin");
+        Console.WriteLine($"  Password: {generatedPassword}");
+        Console.WriteLine("This password is shown once and is not stored anywhere else.");
+        Console.WriteLine("=================================================================");
+    }
+}
 
 if (app.Environment.IsDevelopment())
 {
