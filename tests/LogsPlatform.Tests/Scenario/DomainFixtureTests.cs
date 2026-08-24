@@ -1,5 +1,6 @@
 using System.Net.Http.Json;
 using LogsPlatform.SyntheticDataGenerator;
+using LogsPlatform.Tests.Infrastructure;
 using LogsPlatform.Tests.Web;
 using LogsPlatform.Web.Contracts;
 using Xunit;
@@ -13,7 +14,7 @@ public class DomainFixtureTests
     public async Task BuildRetailPulseAsync_CreatesApplicationWithApiKeyAndEnvironment()
     {
         using var factory = new TestWebApplicationFactory();
-        var client = factory.CreateClient();
+        var client = await AuthenticatedTestClientHelper.CreateAuthenticatedClientAsync(factory);
 
         var fixture = await DomainFixture.BuildRetailPulseAsync(client);
 
@@ -31,7 +32,7 @@ public class DomainFixtureTests
     public async Task BuildFieldOpsAsync_CreatesApplicationWithApiKeyAndEnvironment()
     {
         using var factory = new TestWebApplicationFactory();
-        var client = factory.CreateClient();
+        var client = await AuthenticatedTestClientHelper.CreateAuthenticatedClientAsync(factory);
 
         var fixture = await DomainFixture.BuildFieldOpsAsync(client);
 
@@ -44,7 +45,7 @@ public class DomainFixtureTests
     public async Task SeedCustomersAsync_CreatesRequestedCount()
     {
         using var factory = new TestWebApplicationFactory();
-        var client = factory.CreateClient();
+        var client = await AuthenticatedTestClientHelper.CreateAuthenticatedClientAsync(factory);
         var fixture = await DomainFixture.BuildRetailPulseAsync(client);
 
         var customerIds = await DomainFixture.SeedCustomersAsync(client, fixture.ApplicationId, 15);

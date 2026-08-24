@@ -1,6 +1,7 @@
 using LogsPlatform.Domain.Entities;
 using LogsPlatform.SyntheticDataGenerator;
 using LogsPlatform.SyntheticDataGenerator.ScenarioInjectors;
+using LogsPlatform.Tests.Infrastructure;
 using LogsPlatform.Web.Contracts;
 using LogsPlatform.Web.Services.Analysis;
 using Microsoft.Extensions.DependencyInjection;
@@ -18,7 +19,7 @@ public class ScenarioAcceptanceTests
     public async Task QuietHistoryPlusSixScenarios_ProducesExactlySixCorrectFindings()
     {
         using var factory = new ScenarioTestWebApplicationFactory();
-        var client = factory.CreateClient();
+        var client = await AuthenticatedTestClientHelper.CreateAuthenticatedClientAsync(factory);
         var random = new Random(Seed);
 
         var retailPulse = await DomainFixture.BuildRetailPulseAsync(client);

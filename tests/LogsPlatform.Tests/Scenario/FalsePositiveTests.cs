@@ -1,4 +1,5 @@
 using LogsPlatform.SyntheticDataGenerator;
+using LogsPlatform.Tests.Infrastructure;
 using LogsPlatform.Web.Contracts;
 using LogsPlatform.Web.Services.Analysis;
 using Microsoft.Extensions.DependencyInjection;
@@ -17,7 +18,7 @@ public class FalsePositiveTests
     public async Task QuietHistoryOnly_ProducesZeroFindings(int seed)
     {
         using var factory = new ScenarioTestWebApplicationFactory();
-        var client = factory.CreateClient();
+        var client = await AuthenticatedTestClientHelper.CreateAuthenticatedClientAsync(factory);
         var random = new Random(seed);
 
         var retailPulse = await DomainFixture.BuildRetailPulseAsync(client);

@@ -1,5 +1,6 @@
 using LogsPlatform.SyntheticDataGenerator;
 using LogsPlatform.SyntheticDataGenerator.ScenarioInjectors;
+using LogsPlatform.Tests.Infrastructure;
 using LogsPlatform.Web.Contracts;
 using System.Net.Http.Json;
 using Xunit;
@@ -13,7 +14,7 @@ public class DeploymentAnomalyInjectorTests
     public async Task CreateDeploymentAsync_CreatesDeploymentWithinCorrelationWindow()
     {
         using var factory = new ScenarioTestWebApplicationFactory();
-        var client = factory.CreateClient();
+        var client = await AuthenticatedTestClientHelper.CreateAuthenticatedClientAsync(factory);
         var fieldOps = await DomainFixture.BuildFieldOpsAsync(client);
 
         await DeploymentAnomalyInjector.CreateDeploymentAsync(client, fieldOps, DateTime.UtcNow);
