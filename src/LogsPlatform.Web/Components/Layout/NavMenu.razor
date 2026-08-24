@@ -1,8 +1,9 @@
 @* src/LogsPlatform.Web/Components/Layout/NavMenu.razor *@
+@using Microsoft.AspNetCore.Components.Authorization
 <nav class="navbar navbar-expand navbar-dark bg-dark mb-4">
     <div class="container-fluid">
         <a class="navbar-brand" href="/">LogsPlatform</a>
-        <ul class="navbar-nav">
+        <ul class="navbar-nav me-auto">
             <li class="nav-item">
                 <NavLink class="nav-link" href="/" Match="NavLinkMatch.All">
                     מה חריג
@@ -18,11 +19,28 @@
                     חריגות
                 </NavLink>
             </li>
-            <li class="nav-item">
-                <NavLink class="nav-link" href="/admin/applications" Match="NavLinkMatch.Prefix">
-                    ניהול
-                </NavLink>
-            </li>
+            <AuthorizeView Policy="RequireAdmin">
+                <Authorized>
+                    <li class="nav-item">
+                        <NavLink class="nav-link" href="/admin/applications" Match="NavLinkMatch.Prefix">
+                            ניהול
+                        </NavLink>
+                    </li>
+                    <li class="nav-item">
+                        <NavLink class="nav-link" href="/admin/platform-users" Match="NavLinkMatch.Prefix">
+                            משתמשי מערכת
+                        </NavLink>
+                    </li>
+                </Authorized>
+            </AuthorizeView>
         </ul>
+        <AuthorizeView>
+            <Authorized>
+                <span class="navbar-text text-light me-3">@context.User.Identity?.Name</span>
+                <form method="post" action="/api/v1/auth/logout">
+                    <button type="submit" class="btn btn-sm btn-outline-light">התנתק/י</button>
+                </form>
+            </Authorized>
+        </AuthorizeView>
     </div>
 </nav>

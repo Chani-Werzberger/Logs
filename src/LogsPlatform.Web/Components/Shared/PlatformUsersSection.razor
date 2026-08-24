@@ -1,0 +1,105 @@
+@using LogsPlatform.Domain.Entities
+@using LogsPlatform.Domain.Repositories
+@using LogsPlatform.Infrastructure
+@using LogsPlatform.Web
+@using Microsoft.EntityFrameworkCore
+@inject IPlatformUserRepository PlatformUserRepository
+
+<table class="table table-sm table-striped align-middle">
+    <thead>
+        <tr>
+            <th>שם משתמש</th>
+            <th>מנהל/ת מערכת</th>
+            <th>פעיל/ה</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var user in _users)
+        {
+            <tr>
+                <td>@user.Username</td>
+                <td>@(user.IsAdmin ? "כן" : "לא")</td>
+                <td>@(user.IsActive ? "כן" : "לא")</td>
+                <td>
+                    @if (user.IsActive)
+                    {
+                        <button class="btn btn-sm btn-outline-danger" @onclick="() => DeactivateAsync(user.Id)">השבת/י</button>
+                    }
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+<EditForm Model="_newUser" OnValidSubmit="CreateUserAsync">
+    <div class="row g-3 align-items-end">
+        <div class="col-auto">
+            <label class="form-label">שם משתמש</label>
+            <InputText @bind-Value="_newUser.Username" required maxlength="200" class="form-control" aria-label="שם משתמש" />
+        </div>
+        <div class="col-auto">
+            <label class="form-label">סיסמה</label>
+            <InputText @bind-Value="_newUser.Password" type="password" required class="form-control" aria-label="סיסמה" />
+        </div>
+        <div class="col-auto form-check mb-2">
+            <InputCheckbox @bind-Value="_newUser.IsAdmin" class="form-check-input" id="new-user-is-admin" />
+            <label class="form-check-label" for="new-user-is-admin">מנהל/ת מערכת</label>
+        </div>
+        <div class="col-auto">
+            <button type="submit" class="btn btn-primary">הוסף משתמש</button>
+        </div>
+    </div>
+</EditForm>
+@if (_createError is not null)
+{
+    <div class="alert alert-danger mt-3">@_createError</div>
+}
+
+@code {
+    private List<PlatformUser> _users = new();
+    private readonly NewUserModel _newUser = new();
+    private string? _createError;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _users = (await PlatformUserRepository.GetAllAsync()).ToList();
+    }
+
+    private async Task CreateUserAsync()
+    {
+        _createError = null;
+        try
+        {
+            await PlatformUserRepository.AddAsync(new PlatformUser
+            {
+                Username = _newUser.Username,
+                PasswordHash = PasswordHasher.Hash(_newUser.Password),
+                IsAdmin = _newUser.IsAdmin,
+                CreatedAt = DateTime.UtcNow
+            });
+
+            _newUser.Username = string.Empty;
+            _newUser.Password = string.Empty;
+            _newUser.IsAdmin = false;
+            _users = (await PlatformUserRepository.GetAllAsync()).ToList();
+        }
+        catch (DbUpdateException ex) when (ex.IsUniqueViolation())
+        {
+            _createError = $"משתמש בשם '{_newUser.Username}' כבר קיים.";
+        }
+    }
+
+    private async Task DeactivateAsync(int id)
+    {
+        await PlatformUserRepository.DeactivateAsync(id);
+        _users = (await PlatformUserRepository.GetAllAsync()).ToList();
+    }
+
+    private class NewUserModel
+    {
+        public string Username { get; set; } = string.Empty;
+        public string Password { get; set; } = string.Empty;
+        public bool IsAdmin { get; set; }
+    }
+}
