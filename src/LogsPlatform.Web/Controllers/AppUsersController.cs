@@ -1,6 +1,7 @@
 using LogsPlatform.Domain.Entities;
 using LogsPlatform.Domain.Repositories;
 using LogsPlatform.Web.Contracts;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -8,6 +9,7 @@ namespace LogsPlatform.Web.Controllers;
 
 [ApiController]
 [Route("api/v1/admin/applications/{appId:int}/users")]
+[Authorize(Policy = "RequireAdmin")]
 public class AppUsersController : ControllerBase
 {
     private readonly IApplicationRepository _applications;

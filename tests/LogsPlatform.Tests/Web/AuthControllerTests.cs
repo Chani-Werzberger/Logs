@@ -62,4 +62,31 @@ public class AuthControllerTests
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
+
+    [Fact]
+    public async Task Login_CorrectCredentials_Returns204()
+    {
+        using var factory = new TestWebApplicationFactory();
+        await SeedUserAsync(factory, "AuthLoginSuccessTest", "correct-password", isAdmin: false);
+        var client = factory.CreateClient();
+
+        var response = await client.PostAsJsonAsync("/api/v1/auth/login", new LoginRequest("AuthLoginSuccessTest", "correct-password"));
+
+        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Logout_ThenPreviouslyAuthenticatedRequest_Returns401()
+    {
+        using var factory = new TestWebApplicationFactory();
+        await SeedUserAsync(factory, "AuthLogoutTest", "correct-password", isAdmin: false);
+        var client = factory.CreateClient();
+        await client.PostAsJsonAsync("/api/v1/auth/login", new LoginRequest("AuthLogoutTest", "correct-password"));
+
+        var logoutResponse = await client.PostAsync("/api/v1/auth/logout", null);
+        Assert.Equal(HttpStatusCode.NoContent, logoutResponse.StatusCode);
+
+        var afterLogout = await client.GetAsync("/api/v1/findings?applicationId=1&environmentId=1");
+        Assert.Equal(HttpStatusCode.Unauthorized, afterLogout.StatusCode);
+    }
 }

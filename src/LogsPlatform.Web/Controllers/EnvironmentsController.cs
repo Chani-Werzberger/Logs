@@ -1,12 +1,14 @@
 using LogsPlatform.Domain.Entities;
 using LogsPlatform.Domain.Repositories;
 using LogsPlatform.Web.Contracts;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace LogsPlatform.Web.Controllers;
 
 [ApiController]
 [Route("api/v1/admin/applications/{appId:int}/environments")]
+[Authorize(Policy = "RequireAdmin")]
 public class EnvironmentsController : ControllerBase
 {
     private readonly IApplicationRepository _applications;
