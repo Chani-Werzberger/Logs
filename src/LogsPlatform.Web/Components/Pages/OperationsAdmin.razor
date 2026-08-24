@@ -1,5 +1,6 @@
 @* src/LogsPlatform.Web/Components/Pages/OperationsAdmin.razor *@
 @page "/admin/applications/{AppId:int}/modules/{ModuleId:int}/screen-services/{ScreenServiceId:int}/processes/{ProcessId:int}/operations"
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Policy = "RequireAdmin")]
 @using LogsPlatform.Domain.Entities
 @using LogsPlatform.Domain.Repositories
 @using LogsPlatform.Web

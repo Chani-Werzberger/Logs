@@ -1,0 +1,44 @@
+@page "/login"
+@attribute [Microsoft.AspNetCore.Authorization.AllowAnonymous]
+
+<h1>התחברות ל-LogsPlatform</h1>
+
+<form id="login-form" class="mt-3" style="max-width:320px" autocomplete="on">
+    <div class="mb-3">
+        <label class="form-label" for="username">שם משתמש</label>
+        <input id="username" name="username" class="form-control" required autocomplete="username" />
+    </div>
+    <div class="mb-3">
+        <label class="form-label" for="password">סיסמה</label>
+        <input id="password" name="password" type="password" class="form-control" required autocomplete="current-password" />
+    </div>
+    <button type="submit" class="btn btn-primary">התחבר/י</button>
+    <div id="login-error" class="alert alert-danger mt-3" style="display:none" role="alert">שם משתמש או סיסמה שגויים.</div>
+</form>
+
+<script>
+    (function () {
+        var params = new URLSearchParams(window.location.search);
+        var returnUrl = params.get('returnUrl') || '/';
+        var form = document.getElementById('login-form');
+        form.addEventListener('submit', function (e) {
+            e.preventDefault();
+            var errorBox = document.getElementById('login-error');
+            errorBox.style.display = 'none';
+            fetch('/api/v1/auth/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    username: document.getElementById('username').value,
+                    password: document.getElementById('password').value
+                })
+            }).then(function (response) {
+                if (response.ok) {
+                    window.location.href = returnUrl;
+                } else {
+                    errorBox.style.display = 'block';
+                }
+            });
+        });
+    })();
+</script>

@@ -1,5 +1,6 @@
 @* src/LogsPlatform.Web/Components/Pages/ApplicationsAdmin.razor *@
 @page "/admin/applications"
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Policy = "RequireAdmin")]
 @using LogsPlatform.Domain.Entities
 @using LogsPlatform.Domain.Repositories
 @using LogsPlatform.Web.Components.Shared

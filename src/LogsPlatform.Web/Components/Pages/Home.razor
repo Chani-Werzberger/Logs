@@ -1,5 +1,6 @@
 @* src/LogsPlatform.Web/Components/Pages/Home.razor *@
 @page "/"
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
 @using LogsPlatform.Domain.Entities
 @using LogsPlatform.Domain.Repositories
 @using LogsPlatform.Web.Components.Shared
