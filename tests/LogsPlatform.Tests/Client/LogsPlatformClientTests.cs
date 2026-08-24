@@ -20,7 +20,7 @@ public class LogsPlatformClientTests : IClassFixture<TestWebApplicationFactory>
 
     private async Task<(int ApplicationId, string ApiKey)> CreateAppWithApiKeyAsync(string appName)
     {
-        var setupClient = _factory.CreateClient();
+        var setupClient = await AuthenticatedTestClientHelper.CreateAuthenticatedClientAsync(_factory);
         var appResponse = await setupClient.PostAsJsonAsync("/api/v1/admin/applications", new CreateApplicationRequest(appName, null));
         var app = await appResponse.Content.ReadFromJsonAsync<ApplicationResponse>();
 
