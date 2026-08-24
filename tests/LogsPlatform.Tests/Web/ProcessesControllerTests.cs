@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using LogsPlatform.Tests.Infrastructure;
 using LogsPlatform.Web.Contracts;
 using Xunit;
 
@@ -35,7 +36,7 @@ public class ProcessesControllerTests : IClassFixture<TestWebApplicationFactory>
     [Fact]
     public async Task PostThenGet_CreatesAndReturnsProcess()
     {
-        var client = _factory.CreateClient();
+        var client = await AuthenticatedTestClientHelper.CreateAuthenticatedClientAsync(_factory);
         var screenServiceId = await CreateScreenServiceAsync(client, "ProcessControllerTestApp1", "Payments", "PaymentGateway");
 
         var createResponse = await client.PostAsJsonAsync(
@@ -54,7 +55,7 @@ public class ProcessesControllerTests : IClassFixture<TestWebApplicationFactory>
     [Fact]
     public async Task Create_DuplicateName_Returns409Conflict()
     {
-        var client = _factory.CreateClient();
+        var client = await AuthenticatedTestClientHelper.CreateAuthenticatedClientAsync(_factory);
         var screenServiceId = await CreateScreenServiceAsync(client, "ProcessControllerTestApp2", "Payments", "PaymentGateway");
         var request = new CreateProcessRequest("DuplicateProcess", null);
 
@@ -68,7 +69,7 @@ public class ProcessesControllerTests : IClassFixture<TestWebApplicationFactory>
     [Fact]
     public async Task GetById_ProcessBelongingToDifferentScreenService_Returns404()
     {
-        var client = _factory.CreateClient();
+        var client = await AuthenticatedTestClientHelper.CreateAuthenticatedClientAsync(_factory);
         var screenServiceId1 = await CreateScreenServiceAsync(client, "ProcessIdorTestApp1", "ModuleA", "ScreenServiceA");
         var screenServiceId2 = await CreateScreenServiceAsync(client, "ProcessIdorTestApp2", "ModuleB", "ScreenServiceB");
 
@@ -84,7 +85,7 @@ public class ProcessesControllerTests : IClassFixture<TestWebApplicationFactory>
     [Fact]
     public async Task Rename_ProcessBelongingToDifferentScreenService_Returns404()
     {
-        var client = _factory.CreateClient();
+        var client = await AuthenticatedTestClientHelper.CreateAuthenticatedClientAsync(_factory);
         var screenServiceId1 = await CreateScreenServiceAsync(client, "ProcessRenameIdorTestApp1", "ModuleA", "ScreenServiceA");
         var screenServiceId2 = await CreateScreenServiceAsync(client, "ProcessRenameIdorTestApp2", "ModuleB", "ScreenServiceB");
 
@@ -103,7 +104,7 @@ public class ProcessesControllerTests : IClassFixture<TestWebApplicationFactory>
     [Fact]
     public async Task Deactivate_ProcessBelongingToDifferentScreenService_Returns404()
     {
-        var client = _factory.CreateClient();
+        var client = await AuthenticatedTestClientHelper.CreateAuthenticatedClientAsync(_factory);
         var screenServiceId1 = await CreateScreenServiceAsync(client, "ProcessDeactivateIdorTestApp1", "ModuleA", "ScreenServiceA");
         var screenServiceId2 = await CreateScreenServiceAsync(client, "ProcessDeactivateIdorTestApp2", "ModuleB", "ScreenServiceB");
 
@@ -120,7 +121,7 @@ public class ProcessesControllerTests : IClassFixture<TestWebApplicationFactory>
     [Fact]
     public async Task Rename_UpdatesNameAndDescription()
     {
-        var client = _factory.CreateClient();
+        var client = await AuthenticatedTestClientHelper.CreateAuthenticatedClientAsync(_factory);
         var screenServiceId = await CreateScreenServiceAsync(client, "ProcessRenameControllerTestApp", "Payments", "PaymentGateway");
         var createResponse = await client.PostAsJsonAsync(
             $"/api/v1/admin/screen-services/{screenServiceId}/processes",
@@ -143,7 +144,7 @@ public class ProcessesControllerTests : IClassFixture<TestWebApplicationFactory>
     [Fact]
     public async Task Rename_DuplicateName_Returns409Conflict()
     {
-        var client = _factory.CreateClient();
+        var client = await AuthenticatedTestClientHelper.CreateAuthenticatedClientAsync(_factory);
         var screenServiceId = await CreateScreenServiceAsync(client, "ProcessRenameConflictControllerTestApp", "Payments", "PaymentGateway");
         await client.PostAsJsonAsync($"/api/v1/admin/screen-services/{screenServiceId}/processes", new CreateProcessRequest("Taken", null));
         var createResponse = await client.PostAsJsonAsync($"/api/v1/admin/screen-services/{screenServiceId}/processes", new CreateProcessRequest("ToRename", null));
@@ -159,7 +160,7 @@ public class ProcessesControllerTests : IClassFixture<TestWebApplicationFactory>
     [Fact]
     public async Task Create_UnknownScreenServiceId_Returns404NotFound()
     {
-        var client = _factory.CreateClient();
+        var client = await AuthenticatedTestClientHelper.CreateAuthenticatedClientAsync(_factory);
 
         var response = await client.PostAsJsonAsync(
             "/api/v1/admin/screen-services/999999/processes",
@@ -171,7 +172,7 @@ public class ProcessesControllerTests : IClassFixture<TestWebApplicationFactory>
     [Fact]
     public async Task Deactivate_SetsInactive_ExcludedFromDefaultList()
     {
-        var client = _factory.CreateClient();
+        var client = await AuthenticatedTestClientHelper.CreateAuthenticatedClientAsync(_factory);
         var screenServiceId = await CreateScreenServiceAsync(client, "ProcessDeactivateControllerTestApp", "Payments", "PaymentGateway");
         var createResponse = await client.PostAsJsonAsync(
             $"/api/v1/admin/screen-services/{screenServiceId}/processes",

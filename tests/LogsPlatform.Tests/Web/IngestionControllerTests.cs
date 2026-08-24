@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Json;
+using LogsPlatform.Tests.Infrastructure;
 using LogsPlatform.Web.Contracts;
 using Xunit;
 
@@ -44,7 +45,7 @@ public class IngestionControllerTests : IClassFixture<TestWebApplicationFactory>
     [Fact]
     public async Task IngestEvents_ValidBatchWithApiKey_Returns202AndPersistsEvents()
     {
-        var client = _factory.CreateClient();
+        var client = await AuthenticatedTestClientHelper.CreateAuthenticatedClientAsync(_factory);
         var (_, apiKey) = await CreateAppWithApiKeyAsync(client, "IngestValidBatchTestApp");
 
         var response = await client.SendAsync(BuildRequest(apiKey, new List<IngestEventRequest> { ValidEvent(), ValidEvent() }));
@@ -58,7 +59,7 @@ public class IngestionControllerTests : IClassFixture<TestWebApplicationFactory>
     [Fact]
     public async Task IngestEvents_MissingApiKey_Returns401()
     {
-        var client = _factory.CreateClient();
+        var client = await AuthenticatedTestClientHelper.CreateAuthenticatedClientAsync(_factory);
         var response = await client.PostAsJsonAsync("/api/v1/ingest/events", new List<IngestEventRequest> { ValidEvent() });
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
@@ -66,7 +67,7 @@ public class IngestionControllerTests : IClassFixture<TestWebApplicationFactory>
     [Fact]
     public async Task IngestEvents_InvalidApiKey_Returns401()
     {
-        var client = _factory.CreateClient();
+        var client = await AuthenticatedTestClientHelper.CreateAuthenticatedClientAsync(_factory);
         var response = await client.SendAsync(BuildRequest("lgp_not-a-real-key", new List<IngestEventRequest> { ValidEvent() }));
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
@@ -74,7 +75,7 @@ public class IngestionControllerTests : IClassFixture<TestWebApplicationFactory>
     [Fact]
     public async Task IngestEvents_RevokedApiKey_Returns401()
     {
-        var client = _factory.CreateClient();
+        var client = await AuthenticatedTestClientHelper.CreateAuthenticatedClientAsync(_factory);
         var appResponse = await client.PostAsJsonAsync("/api/v1/admin/applications", new CreateApplicationRequest("IngestRevokedKeyTestApp", null));
         var app = await appResponse.Content.ReadFromJsonAsync<ApplicationResponse>();
         var keyResponse = await client.PostAsJsonAsync($"/api/v1/admin/applications/{app!.Id}/api-keys", new CreateApiKeyRequest("To be revoked"));
@@ -89,7 +90,7 @@ public class IngestionControllerTests : IClassFixture<TestWebApplicationFactory>
     [Fact]
     public async Task IngestEvents_EventWithInvalidRequiredField_RejectedButBatchContinues()
     {
-        var client = _factory.CreateClient();
+        var client = await AuthenticatedTestClientHelper.CreateAuthenticatedClientAsync(_factory);
         var (_, apiKey) = await CreateAppWithApiKeyAsync(client, "IngestPartialFailureTestApp");
         var badEvent = ValidEvent() with { Message = null };
 
@@ -106,7 +107,7 @@ public class IngestionControllerTests : IClassFixture<TestWebApplicationFactory>
     [Fact]
     public async Task IngestEvents_HierarchyTypo_EventStoredWithWarningNotRejected()
     {
-        var client = _factory.CreateClient();
+        var client = await AuthenticatedTestClientHelper.CreateAuthenticatedClientAsync(_factory);
         var (_, apiKey) = await CreateAppWithApiKeyAsync(client, "IngestHierarchyTypoTestApp");
         var eventWithTypo = ValidEvent() with { Hierarchy = new IngestHierarchyRequest("ChrgePayment", null, null, null) };
 
@@ -123,7 +124,7 @@ public class IngestionControllerTests : IClassFixture<TestWebApplicationFactory>
     [Fact]
     public async Task IngestEvents_DuplicateEventKeyRetry_DoesNotDuplicateRow()
     {
-        var client = _factory.CreateClient();
+        var client = await AuthenticatedTestClientHelper.CreateAuthenticatedClientAsync(_factory);
         var (_, apiKey) = await CreateAppWithApiKeyAsync(client, "IngestRetryTestApp");
         var evt = ValidEvent("retry-key-1");
 
@@ -140,7 +141,7 @@ public class IngestionControllerTests : IClassFixture<TestWebApplicationFactory>
     [Fact]
     public async Task IngestEvents_TwoEventsSameException_ShareOneExceptionGroup()
     {
-        var client = _factory.CreateClient();
+        var client = await AuthenticatedTestClientHelper.CreateAuthenticatedClientAsync(_factory);
         var (_, apiKey) = await CreateAppWithApiKeyAsync(client, "IngestSharedExceptionGroupTestApp");
         var exceptionInfo = new IngestExceptionRequest("System.TimeoutException", "at Foo.Bar() in Foo.cs:line 10");
         var first = ValidEvent() with { Exception = exceptionInfo };

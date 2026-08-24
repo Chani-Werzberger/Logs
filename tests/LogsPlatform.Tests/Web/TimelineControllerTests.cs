@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using LogsPlatform.Tests.Infrastructure;
 using LogsPlatform.Web.Contracts;
 using Xunit;
 
@@ -28,7 +29,7 @@ public class TimelineControllerTests : IClassFixture<TestWebApplicationFactory>
     [Fact]
     public async Task GetTimeline_ByCorrelationId_ReturnsOrderedEvents()
     {
-        var client = _factory.CreateClient();
+        var client = await AuthenticatedTestClientHelper.CreateAuthenticatedClientAsync(_factory);
         var (appId, apiKey) = await CreateAppWithApiKeyAsync(client, "TimelineQueryTestApp");
 
         var request = new HttpRequestMessage(HttpMethod.Post, "/api/v1/ingest/events")
@@ -57,7 +58,7 @@ public class TimelineControllerTests : IClassFixture<TestWebApplicationFactory>
     [Fact]
     public async Task GetTimeline_NoLookupModeSupplied_Returns400()
     {
-        var client = _factory.CreateClient();
+        var client = await AuthenticatedTestClientHelper.CreateAuthenticatedClientAsync(_factory);
         var response = await client.GetAsync("/api/v1/timeline?applicationId=1");
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }

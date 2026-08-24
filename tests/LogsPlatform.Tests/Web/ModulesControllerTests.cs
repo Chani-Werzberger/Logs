@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using LogsPlatform.Tests.Infrastructure;
 using LogsPlatform.Web.Contracts;
 using Xunit;
 
@@ -27,7 +28,7 @@ public class ModulesControllerTests : IClassFixture<TestWebApplicationFactory>
     [Fact]
     public async Task PostThenGet_CreatesAndReturnsModule()
     {
-        var client = _factory.CreateClient();
+        var client = await AuthenticatedTestClientHelper.CreateAuthenticatedClientAsync(_factory);
         var appId = await CreateApplicationAsync(client, "ModuleControllerTestApp1");
 
         var createResponse = await client.PostAsJsonAsync(
@@ -46,7 +47,7 @@ public class ModulesControllerTests : IClassFixture<TestWebApplicationFactory>
     [Fact]
     public async Task Create_DuplicateName_Returns409Conflict()
     {
-        var client = _factory.CreateClient();
+        var client = await AuthenticatedTestClientHelper.CreateAuthenticatedClientAsync(_factory);
         var appId = await CreateApplicationAsync(client, "ModuleControllerTestApp2");
         var request = new CreateModuleRequest("DuplicateModule", null);
 
@@ -61,7 +62,7 @@ public class ModulesControllerTests : IClassFixture<TestWebApplicationFactory>
     public async Task GetById_ModuleBelongingToDifferentApplication_Returns404()
     {
         // IDOR guard: a valid module ID under the WRONG appId in the route must 404, not leak data.
-        var client = _factory.CreateClient();
+        var client = await AuthenticatedTestClientHelper.CreateAuthenticatedClientAsync(_factory);
         var appId1 = await CreateApplicationAsync(client, "ModuleIdorTestApp1");
         var appId2 = await CreateApplicationAsync(client, "ModuleIdorTestApp2");
 
@@ -77,7 +78,7 @@ public class ModulesControllerTests : IClassFixture<TestWebApplicationFactory>
     [Fact]
     public async Task Rename_ModuleBelongingToDifferentApplication_Returns404()
     {
-        var client = _factory.CreateClient();
+        var client = await AuthenticatedTestClientHelper.CreateAuthenticatedClientAsync(_factory);
         var appId1 = await CreateApplicationAsync(client, "ModuleRenameIdorTestApp1");
         var appId2 = await CreateApplicationAsync(client, "ModuleRenameIdorTestApp2");
 
@@ -96,7 +97,7 @@ public class ModulesControllerTests : IClassFixture<TestWebApplicationFactory>
     [Fact]
     public async Task Deactivate_ModuleBelongingToDifferentApplication_Returns404()
     {
-        var client = _factory.CreateClient();
+        var client = await AuthenticatedTestClientHelper.CreateAuthenticatedClientAsync(_factory);
         var appId1 = await CreateApplicationAsync(client, "ModuleDeactivateIdorTestApp1");
         var appId2 = await CreateApplicationAsync(client, "ModuleDeactivateIdorTestApp2");
 
@@ -113,7 +114,7 @@ public class ModulesControllerTests : IClassFixture<TestWebApplicationFactory>
     [Fact]
     public async Task Rename_UpdatesNameAndDescription()
     {
-        var client = _factory.CreateClient();
+        var client = await AuthenticatedTestClientHelper.CreateAuthenticatedClientAsync(_factory);
         var appId = await CreateApplicationAsync(client, "ModuleRenameControllerTestApp");
         var createResponse = await client.PostAsJsonAsync(
             $"/api/v1/admin/applications/{appId}/modules",
@@ -136,7 +137,7 @@ public class ModulesControllerTests : IClassFixture<TestWebApplicationFactory>
     [Fact]
     public async Task Rename_DuplicateName_Returns409Conflict()
     {
-        var client = _factory.CreateClient();
+        var client = await AuthenticatedTestClientHelper.CreateAuthenticatedClientAsync(_factory);
         var appId = await CreateApplicationAsync(client, "ModuleRenameConflictControllerTestApp");
         await client.PostAsJsonAsync($"/api/v1/admin/applications/{appId}/modules", new CreateModuleRequest("Taken", null));
         var createResponse = await client.PostAsJsonAsync($"/api/v1/admin/applications/{appId}/modules", new CreateModuleRequest("ToRename", null));
@@ -152,7 +153,7 @@ public class ModulesControllerTests : IClassFixture<TestWebApplicationFactory>
     [Fact]
     public async Task Create_UnknownApplicationId_Returns404NotFound()
     {
-        var client = _factory.CreateClient();
+        var client = await AuthenticatedTestClientHelper.CreateAuthenticatedClientAsync(_factory);
 
         var response = await client.PostAsJsonAsync(
             "/api/v1/admin/applications/999999/modules",
@@ -164,7 +165,7 @@ public class ModulesControllerTests : IClassFixture<TestWebApplicationFactory>
     [Fact]
     public async Task Deactivate_SetsInactive_ExcludedFromDefaultList()
     {
-        var client = _factory.CreateClient();
+        var client = await AuthenticatedTestClientHelper.CreateAuthenticatedClientAsync(_factory);
         var appId = await CreateApplicationAsync(client, "ModuleDeactivateControllerTestApp");
         var createResponse = await client.PostAsJsonAsync(
             $"/api/v1/admin/applications/{appId}/modules",

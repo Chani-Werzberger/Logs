@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using LogsPlatform.Tests.Infrastructure;
 using LogsPlatform.Web.Contracts;
 using Xunit;
 
@@ -18,7 +19,7 @@ public class ApplicationsControllerTests : IClassFixture<TestWebApplicationFacto
     [Fact]
     public async Task PostThenGet_CreatesAndReturnsApplication()
     {
-        var client = _factory.CreateClient();
+        var client = await AuthenticatedTestClientHelper.CreateAuthenticatedClientAsync(_factory);
 
         var createResponse = await client.PostAsJsonAsync(
             "/api/v1/admin/applications",
@@ -38,7 +39,7 @@ public class ApplicationsControllerTests : IClassFixture<TestWebApplicationFacto
     [Fact]
     public async Task Create_DuplicateName_Returns409Conflict()
     {
-        var client = _factory.CreateClient();
+        var client = await AuthenticatedTestClientHelper.CreateAuthenticatedClientAsync(_factory);
         var request = new CreateApplicationRequest("DuplicateNameTest", null);
 
         var first = await client.PostAsJsonAsync("/api/v1/admin/applications", request);
@@ -51,7 +52,7 @@ public class ApplicationsControllerTests : IClassFixture<TestWebApplicationFacto
     [Fact]
     public async Task PostThenGet_CreatedAtRoundTripsAsUtc()
     {
-        var client = _factory.CreateClient();
+        var client = await AuthenticatedTestClientHelper.CreateAuthenticatedClientAsync(_factory);
 
         var createResponse = await client.PostAsJsonAsync(
             "/api/v1/admin/applications",

@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using LogsPlatform.Tests.Infrastructure;
 using LogsPlatform.Web.Contracts;
 using Xunit;
 
@@ -25,7 +26,7 @@ public class ApiKeysControllerTests : IClassFixture<TestWebApplicationFactory>
     [Fact]
     public async Task PostThenGet_CreatesAndReturnsApiKey()
     {
-        var client = _factory.CreateClient();
+        var client = await AuthenticatedTestClientHelper.CreateAuthenticatedClientAsync(_factory);
         var appId = await CreateApplicationAsync(client, "ApiKeyControllerTestApp1");
 
         var createResponse = await client.PostAsJsonAsync(
@@ -47,7 +48,7 @@ public class ApiKeysControllerTests : IClassFixture<TestWebApplicationFactory>
     [Fact]
     public async Task GetById_ResponseNeverContainsRawKeyOrHashField()
     {
-        var client = _factory.CreateClient();
+        var client = await AuthenticatedTestClientHelper.CreateAuthenticatedClientAsync(_factory);
         var appId = await CreateApplicationAsync(client, "ApiKeyNoLeakTestApp");
         var createResponse = await client.PostAsJsonAsync(
             $"/api/v1/admin/applications/{appId}/api-keys",
@@ -64,7 +65,7 @@ public class ApiKeysControllerTests : IClassFixture<TestWebApplicationFactory>
     [Fact]
     public async Task GetById_ApiKeyBelongingToDifferentApplication_Returns404()
     {
-        var client = _factory.CreateClient();
+        var client = await AuthenticatedTestClientHelper.CreateAuthenticatedClientAsync(_factory);
         var appId1 = await CreateApplicationAsync(client, "ApiKeyIdorTestApp1");
         var appId2 = await CreateApplicationAsync(client, "ApiKeyIdorTestApp2");
 
@@ -80,7 +81,7 @@ public class ApiKeysControllerTests : IClassFixture<TestWebApplicationFactory>
     [Fact]
     public async Task Revoke_ApiKeyBelongingToDifferentApplication_Returns404()
     {
-        var client = _factory.CreateClient();
+        var client = await AuthenticatedTestClientHelper.CreateAuthenticatedClientAsync(_factory);
         var appId1 = await CreateApplicationAsync(client, "ApiKeyRevokeIdorTestApp1");
         var appId2 = await CreateApplicationAsync(client, "ApiKeyRevokeIdorTestApp2");
 
@@ -97,7 +98,7 @@ public class ApiKeysControllerTests : IClassFixture<TestWebApplicationFactory>
     [Fact]
     public async Task Create_UnknownApplicationId_Returns404NotFound()
     {
-        var client = _factory.CreateClient();
+        var client = await AuthenticatedTestClientHelper.CreateAuthenticatedClientAsync(_factory);
 
         var response = await client.PostAsJsonAsync(
             "/api/v1/admin/applications/999999/api-keys",
@@ -109,7 +110,7 @@ public class ApiKeysControllerTests : IClassFixture<TestWebApplicationFactory>
     [Fact]
     public async Task Revoke_SetsRevokedAt_ExcludedFromDefaultList()
     {
-        var client = _factory.CreateClient();
+        var client = await AuthenticatedTestClientHelper.CreateAuthenticatedClientAsync(_factory);
         var appId = await CreateApplicationAsync(client, "ApiKeyRevokeControllerTestApp");
         var createResponse = await client.PostAsJsonAsync(
             $"/api/v1/admin/applications/{appId}/api-keys",
@@ -126,7 +127,7 @@ public class ApiKeysControllerTests : IClassFixture<TestWebApplicationFactory>
     [Fact]
     public async Task Revoke_CalledTwice_ReturnsNoContentBothTimes()
     {
-        var client = _factory.CreateClient();
+        var client = await AuthenticatedTestClientHelper.CreateAuthenticatedClientAsync(_factory);
         var appId = await CreateApplicationAsync(client, "ApiKeyDoubleRevokeControllerTestApp");
         var createResponse = await client.PostAsJsonAsync(
             $"/api/v1/admin/applications/{appId}/api-keys",
@@ -143,7 +144,7 @@ public class ApiKeysControllerTests : IClassFixture<TestWebApplicationFactory>
     [Fact]
     public async Task Revoke_CalledTwice_LeavesOriginalRevokedAtUnchanged()
     {
-        var client = _factory.CreateClient();
+        var client = await AuthenticatedTestClientHelper.CreateAuthenticatedClientAsync(_factory);
         var appId = await CreateApplicationAsync(client, "ApiKeyRevokeTimestampControllerTestApp");
         var createResponse = await client.PostAsJsonAsync(
             $"/api/v1/admin/applications/{appId}/api-keys",
@@ -164,7 +165,7 @@ public class ApiKeysControllerTests : IClassFixture<TestWebApplicationFactory>
     [Fact]
     public async Task GetAll_ResponseNeverContainsRawKeyOrHashField()
     {
-        var client = _factory.CreateClient();
+        var client = await AuthenticatedTestClientHelper.CreateAuthenticatedClientAsync(_factory);
         var appId = await CreateApplicationAsync(client, "ApiKeyListNoLeakTestApp");
         var createResponse = await client.PostAsJsonAsync(
             $"/api/v1/admin/applications/{appId}/api-keys",

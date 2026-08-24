@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using LogsPlatform.Tests.Infrastructure;
 using LogsPlatform.Web.Contracts;
 using Xunit;
 
@@ -28,7 +29,7 @@ public class ExceptionGroupsControllerTests : IClassFixture<TestWebApplicationFa
     [Fact]
     public async Task GetExceptionGroups_ReturnsGroupWithDailyCounts()
     {
-        var client = _factory.CreateClient();
+        var client = await AuthenticatedTestClientHelper.CreateAuthenticatedClientAsync(_factory);
         var (appId, apiKey) = await CreateAppWithApiKeyAsync(client, "ExGroupApiTestApp");
 
         var request = new HttpRequestMessage(HttpMethod.Post, "/api/v1/ingest/events")
@@ -54,7 +55,7 @@ public class ExceptionGroupsControllerTests : IClassFixture<TestWebApplicationFa
     [Fact]
     public async Task GetExceptionGroupById_ReturnsFullStackTraceAndAffectedContexts()
     {
-        var client = _factory.CreateClient();
+        var client = await AuthenticatedTestClientHelper.CreateAuthenticatedClientAsync(_factory);
         var (appId, apiKey) = await CreateAppWithApiKeyAsync(client, "ExGroupDetailTestApp");
 
         var request = new HttpRequestMessage(HttpMethod.Post, "/api/v1/ingest/events")

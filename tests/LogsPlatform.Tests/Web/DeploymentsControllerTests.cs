@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using LogsPlatform.Tests.Infrastructure;
 using LogsPlatform.Web.Contracts;
 using Xunit;
 
@@ -40,7 +41,7 @@ public class DeploymentsControllerTests : IClassFixture<TestWebApplicationFactor
     [Fact]
     public async Task PostThenGet_CreatesAndReturnsDeployment()
     {
-        var client = _factory.CreateClient();
+        var client = await AuthenticatedTestClientHelper.CreateAuthenticatedClientAsync(_factory);
         var appId = await CreateApplicationAsync(client, "DeploymentControllerTestApp1");
         var (envId, versionId) = await CreateFixtureAsync(client, appId);
         var deployedAt = DateTime.UtcNow;
@@ -62,7 +63,7 @@ public class DeploymentsControllerTests : IClassFixture<TestWebApplicationFactor
     [Fact]
     public async Task Create_EnvironmentBelongingToDifferentApplication_Returns404()
     {
-        var client = _factory.CreateClient();
+        var client = await AuthenticatedTestClientHelper.CreateAuthenticatedClientAsync(_factory);
         var appId1 = await CreateApplicationAsync(client, "DeploymentEnvIdorTestApp1");
         var appId2 = await CreateApplicationAsync(client, "DeploymentEnvIdorTestApp2");
         var (envIdFromApp1, _) = await CreateFixtureAsync(client, appId1);
@@ -78,7 +79,7 @@ public class DeploymentsControllerTests : IClassFixture<TestWebApplicationFactor
     [Fact]
     public async Task Create_VersionBelongingToDifferentApplication_Returns404()
     {
-        var client = _factory.CreateClient();
+        var client = await AuthenticatedTestClientHelper.CreateAuthenticatedClientAsync(_factory);
         var appId1 = await CreateApplicationAsync(client, "DeploymentVersionIdorTestApp1");
         var appId2 = await CreateApplicationAsync(client, "DeploymentVersionIdorTestApp2");
         var (_, versionIdFromApp1) = await CreateFixtureAsync(client, appId1);
@@ -94,7 +95,7 @@ public class DeploymentsControllerTests : IClassFixture<TestWebApplicationFactor
     [Fact]
     public async Task Create_UnknownApplicationId_Returns404NotFound()
     {
-        var client = _factory.CreateClient();
+        var client = await AuthenticatedTestClientHelper.CreateAuthenticatedClientAsync(_factory);
 
         var response = await client.PostAsJsonAsync(
             "/api/v1/admin/applications/999999/deployments",
@@ -106,7 +107,7 @@ public class DeploymentsControllerTests : IClassFixture<TestWebApplicationFactor
     [Fact]
     public async Task GetById_DeploymentBelongingToDifferentApplication_Returns404()
     {
-        var client = _factory.CreateClient();
+        var client = await AuthenticatedTestClientHelper.CreateAuthenticatedClientAsync(_factory);
         var appId1 = await CreateApplicationAsync(client, "DeploymentGetIdorTestApp1");
         var appId2 = await CreateApplicationAsync(client, "DeploymentGetIdorTestApp2");
         var (envId, versionId) = await CreateFixtureAsync(client, appId1);
@@ -122,7 +123,7 @@ public class DeploymentsControllerTests : IClassFixture<TestWebApplicationFactor
     [Fact]
     public async Task Rename_DeploymentBelongingToDifferentApplication_Returns404()
     {
-        var client = _factory.CreateClient();
+        var client = await AuthenticatedTestClientHelper.CreateAuthenticatedClientAsync(_factory);
         var appId1 = await CreateApplicationAsync(client, "DeploymentRenameIdorTestApp1");
         var appId2 = await CreateApplicationAsync(client, "DeploymentRenameIdorTestApp2");
         var (envId, versionId) = await CreateFixtureAsync(client, appId1);
@@ -141,7 +142,7 @@ public class DeploymentsControllerTests : IClassFixture<TestWebApplicationFactor
     [Fact]
     public async Task Deactivate_DeploymentBelongingToDifferentApplication_Returns404()
     {
-        var client = _factory.CreateClient();
+        var client = await AuthenticatedTestClientHelper.CreateAuthenticatedClientAsync(_factory);
         var appId1 = await CreateApplicationAsync(client, "DeploymentDeactivateIdorTestApp1");
         var appId2 = await CreateApplicationAsync(client, "DeploymentDeactivateIdorTestApp2");
         var (envId, versionId) = await CreateFixtureAsync(client, appId1);
@@ -158,7 +159,7 @@ public class DeploymentsControllerTests : IClassFixture<TestWebApplicationFactor
     [Fact]
     public async Task Rename_UpdatesNotes()
     {
-        var client = _factory.CreateClient();
+        var client = await AuthenticatedTestClientHelper.CreateAuthenticatedClientAsync(_factory);
         var appId = await CreateApplicationAsync(client, "DeploymentRenameControllerTestApp");
         var (envId, versionId) = await CreateFixtureAsync(client, appId);
         var createResponse = await client.PostAsJsonAsync(
@@ -178,7 +179,7 @@ public class DeploymentsControllerTests : IClassFixture<TestWebApplicationFactor
     [Fact]
     public async Task Deactivate_SetsInactive_ExcludedFromDefaultList()
     {
-        var client = _factory.CreateClient();
+        var client = await AuthenticatedTestClientHelper.CreateAuthenticatedClientAsync(_factory);
         var appId = await CreateApplicationAsync(client, "DeploymentDeactivateControllerTestApp");
         var (envId, versionId) = await CreateFixtureAsync(client, appId);
         var createResponse = await client.PostAsJsonAsync(
@@ -196,7 +197,7 @@ public class DeploymentsControllerTests : IClassFixture<TestWebApplicationFactor
     [Fact]
     public async Task Create_SameEnvironmentAndVersionTwice_BothSucceed()
     {
-        var client = _factory.CreateClient();
+        var client = await AuthenticatedTestClientHelper.CreateAuthenticatedClientAsync(_factory);
         var appId = await CreateApplicationAsync(client, "DeploymentRedeployControllerTestApp");
         var (envId, versionId) = await CreateFixtureAsync(client, appId);
 

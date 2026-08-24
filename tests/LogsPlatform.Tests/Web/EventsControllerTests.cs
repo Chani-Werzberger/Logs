@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using LogsPlatform.Tests.Infrastructure;
 using LogsPlatform.Web.Contracts;
 using Xunit;
 
@@ -39,7 +40,7 @@ public class EventsControllerTests : IClassFixture<TestWebApplicationFactory>
     [Fact]
     public async Task GetEvents_FiltersBySeverityAndPaginates()
     {
-        var client = _factory.CreateClient();
+        var client = await AuthenticatedTestClientHelper.CreateAuthenticatedClientAsync(_factory);
         var (appId, environmentId, apiKey) = await CreateAppWithApiKeyAsync(client, "EventsQueryTestApp");
 
         var events = Enumerable.Range(0, 3).Select(i => new IngestEventRequest(
@@ -65,7 +66,7 @@ public class EventsControllerTests : IClassFixture<TestWebApplicationFactory>
     [Fact]
     public async Task GetEventById_MismatchedApplicationId_Returns404()
     {
-        var client = _factory.CreateClient();
+        var client = await AuthenticatedTestClientHelper.CreateAuthenticatedClientAsync(_factory);
         var (appId, environmentId, apiKey) = await CreateAppWithApiKeyAsync(client, "EventByIdTestApp");
         var (otherAppId, _, _) = await CreateAppWithApiKeyAsync(client, "EventByIdOtherApp");
 

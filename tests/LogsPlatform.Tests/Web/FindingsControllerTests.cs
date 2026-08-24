@@ -50,7 +50,7 @@ public class FindingsControllerTests : IClassFixture<TestWebApplicationFactory>
     [Fact]
     public async Task GetFindings_FiltersByStatus()
     {
-        var client = _factory.CreateClient();
+        var client = await AuthenticatedTestClientHelper.CreateAuthenticatedClientAsync(_factory);
         var (appId, envId) = await CreateAppWithEnvironmentAsync(client, "FindingsQueryTestApp");
         await SeedFindingAsync(appId, envId, FindingStatus.New, FindingSeverity.High);
         await SeedFindingAsync(appId, envId, FindingStatus.Resolved, FindingSeverity.Low);
@@ -66,7 +66,7 @@ public class FindingsControllerTests : IClassFixture<TestWebApplicationFactory>
     [Fact]
     public async Task GetFindingById_ReturnsStatementsAndEvidence()
     {
-        var client = _factory.CreateClient();
+        var client = await AuthenticatedTestClientHelper.CreateAuthenticatedClientAsync(_factory);
         var (appId, envId) = await CreateAppWithEnvironmentAsync(client, "FindingsDetailTestApp");
         var finding = await SeedFindingAsync(appId, envId, FindingStatus.New, FindingSeverity.High);
 
@@ -82,7 +82,7 @@ public class FindingsControllerTests : IClassFixture<TestWebApplicationFactory>
     [Fact]
     public async Task GetFindingById_NotFound_Returns404()
     {
-        var client = _factory.CreateClient();
+        var client = await AuthenticatedTestClientHelper.CreateAuthenticatedClientAsync(_factory);
 
         var response = await client.GetAsync("/api/v1/findings/999999");
 
@@ -92,7 +92,7 @@ public class FindingsControllerTests : IClassFixture<TestWebApplicationFactory>
     [Fact]
     public async Task UpdateStatus_ValidStatus_Returns204AndPersists()
     {
-        var client = _factory.CreateClient();
+        var client = await AuthenticatedTestClientHelper.CreateAuthenticatedClientAsync(_factory);
         var (appId, envId) = await CreateAppWithEnvironmentAsync(client, "FindingsStatusTestApp");
         var finding = await SeedFindingAsync(appId, envId, FindingStatus.New, FindingSeverity.High);
 
@@ -108,7 +108,7 @@ public class FindingsControllerTests : IClassFixture<TestWebApplicationFactory>
     [Fact]
     public async Task UpdateStatus_InvalidStatusValue_Returns400()
     {
-        var client = _factory.CreateClient();
+        var client = await AuthenticatedTestClientHelper.CreateAuthenticatedClientAsync(_factory);
         var (appId, envId) = await CreateAppWithEnvironmentAsync(client, "FindingsStatusInvalidTestApp");
         var finding = await SeedFindingAsync(appId, envId, FindingStatus.New, FindingSeverity.High);
 
@@ -120,7 +120,7 @@ public class FindingsControllerTests : IClassFixture<TestWebApplicationFactory>
     [Fact]
     public async Task PromoteStatement_HypothesisStatement_Returns204AndPersists()
     {
-        var client = _factory.CreateClient();
+        var client = await AuthenticatedTestClientHelper.CreateAuthenticatedClientAsync(_factory);
         var (appId, envId) = await CreateAppWithEnvironmentAsync(client, "FindingsPromoteTestApp");
         var finding = await SeedFindingAsync(appId, envId, FindingStatus.New, FindingSeverity.High);
 
@@ -148,7 +148,7 @@ public class FindingsControllerTests : IClassFixture<TestWebApplicationFactory>
     [Fact]
     public async Task PromoteStatement_BlankApprovedBy_Returns400()
     {
-        var client = _factory.CreateClient();
+        var client = await AuthenticatedTestClientHelper.CreateAuthenticatedClientAsync(_factory);
         var (appId, envId) = await CreateAppWithEnvironmentAsync(client, "FindingsPromoteBlankTestApp");
         var finding = await SeedFindingAsync(appId, envId, FindingStatus.New, FindingSeverity.High);
 

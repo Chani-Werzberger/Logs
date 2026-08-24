@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using LogsPlatform.Tests.Infrastructure;
 using LogsPlatform.Web.Contracts;
 using Xunit;
 
@@ -25,7 +26,7 @@ public class CustomersControllerTests : IClassFixture<TestWebApplicationFactory>
     [Fact]
     public async Task PostThenGet_CreatesAndReturnsCustomer()
     {
-        var client = _factory.CreateClient();
+        var client = await AuthenticatedTestClientHelper.CreateAuthenticatedClientAsync(_factory);
         var appId = await CreateApplicationAsync(client, "CustomerControllerTestApp1");
 
         var createResponse = await client.PostAsJsonAsync(
@@ -44,7 +45,7 @@ public class CustomersControllerTests : IClassFixture<TestWebApplicationFactory>
     [Fact]
     public async Task Create_DuplicateExternalCustomerId_Returns409Conflict()
     {
-        var client = _factory.CreateClient();
+        var client = await AuthenticatedTestClientHelper.CreateAuthenticatedClientAsync(_factory);
         var appId = await CreateApplicationAsync(client, "CustomerControllerTestApp2");
         var request = new CreateCustomerRequest("cust-dup", "First");
 
@@ -60,7 +61,7 @@ public class CustomersControllerTests : IClassFixture<TestWebApplicationFactory>
     [Fact]
     public async Task GetById_CustomerBelongingToDifferentApplication_Returns404()
     {
-        var client = _factory.CreateClient();
+        var client = await AuthenticatedTestClientHelper.CreateAuthenticatedClientAsync(_factory);
         var appId1 = await CreateApplicationAsync(client, "CustomerIdorTestApp1");
         var appId2 = await CreateApplicationAsync(client, "CustomerIdorTestApp2");
 
@@ -76,7 +77,7 @@ public class CustomersControllerTests : IClassFixture<TestWebApplicationFactory>
     [Fact]
     public async Task Rename_CustomerBelongingToDifferentApplication_Returns404()
     {
-        var client = _factory.CreateClient();
+        var client = await AuthenticatedTestClientHelper.CreateAuthenticatedClientAsync(_factory);
         var appId1 = await CreateApplicationAsync(client, "CustomerRenameIdorTestApp1");
         var appId2 = await CreateApplicationAsync(client, "CustomerRenameIdorTestApp2");
 
@@ -95,7 +96,7 @@ public class CustomersControllerTests : IClassFixture<TestWebApplicationFactory>
     [Fact]
     public async Task Deactivate_CustomerBelongingToDifferentApplication_Returns404()
     {
-        var client = _factory.CreateClient();
+        var client = await AuthenticatedTestClientHelper.CreateAuthenticatedClientAsync(_factory);
         var appId1 = await CreateApplicationAsync(client, "CustomerDeactivateIdorTestApp1");
         var appId2 = await CreateApplicationAsync(client, "CustomerDeactivateIdorTestApp2");
 
@@ -112,7 +113,7 @@ public class CustomersControllerTests : IClassFixture<TestWebApplicationFactory>
     [Fact]
     public async Task Rename_UpdatesName_LeavesExternalCustomerIdUnchanged()
     {
-        var client = _factory.CreateClient();
+        var client = await AuthenticatedTestClientHelper.CreateAuthenticatedClientAsync(_factory);
         var appId = await CreateApplicationAsync(client, "CustomerRenameControllerTestApp");
         var createResponse = await client.PostAsJsonAsync(
             $"/api/v1/admin/applications/{appId}/customers",
@@ -136,7 +137,7 @@ public class CustomersControllerTests : IClassFixture<TestWebApplicationFactory>
     [Fact]
     public async Task Create_UnknownApplicationId_Returns404NotFound()
     {
-        var client = _factory.CreateClient();
+        var client = await AuthenticatedTestClientHelper.CreateAuthenticatedClientAsync(_factory);
 
         var response = await client.PostAsJsonAsync(
             "/api/v1/admin/applications/999999/customers",
@@ -148,7 +149,7 @@ public class CustomersControllerTests : IClassFixture<TestWebApplicationFactory>
     [Fact]
     public async Task Deactivate_SetsInactive_ExcludedFromDefaultList()
     {
-        var client = _factory.CreateClient();
+        var client = await AuthenticatedTestClientHelper.CreateAuthenticatedClientAsync(_factory);
         var appId = await CreateApplicationAsync(client, "CustomerDeactivateControllerTestApp");
         var createResponse = await client.PostAsJsonAsync(
             $"/api/v1/admin/applications/{appId}/customers",

@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using LogsPlatform.Tests.Infrastructure;
 using LogsPlatform.Web.Contracts;
 using Xunit;
 
@@ -18,7 +19,7 @@ public class EnvironmentsControllerTests : IClassFixture<TestWebApplicationFacto
     [Fact]
     public async Task GetAll_ReturnsOnlyEnvironmentsScopedToRequestedApplication()
     {
-        var client = _factory.CreateClient();
+        var client = await AuthenticatedTestClientHelper.CreateAuthenticatedClientAsync(_factory);
 
         var firstAppResponse = await client.PostAsJsonAsync(
             "/api/v1/admin/applications",
@@ -64,7 +65,7 @@ public class EnvironmentsControllerTests : IClassFixture<TestWebApplicationFacto
     [Fact]
     public async Task Create_UnknownApplicationId_Returns404NotFound()
     {
-        var client = _factory.CreateClient();
+        var client = await AuthenticatedTestClientHelper.CreateAuthenticatedClientAsync(_factory);
 
         var response = await client.PostAsJsonAsync(
             "/api/v1/admin/applications/999999/environments",

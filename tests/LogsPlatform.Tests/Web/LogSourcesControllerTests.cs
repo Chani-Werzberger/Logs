@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using LogsPlatform.Tests.Infrastructure;
 using LogsPlatform.Web.Contracts;
 using Xunit;
 
@@ -25,7 +26,7 @@ public class LogSourcesControllerTests : IClassFixture<TestWebApplicationFactory
     [Fact]
     public async Task PostThenGet_CreatesAndReturnsLogSource()
     {
-        var client = _factory.CreateClient();
+        var client = await AuthenticatedTestClientHelper.CreateAuthenticatedClientAsync(_factory);
         var appId = await CreateApplicationAsync(client, "LogSourceControllerTestApp1");
 
         var createResponse = await client.PostAsJsonAsync(
@@ -44,7 +45,7 @@ public class LogSourcesControllerTests : IClassFixture<TestWebApplicationFactory
     [Fact]
     public async Task Create_DuplicateName_Returns409Conflict()
     {
-        var client = _factory.CreateClient();
+        var client = await AuthenticatedTestClientHelper.CreateAuthenticatedClientAsync(_factory);
         var appId = await CreateApplicationAsync(client, "LogSourceControllerTestApp2");
         var request = new CreateLogSourceRequest("DuplicateSource", null);
 
@@ -58,7 +59,7 @@ public class LogSourcesControllerTests : IClassFixture<TestWebApplicationFactory
     [Fact]
     public async Task GetById_LogSourceBelongingToDifferentApplication_Returns404()
     {
-        var client = _factory.CreateClient();
+        var client = await AuthenticatedTestClientHelper.CreateAuthenticatedClientAsync(_factory);
         var appId1 = await CreateApplicationAsync(client, "LogSourceIdorTestApp1");
         var appId2 = await CreateApplicationAsync(client, "LogSourceIdorTestApp2");
 
@@ -74,7 +75,7 @@ public class LogSourcesControllerTests : IClassFixture<TestWebApplicationFactory
     [Fact]
     public async Task Rename_LogSourceBelongingToDifferentApplication_Returns404()
     {
-        var client = _factory.CreateClient();
+        var client = await AuthenticatedTestClientHelper.CreateAuthenticatedClientAsync(_factory);
         var appId1 = await CreateApplicationAsync(client, "LogSourceRenameIdorTestApp1");
         var appId2 = await CreateApplicationAsync(client, "LogSourceRenameIdorTestApp2");
 
@@ -93,7 +94,7 @@ public class LogSourcesControllerTests : IClassFixture<TestWebApplicationFactory
     [Fact]
     public async Task Deactivate_LogSourceBelongingToDifferentApplication_Returns404()
     {
-        var client = _factory.CreateClient();
+        var client = await AuthenticatedTestClientHelper.CreateAuthenticatedClientAsync(_factory);
         var appId1 = await CreateApplicationAsync(client, "LogSourceDeactivateIdorTestApp1");
         var appId2 = await CreateApplicationAsync(client, "LogSourceDeactivateIdorTestApp2");
 
@@ -110,7 +111,7 @@ public class LogSourcesControllerTests : IClassFixture<TestWebApplicationFactory
     [Fact]
     public async Task Rename_UpdatesNameAndDescription()
     {
-        var client = _factory.CreateClient();
+        var client = await AuthenticatedTestClientHelper.CreateAuthenticatedClientAsync(_factory);
         var appId = await CreateApplicationAsync(client, "LogSourceRenameControllerTestApp");
         var createResponse = await client.PostAsJsonAsync(
             $"/api/v1/admin/applications/{appId}/log-sources",
@@ -133,7 +134,7 @@ public class LogSourcesControllerTests : IClassFixture<TestWebApplicationFactory
     [Fact]
     public async Task Rename_DuplicateName_Returns409Conflict()
     {
-        var client = _factory.CreateClient();
+        var client = await AuthenticatedTestClientHelper.CreateAuthenticatedClientAsync(_factory);
         var appId = await CreateApplicationAsync(client, "LogSourceRenameConflictControllerTestApp");
         await client.PostAsJsonAsync($"/api/v1/admin/applications/{appId}/log-sources", new CreateLogSourceRequest("Taken", null));
         var createResponse = await client.PostAsJsonAsync($"/api/v1/admin/applications/{appId}/log-sources", new CreateLogSourceRequest("ToRename", null));
@@ -149,7 +150,7 @@ public class LogSourcesControllerTests : IClassFixture<TestWebApplicationFactory
     [Fact]
     public async Task Create_UnknownApplicationId_Returns404NotFound()
     {
-        var client = _factory.CreateClient();
+        var client = await AuthenticatedTestClientHelper.CreateAuthenticatedClientAsync(_factory);
 
         var response = await client.PostAsJsonAsync(
             "/api/v1/admin/applications/999999/log-sources",
@@ -161,7 +162,7 @@ public class LogSourcesControllerTests : IClassFixture<TestWebApplicationFactory
     [Fact]
     public async Task Deactivate_SetsInactive_ExcludedFromDefaultList()
     {
-        var client = _factory.CreateClient();
+        var client = await AuthenticatedTestClientHelper.CreateAuthenticatedClientAsync(_factory);
         var appId = await CreateApplicationAsync(client, "LogSourceDeactivateControllerTestApp");
         var createResponse = await client.PostAsJsonAsync(
             $"/api/v1/admin/applications/{appId}/log-sources",

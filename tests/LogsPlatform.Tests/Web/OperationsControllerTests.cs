@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using LogsPlatform.Tests.Infrastructure;
 using LogsPlatform.Web.Contracts;
 using Xunit;
 
@@ -40,7 +41,7 @@ public class OperationsControllerTests : IClassFixture<TestWebApplicationFactory
     [Fact]
     public async Task PostThenGet_CreatesAndReturnsOperation()
     {
-        var client = _factory.CreateClient();
+        var client = await AuthenticatedTestClientHelper.CreateAuthenticatedClientAsync(_factory);
         var processId = await CreateProcessAsync(client, "OperationControllerTestApp1", "Payments", "PaymentGateway", "ChargeCard");
 
         var createResponse = await client.PostAsJsonAsync(
@@ -59,7 +60,7 @@ public class OperationsControllerTests : IClassFixture<TestWebApplicationFactory
     [Fact]
     public async Task Create_DuplicateName_Returns409Conflict()
     {
-        var client = _factory.CreateClient();
+        var client = await AuthenticatedTestClientHelper.CreateAuthenticatedClientAsync(_factory);
         var processId = await CreateProcessAsync(client, "OperationControllerTestApp2", "Payments", "PaymentGateway", "ChargeCard");
         var request = new CreateOperationRequest("DuplicateOperation", null);
 
@@ -73,7 +74,7 @@ public class OperationsControllerTests : IClassFixture<TestWebApplicationFactory
     [Fact]
     public async Task GetById_OperationBelongingToDifferentProcess_Returns404()
     {
-        var client = _factory.CreateClient();
+        var client = await AuthenticatedTestClientHelper.CreateAuthenticatedClientAsync(_factory);
         var processId1 = await CreateProcessAsync(client, "OperationIdorTestApp1", "ModuleA", "ScreenServiceA", "ProcessA");
         var processId2 = await CreateProcessAsync(client, "OperationIdorTestApp2", "ModuleB", "ScreenServiceB", "ProcessB");
 
@@ -89,7 +90,7 @@ public class OperationsControllerTests : IClassFixture<TestWebApplicationFactory
     [Fact]
     public async Task Rename_OperationBelongingToDifferentProcess_Returns404()
     {
-        var client = _factory.CreateClient();
+        var client = await AuthenticatedTestClientHelper.CreateAuthenticatedClientAsync(_factory);
         var processId1 = await CreateProcessAsync(client, "OperationRenameIdorTestApp1", "ModuleA", "ScreenServiceA", "ProcessA");
         var processId2 = await CreateProcessAsync(client, "OperationRenameIdorTestApp2", "ModuleB", "ScreenServiceB", "ProcessB");
 
@@ -108,7 +109,7 @@ public class OperationsControllerTests : IClassFixture<TestWebApplicationFactory
     [Fact]
     public async Task Deactivate_OperationBelongingToDifferentProcess_Returns404()
     {
-        var client = _factory.CreateClient();
+        var client = await AuthenticatedTestClientHelper.CreateAuthenticatedClientAsync(_factory);
         var processId1 = await CreateProcessAsync(client, "OperationDeactivateIdorTestApp1", "ModuleA", "ScreenServiceA", "ProcessA");
         var processId2 = await CreateProcessAsync(client, "OperationDeactivateIdorTestApp2", "ModuleB", "ScreenServiceB", "ProcessB");
 
@@ -125,7 +126,7 @@ public class OperationsControllerTests : IClassFixture<TestWebApplicationFactory
     [Fact]
     public async Task Rename_UpdatesNameAndDescription()
     {
-        var client = _factory.CreateClient();
+        var client = await AuthenticatedTestClientHelper.CreateAuthenticatedClientAsync(_factory);
         var processId = await CreateProcessAsync(client, "OperationRenameControllerTestApp", "Payments", "PaymentGateway", "ChargeCard");
         var createResponse = await client.PostAsJsonAsync(
             $"/api/v1/admin/processes/{processId}/operations",
@@ -148,7 +149,7 @@ public class OperationsControllerTests : IClassFixture<TestWebApplicationFactory
     [Fact]
     public async Task Rename_DuplicateName_Returns409Conflict()
     {
-        var client = _factory.CreateClient();
+        var client = await AuthenticatedTestClientHelper.CreateAuthenticatedClientAsync(_factory);
         var processId = await CreateProcessAsync(client, "OperationRenameConflictControllerTestApp", "Payments", "PaymentGateway", "ChargeCard");
         await client.PostAsJsonAsync($"/api/v1/admin/processes/{processId}/operations", new CreateOperationRequest("Taken", null));
         var createResponse = await client.PostAsJsonAsync($"/api/v1/admin/processes/{processId}/operations", new CreateOperationRequest("ToRename", null));
@@ -164,7 +165,7 @@ public class OperationsControllerTests : IClassFixture<TestWebApplicationFactory
     [Fact]
     public async Task Create_UnknownProcessId_Returns404NotFound()
     {
-        var client = _factory.CreateClient();
+        var client = await AuthenticatedTestClientHelper.CreateAuthenticatedClientAsync(_factory);
 
         var response = await client.PostAsJsonAsync(
             "/api/v1/admin/processes/999999/operations",
@@ -176,7 +177,7 @@ public class OperationsControllerTests : IClassFixture<TestWebApplicationFactory
     [Fact]
     public async Task Deactivate_SetsInactive_ExcludedFromDefaultList()
     {
-        var client = _factory.CreateClient();
+        var client = await AuthenticatedTestClientHelper.CreateAuthenticatedClientAsync(_factory);
         var processId = await CreateProcessAsync(client, "OperationDeactivateControllerTestApp", "Payments", "PaymentGateway", "ChargeCard");
         var createResponse = await client.PostAsJsonAsync(
             $"/api/v1/admin/processes/{processId}/operations",

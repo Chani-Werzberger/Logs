@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using LogsPlatform.Tests.Infrastructure;
 using LogsPlatform.Web.Contracts;
 using Xunit;
 
@@ -30,7 +31,7 @@ public class ScreenServicesControllerTests : IClassFixture<TestWebApplicationFac
     [Fact]
     public async Task PostThenGet_CreatesAndReturnsScreenService()
     {
-        var client = _factory.CreateClient();
+        var client = await AuthenticatedTestClientHelper.CreateAuthenticatedClientAsync(_factory);
         var moduleId = await CreateModuleAsync(client, "ScreenServiceControllerTestApp1", "Payments");
 
         var createResponse = await client.PostAsJsonAsync(
@@ -49,7 +50,7 @@ public class ScreenServicesControllerTests : IClassFixture<TestWebApplicationFac
     [Fact]
     public async Task Create_DuplicateName_Returns409Conflict()
     {
-        var client = _factory.CreateClient();
+        var client = await AuthenticatedTestClientHelper.CreateAuthenticatedClientAsync(_factory);
         var moduleId = await CreateModuleAsync(client, "ScreenServiceControllerTestApp2", "Payments");
         var request = new CreateScreenServiceRequest("DuplicateService", "Screen", null);
 
@@ -63,7 +64,7 @@ public class ScreenServicesControllerTests : IClassFixture<TestWebApplicationFac
     [Fact]
     public async Task GetById_ScreenServiceBelongingToDifferentModule_Returns404()
     {
-        var client = _factory.CreateClient();
+        var client = await AuthenticatedTestClientHelper.CreateAuthenticatedClientAsync(_factory);
         var moduleId1 = await CreateModuleAsync(client, "ScreenServiceIdorTestApp1", "ModuleA");
         var moduleId2 = await CreateModuleAsync(client, "ScreenServiceIdorTestApp2", "ModuleB");
 
@@ -79,7 +80,7 @@ public class ScreenServicesControllerTests : IClassFixture<TestWebApplicationFac
     [Fact]
     public async Task Rename_ScreenServiceBelongingToDifferentModule_Returns404()
     {
-        var client = _factory.CreateClient();
+        var client = await AuthenticatedTestClientHelper.CreateAuthenticatedClientAsync(_factory);
         var moduleId1 = await CreateModuleAsync(client, "ScreenServiceRenameIdorTestApp1", "ModuleA");
         var moduleId2 = await CreateModuleAsync(client, "ScreenServiceRenameIdorTestApp2", "ModuleB");
 
@@ -98,7 +99,7 @@ public class ScreenServicesControllerTests : IClassFixture<TestWebApplicationFac
     [Fact]
     public async Task Deactivate_ScreenServiceBelongingToDifferentModule_Returns404()
     {
-        var client = _factory.CreateClient();
+        var client = await AuthenticatedTestClientHelper.CreateAuthenticatedClientAsync(_factory);
         var moduleId1 = await CreateModuleAsync(client, "ScreenServiceDeactivateIdorTestApp1", "ModuleA");
         var moduleId2 = await CreateModuleAsync(client, "ScreenServiceDeactivateIdorTestApp2", "ModuleB");
 
@@ -115,7 +116,7 @@ public class ScreenServicesControllerTests : IClassFixture<TestWebApplicationFac
     [Fact]
     public async Task Rename_UpdatesNameAndDescription()
     {
-        var client = _factory.CreateClient();
+        var client = await AuthenticatedTestClientHelper.CreateAuthenticatedClientAsync(_factory);
         var moduleId = await CreateModuleAsync(client, "ScreenServiceRenameControllerTestApp", "Payments");
         var createResponse = await client.PostAsJsonAsync(
             $"/api/v1/admin/modules/{moduleId}/screen-services",
@@ -138,7 +139,7 @@ public class ScreenServicesControllerTests : IClassFixture<TestWebApplicationFac
     [Fact]
     public async Task Rename_DuplicateName_Returns409Conflict()
     {
-        var client = _factory.CreateClient();
+        var client = await AuthenticatedTestClientHelper.CreateAuthenticatedClientAsync(_factory);
         var moduleId = await CreateModuleAsync(client, "ScreenServiceRenameConflictControllerTestApp", "Payments");
         await client.PostAsJsonAsync(
             $"/api/v1/admin/modules/{moduleId}/screen-services",
@@ -158,7 +159,7 @@ public class ScreenServicesControllerTests : IClassFixture<TestWebApplicationFac
     [Fact]
     public async Task Create_UnknownModuleId_Returns404NotFound()
     {
-        var client = _factory.CreateClient();
+        var client = await AuthenticatedTestClientHelper.CreateAuthenticatedClientAsync(_factory);
 
         var response = await client.PostAsJsonAsync(
             "/api/v1/admin/modules/999999/screen-services",
@@ -170,7 +171,7 @@ public class ScreenServicesControllerTests : IClassFixture<TestWebApplicationFac
     [Fact]
     public async Task Deactivate_SetsInactive_ExcludedFromDefaultList()
     {
-        var client = _factory.CreateClient();
+        var client = await AuthenticatedTestClientHelper.CreateAuthenticatedClientAsync(_factory);
         var moduleId = await CreateModuleAsync(client, "ScreenServiceDeactivateControllerTestApp", "Payments");
         var createResponse = await client.PostAsJsonAsync(
             $"/api/v1/admin/modules/{moduleId}/screen-services",

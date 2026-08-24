@@ -1,6 +1,7 @@
 // tests/LogsPlatform.Tests/Web/VersionsControllerTests.cs
 using System.Net;
 using System.Net.Http.Json;
+using LogsPlatform.Tests.Infrastructure;
 using LogsPlatform.Web.Contracts;
 using Xunit;
 
@@ -26,7 +27,7 @@ public class VersionsControllerTests : IClassFixture<TestWebApplicationFactory>
     [Fact]
     public async Task PostThenGet_CreatesAndReturnsVersion()
     {
-        var client = _factory.CreateClient();
+        var client = await AuthenticatedTestClientHelper.CreateAuthenticatedClientAsync(_factory);
         var appId = await CreateApplicationAsync(client, "VersionControllerTestApp1");
 
         var createResponse = await client.PostAsJsonAsync(
@@ -45,7 +46,7 @@ public class VersionsControllerTests : IClassFixture<TestWebApplicationFactory>
     [Fact]
     public async Task Create_DuplicateVersionNumber_Returns409Conflict()
     {
-        var client = _factory.CreateClient();
+        var client = await AuthenticatedTestClientHelper.CreateAuthenticatedClientAsync(_factory);
         var appId = await CreateApplicationAsync(client, "VersionControllerTestApp2");
         var request = new CreateVersionRequest("1.0.0-dup", null);
 
@@ -61,7 +62,7 @@ public class VersionsControllerTests : IClassFixture<TestWebApplicationFactory>
     [Fact]
     public async Task GetById_VersionBelongingToDifferentApplication_Returns404()
     {
-        var client = _factory.CreateClient();
+        var client = await AuthenticatedTestClientHelper.CreateAuthenticatedClientAsync(_factory);
         var appId1 = await CreateApplicationAsync(client, "VersionIdorTestApp1");
         var appId2 = await CreateApplicationAsync(client, "VersionIdorTestApp2");
 
@@ -77,7 +78,7 @@ public class VersionsControllerTests : IClassFixture<TestWebApplicationFactory>
     [Fact]
     public async Task Rename_VersionBelongingToDifferentApplication_Returns404()
     {
-        var client = _factory.CreateClient();
+        var client = await AuthenticatedTestClientHelper.CreateAuthenticatedClientAsync(_factory);
         var appId1 = await CreateApplicationAsync(client, "VersionRenameIdorTestApp1");
         var appId2 = await CreateApplicationAsync(client, "VersionRenameIdorTestApp2");
 
@@ -96,7 +97,7 @@ public class VersionsControllerTests : IClassFixture<TestWebApplicationFactory>
     [Fact]
     public async Task Deactivate_VersionBelongingToDifferentApplication_Returns404()
     {
-        var client = _factory.CreateClient();
+        var client = await AuthenticatedTestClientHelper.CreateAuthenticatedClientAsync(_factory);
         var appId1 = await CreateApplicationAsync(client, "VersionDeactivateIdorTestApp1");
         var appId2 = await CreateApplicationAsync(client, "VersionDeactivateIdorTestApp2");
 
@@ -113,7 +114,7 @@ public class VersionsControllerTests : IClassFixture<TestWebApplicationFactory>
     [Fact]
     public async Task Rename_UpdatesReleaseNotes_LeavesVersionNumberUnchanged()
     {
-        var client = _factory.CreateClient();
+        var client = await AuthenticatedTestClientHelper.CreateAuthenticatedClientAsync(_factory);
         var appId = await CreateApplicationAsync(client, "VersionRenameControllerTestApp");
         var createResponse = await client.PostAsJsonAsync(
             $"/api/v1/admin/applications/{appId}/versions",
@@ -133,7 +134,7 @@ public class VersionsControllerTests : IClassFixture<TestWebApplicationFactory>
     [Fact]
     public async Task Create_UnknownApplicationId_Returns404NotFound()
     {
-        var client = _factory.CreateClient();
+        var client = await AuthenticatedTestClientHelper.CreateAuthenticatedClientAsync(_factory);
 
         var response = await client.PostAsJsonAsync(
             "/api/v1/admin/applications/999999/versions",
@@ -145,7 +146,7 @@ public class VersionsControllerTests : IClassFixture<TestWebApplicationFactory>
     [Fact]
     public async Task Deactivate_SetsInactive_ExcludedFromDefaultList()
     {
-        var client = _factory.CreateClient();
+        var client = await AuthenticatedTestClientHelper.CreateAuthenticatedClientAsync(_factory);
         var appId = await CreateApplicationAsync(client, "VersionDeactivateControllerTestApp");
         var createResponse = await client.PostAsJsonAsync(
             $"/api/v1/admin/applications/{appId}/versions",
