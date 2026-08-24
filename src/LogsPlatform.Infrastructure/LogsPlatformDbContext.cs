@@ -27,6 +27,7 @@ public class LogsPlatformDbContext : DbContext
     public DbSet<Finding> Findings => Set<Finding>();
     public DbSet<FindingStatement> FindingStatements => Set<FindingStatement>();
     public DbSet<Evidence> Evidence => Set<Evidence>();
+    public DbSet<PlatformUser> PlatformUsers => Set<PlatformUser>();
 
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
     {
@@ -230,6 +231,13 @@ public class LogsPlatformDbContext : DbContext
             entity.Property(e => e.Description).HasMaxLength(1000).IsRequired();
             entity.HasOne(e => e.Finding).WithMany().HasForeignKey(e => e.FindingId).OnDelete(DeleteBehavior.Cascade);
             entity.HasIndex(e => e.FindingId);
+        });
+
+        modelBuilder.Entity<PlatformUser>(entity =>
+        {
+            entity.Property(u => u.Username).HasMaxLength(200).IsRequired();
+            entity.Property(u => u.PasswordHash).HasMaxLength(200).IsRequired();
+            entity.HasIndex(u => u.Username).IsUnique();
         });
     }
 }

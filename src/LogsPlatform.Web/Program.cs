@@ -24,6 +24,7 @@ builder.Services.AddDbContext<LogsPlatformDbContext>(options =>
         ?? throw new InvalidOperationException("Missing ConnectionStrings:LogsPlatformDb configuration.")));
 
 builder.Services.AddScoped<IApplicationRepository, ApplicationRepository>();
+builder.Services.AddScoped<IPlatformUserRepository, PlatformUserRepository>();
 builder.Services.AddScoped<IAppEnvironmentRepository, AppEnvironmentRepository>();
 builder.Services.AddScoped<IAppModuleRepository, AppModuleRepository>();
 builder.Services.AddScoped<IScreenServiceRepository, ScreenServiceRepository>();
