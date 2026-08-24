@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using LogsPlatform.Domain.Entities;
 using LogsPlatform.Domain.Repositories;
 using LogsPlatform.Web.Contracts;
@@ -83,14 +84,11 @@ public class FindingsController : ControllerBase
     }
 
     [HttpPost("{id:long}/statements/{statementId:long}/promote")]
-    public async Task<IActionResult> Promote(long id, long statementId, [FromBody] PromoteStatementRequest request)
+    public async Task<IActionResult> Promote(long id, long statementId)
     {
-        if (string.IsNullOrWhiteSpace(request.ApprovedBy))
-        {
-            return ValidationProblem("approvedBy is required.");
-        }
+        var approvedBy = User.FindFirstValue(ClaimTypes.Name)!;
 
-        var statement = await _findings.PromoteToConclusionAsync(id, statementId, request.ApprovedBy);
+        var statement = await _findings.PromoteToConclusionAsync(id, statementId, approvedBy);
         if (statement is null) return NotFound();
         return NoContent();
     }

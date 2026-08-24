@@ -134,7 +134,7 @@ public class FindingsControllerTests : IClassFixture<TestWebApplicationFactory>
             statementId = statement.Id;
         }
 
-        var response = await client.PostAsJsonAsync($"/api/v1/findings/{finding.Id}/statements/{statementId}/promote", new PromoteStatementRequest("Dana"));
+        var response = await client.PostAsync($"/api/v1/findings/{finding.Id}/statements/{statementId}/promote", null);
 
         Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
 
@@ -142,28 +142,6 @@ public class FindingsControllerTests : IClassFixture<TestWebApplicationFactory>
         var detail = await detailResponse.Content.ReadFromJsonAsync<FindingDetail>();
         var promoted = detail!.Statements.Single(s => s.Id == statementId);
         Assert.Equal("Conclusion", promoted.Kind);
-        Assert.Equal("Dana", promoted.ApprovedBy);
-    }
-
-    [Fact]
-    public async Task PromoteStatement_BlankApprovedBy_Returns400()
-    {
-        var client = await AuthenticatedTestClientHelper.CreateAuthenticatedClientAsync(_factory);
-        var (appId, envId) = await CreateAppWithEnvironmentAsync(client, "FindingsPromoteBlankTestApp");
-        var finding = await SeedFindingAsync(appId, envId, FindingStatus.New, FindingSeverity.High);
-
-        long statementId;
-        using (var scope = _factory.Services.CreateScope())
-        {
-            var context = scope.ServiceProvider.GetRequiredService<LogsPlatformDbContext>();
-            var statement = new FindingStatement { FindingId = finding.Id, Kind = FindingStatementKind.Hypothesis, Text = "Maybe.", OrderIndex = 1 };
-            context.FindingStatements.Add(statement);
-            await context.SaveChangesAsync();
-            statementId = statement.Id;
-        }
-
-        var response = await client.PostAsJsonAsync($"/api/v1/findings/{finding.Id}/statements/{statementId}/promote", new PromoteStatementRequest("   "));
-
-        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal("test-admin", promoted.ApprovedBy);
     }
 }

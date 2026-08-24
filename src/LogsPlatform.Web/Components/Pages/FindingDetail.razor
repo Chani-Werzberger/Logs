@@ -1,8 +1,10 @@
 @* src/LogsPlatform.Web/Components/Pages/FindingDetail.razor *@
 @page "/findings/{Id:long}"
 @attribute [Microsoft.AspNetCore.Authorization.Authorize]
+@using System.Security.Claims
 @using LogsPlatform.Domain.Entities
 @using LogsPlatform.Domain.Repositories
+@using Microsoft.AspNetCore.Components.Authorization
 @inject IFindingRepository FindingRepository
 @inject IApplicationRepository ApplicationRepository
 @inject IOperationRepository OperationRepository
@@ -37,8 +39,8 @@ else
                         @if (_promotingStatementId == statement.Id)
                         {
                             <div class="d-flex gap-2 align-items-center mt-2">
-                                <input class="form-control form-control-sm" placeholder="הערת אישור" @bind="_approvalNote" @bind:event="oninput" style="max-width:300px" />
-                                <button class="btn btn-sm btn-success" disabled="@string.IsNullOrWhiteSpace(_approvalNote)" @onclick="PromoteAsync">אשר/י</button>
+                                <span class="text-muted small">אישור בשם @_currentUsername</span>
+                                <button class="btn btn-sm btn-success" @onclick="PromoteAsync">אשר/י</button>
                                 <button class="btn btn-sm btn-outline-secondary" @onclick="() => _promotingStatementId = null">בטל/י</button>
                             </div>
                         }
@@ -99,10 +101,17 @@ else
     private FindingWithDetails? _details;
     private string? _operationName;
     private long? _promotingStatementId;
-    private string _approvalNote = string.Empty;
+    private string _currentUsername = string.Empty;
+
+    [CascadingParameter] private Task<AuthenticationState>? AuthenticationStateTask { get; set; }
 
     protected override async Task OnInitializedAsync()
     {
+        if (AuthenticationStateTask is not null)
+        {
+            var authState = await AuthenticationStateTask;
+            _currentUsername = authState.User.FindFirstValue(ClaimTypes.Name) ?? string.Empty;
+        }
         await LoadAsync();
     }
 
@@ -123,7 +132,6 @@ else
     private void StartPromoting(long statementId)
     {
         _promotingStatementId = statementId;
-        _approvalNote = string.Empty;
     }
 
     private async Task UpdateStatusAsync(FindingStatus status)
@@ -134,10 +142,9 @@ else
 
     private async Task PromoteAsync()
     {
-        if (_promotingStatementId is null || string.IsNullOrWhiteSpace(_approvalNote)) return;
-        await FindingRepository.PromoteToConclusionAsync(Id, _promotingStatementId.Value, _approvalNote);
+        if (_promotingStatementId is null) return;
+        await FindingRepository.PromoteToConclusionAsync(Id, _promotingStatementId.Value, _currentUsername);
         _promotingStatementId = null;
-        _approvalNote = string.Empty;
         await LoadAsync();
     }
 
