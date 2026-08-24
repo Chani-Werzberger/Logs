@@ -16,6 +16,7 @@ public sealed class LogsPlatformClient : ILogsPlatformClient
     private readonly List<EventPayload> _buffer = new();
     private readonly List<Task> _pendingFlushes = new();
     private readonly object _pendingFlushesLock = new();
+    private readonly Func<string, string>? _redactMessage;
     private bool _disposed;
 
     public LogsPlatformClient(
@@ -24,11 +25,13 @@ public sealed class LogsPlatformClient : ILogsPlatformClient
         HttpClient? httpClient = null,
         int batchSize = 100,
         TimeSpan? period = null,
-        int queueLimit = 10_000)
+        int queueLimit = 10_000,
+        Func<string, string>? redactMessage = null)
     {
         ArgumentException.ThrowIfNullOrEmpty(baseUrl);
         ArgumentException.ThrowIfNullOrEmpty(apiKey);
 
+        _redactMessage = redactMessage;
         _batchSize = batchSize;
         _queueLimit = queueLimit;
         _apiKey = apiKey;
@@ -50,10 +53,12 @@ public sealed class LogsPlatformClient : ILogsPlatformClient
 
     public Task SendEventAsync(EventPayload evt)
     {
+        var toBuffer = _redactMessage is null ? evt : RedactEvent(evt);
+
         List<EventPayload>? toFlush = null;
         lock (_bufferLock)
         {
-            _buffer.Add(evt);
+            _buffer.Add(toBuffer);
             while (_buffer.Count > _queueLimit)
             {
                 _buffer.RemoveAt(0);
@@ -71,6 +76,18 @@ public sealed class LogsPlatformClient : ILogsPlatformClient
         }
 
         return Task.CompletedTask;
+    }
+
+    private EventPayload RedactEvent(EventPayload evt)
+    {
+        var redactedMessage = _redactMessage!(evt.Message);
+        var redactedMetadata = evt.Metadata is null
+            ? null
+            : evt.Metadata.ToDictionary(
+                kvp => kvp.Key,
+                kvp => kvp.Value is string stringValue ? (object)_redactMessage!(stringValue) : kvp.Value);
+
+        return evt with { Message = redactedMessage, Metadata = redactedMetadata };
     }
 
     public Task FlushAsync()
