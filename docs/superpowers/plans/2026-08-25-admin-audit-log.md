@@ -144,10 +144,12 @@ public class AuditLogRepositoryTests
             Description = "Created application 'Test'"
         });
 
-        using var verifyContext = TestDatabase.CreateContext();
-        var saved = await verifyContext.AdminAuditLogEntries.FindAsync(entry.Id);
-        Assert.NotNull(saved);
-        Assert.Equal(user.Id, saved!.PlatformUserId);
+        // Verify via the repository's own QueryAsync, not a second TestDatabase.CreateContext()
+        // call — CreateContext() does EnsureDeleted()+Migrate() every time, which would wipe out
+        // everything just written above.
+        var (items, _) = await repository.QueryAsync(new AuditLogQueryParameters(null, "Application", null, null, null, 1, 50));
+        var saved = Assert.Single(items);
+        Assert.Equal(user.Id, saved.PlatformUserId);
         Assert.Equal("Application", saved.EntityType);
         Assert.Equal("1", saved.EntityId);
         Assert.Equal("Create", saved.Action);
@@ -2382,7 +2384,8 @@ public class AuditLogWiringPlatformUsersTests
         // repositories converted to IDbContextFactory during the post-M6 concurrency fix) —
         // reuses the same context instance used to seed the admin above.
         var users = new PlatformUserRepository(context);
-        var audit = new AuditLogger(new AuditLogRepository(TestDatabase.CreateFactory()));
+        var auditRepository = new AuditLogRepository(TestDatabase.CreateFactory());
+        var audit = new AuditLogger(auditRepository);
 
         // Mirrors PlatformUsersSection.razor's CreateUserAsync body exactly (see Step 2).
         var newUser = await users.AddAsync(new PlatformUser
@@ -2398,9 +2401,13 @@ public class AuditLogWiringPlatformUsersTests
         await users.DeactivateAsync(newUser.Id);
         await audit.RecordAsync(admin.Id, "PlatformUser", newUser.Id.ToString(), "Deactivate", $"Deactivated platform user {newUser.Id}");
 
-        using var verifyContext = TestDatabase.CreateContext();
-        var createEntry = verifyContext.AdminAuditLogEntries.Single(e => e.EntityType == "PlatformUser" && e.EntityId == newUser.Id.ToString() && e.Action == "Create");
-        var deactivateEntry = verifyContext.AdminAuditLogEntries.Single(e => e.EntityType == "PlatformUser" && e.EntityId == newUser.Id.ToString() && e.Action == "Deactivate");
+        // Verify via the repository's own QueryAsync, not a second TestDatabase.CreateContext()
+        // call — CreateContext() does EnsureDeleted()+Migrate() every time, which would wipe out
+        // everything just written above.
+        var (createEntries, _) = await auditRepository.QueryAsync(new AuditLogQueryParameters(null, "PlatformUser", "Create", null, null, 1, 50));
+        var (deactivateEntries, _) = await auditRepository.QueryAsync(new AuditLogQueryParameters(null, "PlatformUser", "Deactivate", null, null, 1, 50));
+        var createEntry = Assert.Single(createEntries.Where(e => e.EntityId == newUser.Id.ToString()));
+        var deactivateEntry = Assert.Single(deactivateEntries.Where(e => e.EntityId == newUser.Id.ToString()));
         Assert.Equal(admin.Id, createEntry.PlatformUserId);
         Assert.Equal(admin.Id, deactivateEntry.PlatformUserId);
     }

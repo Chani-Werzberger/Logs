@@ -28,6 +28,7 @@ public class LogsPlatformDbContext : DbContext
     public DbSet<FindingStatement> FindingStatements => Set<FindingStatement>();
     public DbSet<Evidence> Evidence => Set<Evidence>();
     public DbSet<PlatformUser> PlatformUsers => Set<PlatformUser>();
+    public DbSet<AdminAuditLogEntry> AdminAuditLogEntries => Set<AdminAuditLogEntry>();
 
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
     {
@@ -238,6 +239,17 @@ public class LogsPlatformDbContext : DbContext
             entity.Property(u => u.Username).HasMaxLength(200).IsRequired();
             entity.Property(u => u.PasswordHash).HasMaxLength(200).IsRequired();
             entity.HasIndex(u => u.Username).IsUnique();
+        });
+
+        modelBuilder.Entity<AdminAuditLogEntry>(entity =>
+        {
+            entity.Property(e => e.EntityType).HasMaxLength(100).IsRequired();
+            entity.Property(e => e.EntityId).HasMaxLength(50).IsRequired();
+            entity.Property(e => e.Action).HasMaxLength(50).IsRequired();
+            entity.Property(e => e.Description).HasMaxLength(500).IsRequired();
+            entity.HasOne(e => e.PlatformUser).WithMany().HasForeignKey(e => e.PlatformUserId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasIndex(e => e.Timestamp);
+            entity.HasIndex(e => new { e.EntityType, e.EntityId });
         });
     }
 }
