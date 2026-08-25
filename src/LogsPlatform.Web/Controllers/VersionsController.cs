@@ -1,6 +1,8 @@
+using System.Security.Claims;
 using LogsPlatform.Domain.Entities;
 using LogsPlatform.Domain.Repositories;
 using LogsPlatform.Web.Contracts;
+using LogsPlatform.Web.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -14,11 +16,13 @@ public class VersionsController : ControllerBase
 {
     private readonly IApplicationRepository _applications;
     private readonly IAppVersionRepository _versions;
+    private readonly AuditLogger _audit;
 
-    public VersionsController(IApplicationRepository applications, IAppVersionRepository versions)
+    public VersionsController(IApplicationRepository applications, IAppVersionRepository versions, AuditLogger audit)
     {
         _applications = applications;
         _versions = versions;
+        _audit = audit;
     }
 
     [HttpPost]
@@ -38,6 +42,9 @@ public class VersionsController : ControllerBase
                 ReleaseNotes = request.ReleaseNotes,
                 CreatedAt = DateTime.UtcNow
             });
+
+            var platformUserId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            await _audit.RecordAsync(platformUserId, "AppVersion", version.Id.ToString(), "Create", $"Created version '{version.VersionNumber}' in application {appId}");
 
             return CreatedAtAction(nameof(GetById), new { appId, id = version.Id }, ToResponse(version));
         }
@@ -69,6 +76,10 @@ public class VersionsController : ControllerBase
         if (existing is null || existing.ApplicationId != appId) return NotFound();
 
         var version = await _versions.RenameAsync(id, request.ReleaseNotes);
+
+        var platformUserId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        await _audit.RecordAsync(platformUserId, "AppVersion", id.ToString(), "Update", $"Updated version {id} release notes in application {appId}");
+
         return ToResponse(version);
     }
 
@@ -79,6 +90,10 @@ public class VersionsController : ControllerBase
         if (existing is null || existing.ApplicationId != appId) return NotFound();
 
         await _versions.DeactivateAsync(id);
+
+        var platformUserId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        await _audit.RecordAsync(platformUserId, "AppVersion", id.ToString(), "Deactivate", $"Deactivated version {id} in application {appId}");
+
         return NoContent();
     }
 

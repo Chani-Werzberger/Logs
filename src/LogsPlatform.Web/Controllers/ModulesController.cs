@@ -1,6 +1,8 @@
+using System.Security.Claims;
 using LogsPlatform.Domain.Entities;
 using LogsPlatform.Domain.Repositories;
 using LogsPlatform.Web.Contracts;
+using LogsPlatform.Web.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -14,11 +16,13 @@ public class ModulesController : ControllerBase
 {
     private readonly IApplicationRepository _applications;
     private readonly IAppModuleRepository _modules;
+    private readonly AuditLogger _audit;
 
-    public ModulesController(IApplicationRepository applications, IAppModuleRepository modules)
+    public ModulesController(IApplicationRepository applications, IAppModuleRepository modules, AuditLogger audit)
     {
         _applications = applications;
         _modules = modules;
+        _audit = audit;
     }
 
     [HttpPost]
@@ -37,6 +41,9 @@ public class ModulesController : ControllerBase
                 Name = request.Name,
                 Description = request.Description
             });
+
+            var platformUserId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            await _audit.RecordAsync(platformUserId, "AppModule", module.Id.ToString(), "Create", $"Created module '{module.Name}' in application {appId}");
 
             return CreatedAtAction(nameof(GetById), new { appId, id = module.Id }, ToResponse(module));
         }
@@ -70,6 +77,10 @@ public class ModulesController : ControllerBase
         try
         {
             var module = await _modules.RenameAsync(id, request.Name, request.Description);
+
+            var platformUserId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            await _audit.RecordAsync(platformUserId, "AppModule", id.ToString(), "Update", $"Renamed module {id} to '{request.Name}' in application {appId}");
+
             return ToResponse(module);
         }
         catch (DbUpdateException ex) when (ex.IsUniqueViolation())
@@ -85,6 +96,10 @@ public class ModulesController : ControllerBase
         if (existing is null || existing.ApplicationId != appId) return NotFound();
 
         await _modules.DeactivateAsync(id);
+
+        var platformUserId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        await _audit.RecordAsync(platformUserId, "AppModule", id.ToString(), "Deactivate", $"Deactivated module {id} in application {appId}");
+
         return NoContent();
     }
 

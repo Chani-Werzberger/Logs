@@ -1,6 +1,8 @@
+using System.Security.Claims;
 using LogsPlatform.Domain.Entities;
 using LogsPlatform.Domain.Repositories;
 using LogsPlatform.Web.Contracts;
+using LogsPlatform.Web.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -15,17 +17,20 @@ public class DeploymentsController : ControllerBase
     private readonly IAppEnvironmentRepository _environments;
     private readonly IAppVersionRepository _versions;
     private readonly IDeploymentRepository _deployments;
+    private readonly AuditLogger _audit;
 
     public DeploymentsController(
         IApplicationRepository applications,
         IAppEnvironmentRepository environments,
         IAppVersionRepository versions,
-        IDeploymentRepository deployments)
+        IDeploymentRepository deployments,
+        AuditLogger audit)
     {
         _applications = applications;
         _environments = environments;
         _versions = versions;
         _deployments = deployments;
+        _audit = audit;
     }
 
     [HttpPost]
@@ -57,6 +62,9 @@ public class DeploymentsController : ControllerBase
             Notes = request.Notes
         });
 
+        var platformUserId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        await _audit.RecordAsync(platformUserId, "Deployment", deployment.Id.ToString(), "Create", $"Created deployment {deployment.Id} (environment {request.EnvironmentId}, version {request.VersionId}) in application {appId}");
+
         return CreatedAtAction(nameof(GetById), new { appId, id = deployment.Id }, ToResponse(deployment));
     }
 
@@ -82,6 +90,10 @@ public class DeploymentsController : ControllerBase
         if (existing is null || existing.ApplicationId != appId) return NotFound();
 
         var deployment = await _deployments.RenameAsync(id, request.Notes);
+
+        var platformUserId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        await _audit.RecordAsync(platformUserId, "Deployment", id.ToString(), "Update", $"Updated deployment {id} notes in application {appId}");
+
         return ToResponse(deployment);
     }
 
@@ -92,6 +104,10 @@ public class DeploymentsController : ControllerBase
         if (existing is null || existing.ApplicationId != appId) return NotFound();
 
         await _deployments.DeactivateAsync(id);
+
+        var platformUserId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        await _audit.RecordAsync(platformUserId, "Deployment", id.ToString(), "Deactivate", $"Deactivated deployment {id} in application {appId}");
+
         return NoContent();
     }
 
