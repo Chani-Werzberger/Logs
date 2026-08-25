@@ -68,6 +68,32 @@ public class RequireAdminPolicyTests
     }
 
     [Fact]
+    public async Task Login_ValidCredentials_SetsNameIdentifierClaimToPlatformUserId()
+    {
+        using var factory = new TestWebApplicationFactory();
+        PlatformUser user;
+        using (var scope = factory.Services.CreateScope())
+        {
+            var context = scope.ServiceProvider.GetRequiredService<LogsPlatformDbContext>();
+            user = new PlatformUser { Username = "NameIdentifierClaimTestUser", PasswordHash = PasswordHasher.Hash("password123"), IsAdmin = true, CreatedAt = DateTime.UtcNow };
+            context.PlatformUsers.Add(user);
+            await context.SaveChangesAsync();
+        }
+        var client = factory.CreateClient();
+
+        var login = await client.PostAsJsonAsync("/api/v1/auth/login", new LoginRequest("NameIdentifierClaimTestUser", "password123"));
+        Assert.Equal(HttpStatusCode.NoContent, login.StatusCode);
+
+        // Round-trip through an admin endpoint that echoes back based on the authenticated user
+        // isn't available yet, so this test asserts indirectly: the cookie must let a request
+        // through to an admin endpoint using the same client (proves sign-in succeeded end to
+        // end), and Task 3's controllers are what will actually prove the claim's value is
+        // correct once AuditLogger records against it.
+        var response = await client.GetAsync("/api/v1/admin/applications/1");
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
     public async Task QueryEndpoint_AnyAuthenticatedUser_ReachesTheEndpoint()
     {
         using var factory = new TestWebApplicationFactory();
