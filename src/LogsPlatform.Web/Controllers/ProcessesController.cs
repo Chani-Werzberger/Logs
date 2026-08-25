@@ -1,6 +1,8 @@
+using System.Security.Claims;
 using LogsPlatform.Domain.Entities;
 using LogsPlatform.Domain.Repositories;
 using LogsPlatform.Web.Contracts;
+using LogsPlatform.Web.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -14,11 +16,13 @@ public class ProcessesController : ControllerBase
 {
     private readonly IScreenServiceRepository _screenServices;
     private readonly IProcessNodeRepository _processes;
+    private readonly AuditLogger _audit;
 
-    public ProcessesController(IScreenServiceRepository screenServices, IProcessNodeRepository processes)
+    public ProcessesController(IScreenServiceRepository screenServices, IProcessNodeRepository processes, AuditLogger audit)
     {
         _screenServices = screenServices;
         _processes = processes;
+        _audit = audit;
     }
 
     [HttpPost]
@@ -37,6 +41,9 @@ public class ProcessesController : ControllerBase
                 Name = request.Name,
                 Description = request.Description
             });
+
+            var platformUserId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            await _audit.RecordAsync(platformUserId, "ProcessNode", process.Id.ToString(), "Create", $"Created process '{process.Name}' in screen/service {screenServiceId}");
 
             return CreatedAtAction(nameof(GetById), new { screenServiceId, id = process.Id }, ToResponse(process));
         }
@@ -70,6 +77,10 @@ public class ProcessesController : ControllerBase
         try
         {
             var process = await _processes.RenameAsync(id, request.Name, request.Description);
+
+            var platformUserId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            await _audit.RecordAsync(platformUserId, "ProcessNode", id.ToString(), "Update", $"Renamed process {id} to '{request.Name}' in screen/service {screenServiceId}");
+
             return ToResponse(process);
         }
         catch (DbUpdateException ex) when (ex.IsUniqueViolation())
@@ -85,6 +96,10 @@ public class ProcessesController : ControllerBase
         if (existing is null || existing.ScreenServiceId != screenServiceId) return NotFound();
 
         await _processes.DeactivateAsync(id);
+
+        var platformUserId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        await _audit.RecordAsync(platformUserId, "ProcessNode", id.ToString(), "Deactivate", $"Deactivated process {id} in screen/service {screenServiceId}");
+
         return NoContent();
     }
 

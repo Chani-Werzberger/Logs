@@ -1,6 +1,8 @@
+using System.Security.Claims;
 using LogsPlatform.Domain.Entities;
 using LogsPlatform.Domain.Repositories;
 using LogsPlatform.Web.Contracts;
+using LogsPlatform.Web.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -14,11 +16,13 @@ public class ScreenServicesController : ControllerBase
 {
     private readonly IAppModuleRepository _modules;
     private readonly IScreenServiceRepository _screenServices;
+    private readonly AuditLogger _audit;
 
-    public ScreenServicesController(IAppModuleRepository modules, IScreenServiceRepository screenServices)
+    public ScreenServicesController(IAppModuleRepository modules, IScreenServiceRepository screenServices, AuditLogger audit)
     {
         _modules = modules;
         _screenServices = screenServices;
+        _audit = audit;
     }
 
     [HttpPost]
@@ -43,6 +47,9 @@ public class ScreenServicesController : ControllerBase
                 Type = type,
                 Description = request.Description
             });
+
+            var platformUserId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            await _audit.RecordAsync(platformUserId, "ScreenService", screenService.Id.ToString(), "Create", $"Created screen/service '{screenService.Name}' in module {moduleId}");
 
             return CreatedAtAction(nameof(GetById), new { moduleId, id = screenService.Id }, ToResponse(screenService));
         }
@@ -76,6 +83,10 @@ public class ScreenServicesController : ControllerBase
         try
         {
             var screenService = await _screenServices.RenameAsync(id, request.Name, request.Description);
+
+            var platformUserId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            await _audit.RecordAsync(platformUserId, "ScreenService", id.ToString(), "Update", $"Renamed screen/service {id} to '{request.Name}' in module {moduleId}");
+
             return ToResponse(screenService);
         }
         catch (DbUpdateException ex) when (ex.IsUniqueViolation())
@@ -91,6 +102,10 @@ public class ScreenServicesController : ControllerBase
         if (existing is null || existing.ModuleId != moduleId) return NotFound();
 
         await _screenServices.DeactivateAsync(id);
+
+        var platformUserId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        await _audit.RecordAsync(platformUserId, "ScreenService", id.ToString(), "Deactivate", $"Deactivated screen/service {id} in module {moduleId}");
+
         return NoContent();
     }
 
