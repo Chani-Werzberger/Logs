@@ -1,6 +1,8 @@
+using System.Security.Claims;
 using LogsPlatform.Domain.Entities;
 using LogsPlatform.Domain.Repositories;
 using LogsPlatform.Web.Contracts;
+using LogsPlatform.Web.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -13,11 +15,13 @@ public class ApiKeysController : ControllerBase
 {
     private readonly IApplicationRepository _applications;
     private readonly IApiKeyRepository _apiKeys;
+    private readonly AuditLogger _audit;
 
-    public ApiKeysController(IApplicationRepository applications, IApiKeyRepository apiKeys)
+    public ApiKeysController(IApplicationRepository applications, IApiKeyRepository apiKeys, AuditLogger audit)
     {
         _applications = applications;
         _apiKeys = apiKeys;
+        _audit = audit;
     }
 
     [HttpPost]
@@ -29,6 +33,9 @@ public class ApiKeysController : ControllerBase
         }
 
         var (apiKey, rawKey) = await _apiKeys.AddAsync(appId, request.Label);
+
+        var platformUserId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        await _audit.RecordAsync(platformUserId, "ApiKey", apiKey.Id.ToString(), "Create", $"Created API key '{apiKey.Label}' in application {appId}");
 
         var response = new CreateApiKeyResponse(apiKey.Id, apiKey.ApplicationId, apiKey.Label, apiKey.CreatedAt, rawKey);
         return CreatedAtAction(nameof(GetById), new { appId, id = apiKey.Id }, response);
@@ -56,6 +63,10 @@ public class ApiKeysController : ControllerBase
         if (existing is null || existing.ApplicationId != appId) return NotFound();
 
         await _apiKeys.RevokeAsync(id);
+
+        var platformUserId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        await _audit.RecordAsync(platformUserId, "ApiKey", id.ToString(), "Revoke", $"Revoked API key {id} in application {appId}");
+
         return NoContent();
     }
 

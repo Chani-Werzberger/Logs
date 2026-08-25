@@ -1,6 +1,8 @@
+using System.Security.Claims;
 using LogsPlatform.Domain.Entities;
 using LogsPlatform.Domain.Repositories;
 using LogsPlatform.Web.Contracts;
+using LogsPlatform.Web.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
@@ -14,10 +16,12 @@ namespace LogsPlatform.Web.Controllers;
 public class ApplicationsController : ControllerBase
 {
     private readonly IApplicationRepository _applications;
+    private readonly AuditLogger _audit;
 
-    public ApplicationsController(IApplicationRepository applications)
+    public ApplicationsController(IApplicationRepository applications, AuditLogger audit)
     {
         _applications = applications;
+        _audit = audit;
     }
 
     [HttpPost]
@@ -31,6 +35,9 @@ public class ApplicationsController : ControllerBase
                 Description = request.Description,
                 CreatedAt = DateTime.UtcNow
             });
+
+            var platformUserId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            await _audit.RecordAsync(platformUserId, "Application", application.Id.ToString(), "Create", $"Created application '{application.Name}'");
 
             var response = new ApplicationResponse(application.Id, application.Name, application.Description, application.CreatedAt);
             return CreatedAtAction(nameof(GetById), new { id = application.Id }, response);
