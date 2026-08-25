@@ -1,9 +1,13 @@
 @* src/LogsPlatform.Web/Components/Shared/DeploymentsSection.razor *@
 @using LogsPlatform.Domain.Entities
 @using LogsPlatform.Domain.Repositories
+@using LogsPlatform.Web.Services
+@using Microsoft.AspNetCore.Components.Authorization
+@using System.Security.Claims
 @inject IDeploymentRepository DeploymentRepository
 @inject IAppEnvironmentRepository EnvironmentRepository
 @inject IAppVersionRepository VersionRepository
+@inject AuditLogger Audit
 
 <h4>פריסות</h4>
 <table class="table table-sm table-striped align-middle">
@@ -108,6 +112,14 @@
     private EditDeploymentModel? _editModel;
     private int? _lastLoadedApplicationId;
 
+    [CascadingParameter] private Task<AuthenticationState>? AuthenticationStateTask { get; set; }
+
+    private async Task<int> CurrentPlatformUserIdAsync()
+    {
+        var authState = await AuthenticationStateTask!;
+        return int.Parse(authState.User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+    }
+
     protected override async Task OnParametersSetAsync()
     {
         if (_lastLoadedApplicationId == ApplicationId)
@@ -145,7 +157,7 @@
             return;
         }
 
-        await DeploymentRepository.AddAsync(new Deployment
+        var deployment = await DeploymentRepository.AddAsync(new Deployment
         {
             ApplicationId = ApplicationId,
             EnvironmentId = _newDeployment.EnvironmentId,
@@ -153,6 +165,9 @@
             DeployedAt = _newDeployment.DeployedAt,
             Notes = _newDeployment.Notes
         });
+
+        var platformUserId = await CurrentPlatformUserIdAsync();
+        await Audit.RecordAsync(platformUserId, "Deployment", deployment.Id.ToString(), "Create", $"Created deployment {deployment.Id} (environment {_newDeployment.EnvironmentId}, version {_newDeployment.VersionId}) in application {ApplicationId}");
 
         _newDeployment.EnvironmentId = 0;
         _newDeployment.VersionId = 0;
@@ -175,6 +190,10 @@
     private async Task SaveRenameAsync(int deploymentId)
     {
         await DeploymentRepository.RenameAsync(deploymentId, _editModel!.Notes);
+
+        var platformUserId = await CurrentPlatformUserIdAsync();
+        await Audit.RecordAsync(platformUserId, "Deployment", deploymentId.ToString(), "Update", $"Updated deployment {deploymentId} notes in application {ApplicationId}");
+
         _editingId = null;
         _editModel = null;
         _deployments = (await DeploymentRepository.GetByApplicationIdAsync(ApplicationId)).ToList();
@@ -183,6 +202,10 @@
     private async Task DeactivateAsync(int deploymentId)
     {
         await DeploymentRepository.DeactivateAsync(deploymentId);
+
+        var platformUserId = await CurrentPlatformUserIdAsync();
+        await Audit.RecordAsync(platformUserId, "Deployment", deploymentId.ToString(), "Deactivate", $"Deactivated deployment {deploymentId} in application {ApplicationId}");
+
         _deployments = (await DeploymentRepository.GetByApplicationIdAsync(ApplicationId)).ToList();
     }
 

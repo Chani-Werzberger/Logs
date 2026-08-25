@@ -4,10 +4,14 @@
 @using LogsPlatform.Domain.Entities
 @using LogsPlatform.Domain.Repositories
 @using LogsPlatform.Web.Components.Shared
+@using LogsPlatform.Web.Services
+@using Microsoft.AspNetCore.Components.Authorization
 @using Microsoft.EntityFrameworkCore
 @using Microsoft.Data.SqlClient
+@using System.Security.Claims
 @inject IApplicationRepository ApplicationRepository
 @inject IAppEnvironmentRepository EnvironmentRepository
+@inject AuditLogger Audit
 @rendermode InteractiveServer
 
 <h1>אפליקציות</h1>
@@ -132,6 +136,14 @@
     private readonly Dictionary<int, List<AppEnvironment>> _environmentsByAppId = new();
     private readonly Dictionary<int, NewEnvironmentModel> _newEnvironmentModels = new();
 
+    [CascadingParameter] private Task<AuthenticationState>? AuthenticationStateTask { get; set; }
+
+    private async Task<int> CurrentPlatformUserIdAsync()
+    {
+        var authState = await AuthenticationStateTask!;
+        return int.Parse(authState.User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+    }
+
     protected override async Task OnInitializedAsync()
     {
         _applications = (await ApplicationRepository.GetAllAsync()).ToList();
@@ -142,12 +154,15 @@
         _createError = null;
         try
         {
-            await ApplicationRepository.AddAsync(new Application
+            var application = await ApplicationRepository.AddAsync(new Application
             {
                 Name = _newApplication.Name,
                 Description = _newApplication.Description,
                 CreatedAt = DateTime.UtcNow
             });
+
+            var platformUserId = await CurrentPlatformUserIdAsync();
+            await Audit.RecordAsync(platformUserId, "Application", application.Id.ToString(), "Create", $"Created application '{application.Name}'");
 
             _newApplication.Name = string.Empty;
             _newApplication.Description = null;
@@ -185,12 +200,15 @@
     {
         var model = _newEnvironmentModels[applicationId];
 
-        await EnvironmentRepository.AddAsync(new AppEnvironment
+        var environment = await EnvironmentRepository.AddAsync(new AppEnvironment
         {
             ApplicationId = applicationId,
             Name = model.Name,
             IsProduction = model.IsProduction
         });
+
+        var platformUserId = await CurrentPlatformUserIdAsync();
+        await Audit.RecordAsync(platformUserId, "AppEnvironment", environment.Id.ToString(), "Create", $"Created environment '{environment.Name}' in application {applicationId}");
 
         _newEnvironmentModels[applicationId] = new NewEnvironmentModel();
         _environmentsByAppId[applicationId] =

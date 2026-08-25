@@ -5,9 +5,12 @@
 @using LogsPlatform.Domain.Repositories
 @using LogsPlatform.Web
 @using LogsPlatform.Web.Services
+@using Microsoft.AspNetCore.Components.Authorization
 @using Microsoft.EntityFrameworkCore
+@using System.Security.Claims
 @inject IOperationRepository OperationRepository
 @inject BreadcrumbBuilder BreadcrumbBuilder
+@inject AuditLogger Audit
 @rendermode InteractiveServer
 
 <nav aria-label="breadcrumb">
@@ -121,6 +124,14 @@
     private EditOperationModel? _editModel;
     private string? _editError;
 
+    [CascadingParameter] private Task<AuthenticationState>? AuthenticationStateTask { get; set; }
+
+    private async Task<int> CurrentPlatformUserIdAsync()
+    {
+        var authState = await AuthenticationStateTask!;
+        return int.Parse(authState.User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+    }
+
     protected override async Task OnInitializedAsync()
     {
         _breadcrumb = await BreadcrumbBuilder.BuildAsync(AppId, ModuleId, ScreenServiceId, ProcessId);
@@ -132,12 +143,15 @@
         _createError = null;
         try
         {
-            await OperationRepository.AddAsync(new Operation
+            var operation = await OperationRepository.AddAsync(new Operation
             {
                 ProcessId = ProcessId,
                 Name = _newOperation.Name,
                 Description = _newOperation.Description
             });
+
+            var platformUserId = await CurrentPlatformUserIdAsync();
+            await Audit.RecordAsync(platformUserId, "Operation", operation.Id.ToString(), "Create", $"Created operation '{operation.Name}' in process {ProcessId}");
 
             _newOperation.Name = string.Empty;
             _newOperation.Description = null;
@@ -169,6 +183,10 @@
         try
         {
             await OperationRepository.RenameAsync(operationId, _editModel!.Name, _editModel!.Description);
+
+            var platformUserId = await CurrentPlatformUserIdAsync();
+            await Audit.RecordAsync(platformUserId, "Operation", operationId.ToString(), "Update", $"Renamed operation {operationId} to '{_editModel!.Name}' in process {ProcessId}");
+
             _editingId = null;
             _editModel = null;
             _operations = (await OperationRepository.GetByProcessIdAsync(ProcessId)).ToList();
@@ -182,6 +200,10 @@
     private async Task DeactivateAsync(int operationId)
     {
         await OperationRepository.DeactivateAsync(operationId);
+
+        var platformUserId = await CurrentPlatformUserIdAsync();
+        await Audit.RecordAsync(platformUserId, "Operation", operationId.ToString(), "Deactivate", $"Deactivated operation {operationId} in process {ProcessId}");
+
         _operations = (await OperationRepository.GetByProcessIdAsync(ProcessId)).ToList();
     }
 

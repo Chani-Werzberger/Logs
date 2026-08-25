@@ -5,9 +5,12 @@
 @using LogsPlatform.Domain.Repositories
 @using LogsPlatform.Web
 @using LogsPlatform.Web.Services
+@using Microsoft.AspNetCore.Components.Authorization
 @using Microsoft.EntityFrameworkCore
+@using System.Security.Claims
 @inject IAppModuleRepository ModuleRepository
 @inject BreadcrumbBuilder BreadcrumbBuilder
+@inject AuditLogger Audit
 @rendermode InteractiveServer
 
 <nav aria-label="breadcrumb">
@@ -118,6 +121,14 @@
     private EditModuleModel? _editModel;
     private string? _editError;
 
+    [CascadingParameter] private Task<AuthenticationState>? AuthenticationStateTask { get; set; }
+
+    private async Task<int> CurrentPlatformUserIdAsync()
+    {
+        var authState = await AuthenticationStateTask!;
+        return int.Parse(authState.User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+    }
+
     protected override async Task OnInitializedAsync()
     {
         _breadcrumb = await BreadcrumbBuilder.BuildAsync(AppId);
@@ -129,12 +140,15 @@
         _createError = null;
         try
         {
-            await ModuleRepository.AddAsync(new AppModule
+            var module = await ModuleRepository.AddAsync(new AppModule
             {
                 ApplicationId = AppId,
                 Name = _newModule.Name,
                 Description = _newModule.Description
             });
+
+            var platformUserId = await CurrentPlatformUserIdAsync();
+            await Audit.RecordAsync(platformUserId, "AppModule", module.Id.ToString(), "Create", $"Created module '{module.Name}' in application {AppId}");
 
             _newModule.Name = string.Empty;
             _newModule.Description = null;
@@ -166,6 +180,10 @@
         try
         {
             await ModuleRepository.RenameAsync(moduleId, _editModel!.Name, _editModel!.Description);
+
+            var platformUserId = await CurrentPlatformUserIdAsync();
+            await Audit.RecordAsync(platformUserId, "AppModule", moduleId.ToString(), "Update", $"Renamed module {moduleId} to '{_editModel!.Name}' in application {AppId}");
+
             _editingId = null;
             _editModel = null;
             _modules = (await ModuleRepository.GetByApplicationIdAsync(AppId)).ToList();
@@ -179,6 +197,10 @@
     private async Task DeactivateAsync(int moduleId)
     {
         await ModuleRepository.DeactivateAsync(moduleId);
+
+        var platformUserId = await CurrentPlatformUserIdAsync();
+        await Audit.RecordAsync(platformUserId, "AppModule", moduleId.ToString(), "Deactivate", $"Deactivated module {moduleId} in application {AppId}");
+
         _modules = (await ModuleRepository.GetByApplicationIdAsync(AppId)).ToList();
     }
 

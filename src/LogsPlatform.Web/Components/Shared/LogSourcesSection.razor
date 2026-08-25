@@ -2,8 +2,12 @@
 @using LogsPlatform.Domain.Entities
 @using LogsPlatform.Domain.Repositories
 @using LogsPlatform.Web
+@using LogsPlatform.Web.Services
+@using Microsoft.AspNetCore.Components.Authorization
 @using Microsoft.EntityFrameworkCore
+@using System.Security.Claims
 @inject ILogSourceRepository LogSourceRepository
+@inject AuditLogger Audit
 
 <h4>מקורות לוגים</h4>
 <table class="table table-sm table-striped align-middle">
@@ -89,6 +93,14 @@
     private EditLogSourceModel? _editModel;
     private string? _editError;
 
+    [CascadingParameter] private Task<AuthenticationState>? AuthenticationStateTask { get; set; }
+
+    private async Task<int> CurrentPlatformUserIdAsync()
+    {
+        var authState = await AuthenticationStateTask!;
+        return int.Parse(authState.User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+    }
+
     protected override async Task OnInitializedAsync()
     {
         _logSources = (await LogSourceRepository.GetByApplicationIdAsync(ApplicationId)).ToList();
@@ -99,12 +111,15 @@
         _createError = null;
         try
         {
-            await LogSourceRepository.AddAsync(new LogSource
+            var logSource = await LogSourceRepository.AddAsync(new LogSource
             {
                 ApplicationId = ApplicationId,
                 Name = _newLogSource.Name,
                 Description = _newLogSource.Description
             });
+
+            var platformUserId = await CurrentPlatformUserIdAsync();
+            await Audit.RecordAsync(platformUserId, "LogSource", logSource.Id.ToString(), "Create", $"Created log source '{logSource.Name}' in application {ApplicationId}");
 
             _newLogSource.Name = string.Empty;
             _newLogSource.Description = null;
@@ -136,6 +151,10 @@
         try
         {
             await LogSourceRepository.RenameAsync(logSourceId, _editModel!.Name, _editModel!.Description);
+
+            var platformUserId = await CurrentPlatformUserIdAsync();
+            await Audit.RecordAsync(platformUserId, "LogSource", logSourceId.ToString(), "Update", $"Renamed log source {logSourceId} to '{_editModel!.Name}' in application {ApplicationId}");
+
             _editingId = null;
             _editModel = null;
             _logSources = (await LogSourceRepository.GetByApplicationIdAsync(ApplicationId)).ToList();
@@ -149,6 +168,10 @@
     private async Task DeactivateAsync(int logSourceId)
     {
         await LogSourceRepository.DeactivateAsync(logSourceId);
+
+        var platformUserId = await CurrentPlatformUserIdAsync();
+        await Audit.RecordAsync(platformUserId, "LogSource", logSourceId.ToString(), "Deactivate", $"Deactivated log source {logSourceId} in application {ApplicationId}");
+
         _logSources = (await LogSourceRepository.GetByApplicationIdAsync(ApplicationId)).ToList();
     }
 

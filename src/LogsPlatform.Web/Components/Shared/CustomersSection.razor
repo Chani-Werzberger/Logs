@@ -2,8 +2,12 @@
 @using LogsPlatform.Domain.Entities
 @using LogsPlatform.Domain.Repositories
 @using LogsPlatform.Web
+@using LogsPlatform.Web.Services
+@using Microsoft.AspNetCore.Components.Authorization
 @using Microsoft.EntityFrameworkCore
+@using System.Security.Claims
 @inject ICustomerRepository CustomerRepository
+@inject AuditLogger Audit
 
 <h4>לקוחות</h4>
 <table class="table table-sm table-striped align-middle">
@@ -81,6 +85,14 @@
     private int? _editingId;
     private EditCustomerModel? _editModel;
 
+    [CascadingParameter] private Task<AuthenticationState>? AuthenticationStateTask { get; set; }
+
+    private async Task<int> CurrentPlatformUserIdAsync()
+    {
+        var authState = await AuthenticationStateTask!;
+        return int.Parse(authState.User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+    }
+
     protected override async Task OnInitializedAsync()
     {
         _customers = (await CustomerRepository.GetByApplicationIdAsync(ApplicationId)).ToList();
@@ -91,12 +103,15 @@
         _createError = null;
         try
         {
-            await CustomerRepository.AddAsync(new Customer
+            var customer = await CustomerRepository.AddAsync(new Customer
             {
                 ApplicationId = ApplicationId,
                 ExternalCustomerId = _newCustomer.ExternalCustomerId,
                 Name = _newCustomer.Name
             });
+
+            var platformUserId = await CurrentPlatformUserIdAsync();
+            await Audit.RecordAsync(platformUserId, "Customer", customer.Id.ToString(), "Create", $"Created customer '{customer.Name}' (external id '{customer.ExternalCustomerId}') in application {ApplicationId}");
 
             _newCustomer.ExternalCustomerId = string.Empty;
             _newCustomer.Name = string.Empty;
@@ -123,6 +138,10 @@
     private async Task SaveRenameAsync(int customerId)
     {
         await CustomerRepository.RenameAsync(customerId, _editModel!.Name);
+
+        var platformUserId = await CurrentPlatformUserIdAsync();
+        await Audit.RecordAsync(platformUserId, "Customer", customerId.ToString(), "Update", $"Renamed customer {customerId} to '{_editModel!.Name}' in application {ApplicationId}");
+
         _editingId = null;
         _editModel = null;
         _customers = (await CustomerRepository.GetByApplicationIdAsync(ApplicationId)).ToList();
@@ -131,6 +150,10 @@
     private async Task DeactivateAsync(int customerId)
     {
         await CustomerRepository.DeactivateAsync(customerId);
+
+        var platformUserId = await CurrentPlatformUserIdAsync();
+        await Audit.RecordAsync(platformUserId, "Customer", customerId.ToString(), "Deactivate", $"Deactivated customer {customerId} in application {ApplicationId}");
+
         _customers = (await CustomerRepository.GetByApplicationIdAsync(ApplicationId)).ToList();
     }
 

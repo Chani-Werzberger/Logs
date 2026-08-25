@@ -1,7 +1,11 @@
 @* src/LogsPlatform.Web/Components/Shared/ApiKeysSection.razor *@
 @using LogsPlatform.Domain.Entities
 @using LogsPlatform.Domain.Repositories
+@using LogsPlatform.Web.Services
+@using Microsoft.AspNetCore.Components.Authorization
+@using System.Security.Claims
 @inject IApiKeyRepository ApiKeyRepository
+@inject AuditLogger Audit
 
 <h4>מפתחות API</h4>
 @if (_newRawKey is not null)
@@ -51,6 +55,14 @@
     private string? _newRawKey;
     private int? _lastLoadedApplicationId;
 
+    [CascadingParameter] private Task<AuthenticationState>? AuthenticationStateTask { get; set; }
+
+    private async Task<int> CurrentPlatformUserIdAsync()
+    {
+        var authState = await AuthenticationStateTask!;
+        return int.Parse(authState.User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+    }
+
     protected override async Task OnParametersSetAsync()
     {
         if (_lastLoadedApplicationId == ApplicationId)
@@ -65,7 +77,10 @@
 
     private async Task CreateApiKeyAsync()
     {
-        var (_, rawKey) = await ApiKeyRepository.AddAsync(ApplicationId, _newApiKey.Label);
+        var (apiKey, rawKey) = await ApiKeyRepository.AddAsync(ApplicationId, _newApiKey.Label);
+
+        var platformUserId = await CurrentPlatformUserIdAsync();
+        await Audit.RecordAsync(platformUserId, "ApiKey", apiKey.Id.ToString(), "Create", $"Created API key '{apiKey.Label}' in application {ApplicationId}");
 
         _newRawKey = rawKey;
         _newApiKey.Label = string.Empty;
@@ -75,6 +90,10 @@
     private async Task RevokeAsync(int apiKeyId)
     {
         await ApiKeyRepository.RevokeAsync(apiKeyId);
+
+        var platformUserId = await CurrentPlatformUserIdAsync();
+        await Audit.RecordAsync(platformUserId, "ApiKey", apiKeyId.ToString(), "Revoke", $"Revoked API key {apiKeyId} in application {ApplicationId}");
+
         _apiKeys = (await ApiKeyRepository.GetByApplicationIdAsync(ApplicationId)).ToList();
     }
 

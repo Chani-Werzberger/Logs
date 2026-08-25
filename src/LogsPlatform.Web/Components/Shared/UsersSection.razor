@@ -2,8 +2,12 @@
 @using LogsPlatform.Domain.Entities
 @using LogsPlatform.Domain.Repositories
 @using LogsPlatform.Web
+@using LogsPlatform.Web.Services
+@using Microsoft.AspNetCore.Components.Authorization
 @using Microsoft.EntityFrameworkCore
+@using System.Security.Claims
 @inject IAppUserRepository AppUserRepository
+@inject AuditLogger Audit
 
 <h4>משתמשים</h4>
 <table class="table table-sm table-striped align-middle">
@@ -81,6 +85,14 @@
     private int? _editingId;
     private EditUserModel? _editModel;
 
+    [CascadingParameter] private Task<AuthenticationState>? AuthenticationStateTask { get; set; }
+
+    private async Task<int> CurrentPlatformUserIdAsync()
+    {
+        var authState = await AuthenticationStateTask!;
+        return int.Parse(authState.User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+    }
+
     protected override async Task OnInitializedAsync()
     {
         _users = (await AppUserRepository.GetByApplicationIdAsync(ApplicationId)).ToList();
@@ -91,12 +103,15 @@
         _createError = null;
         try
         {
-            await AppUserRepository.AddAsync(new AppUser
+            var user = await AppUserRepository.AddAsync(new AppUser
             {
                 ApplicationId = ApplicationId,
                 ExternalUserId = _newUser.ExternalUserId,
                 DisplayName = _newUser.DisplayName
             });
+
+            var platformUserId = await CurrentPlatformUserIdAsync();
+            await Audit.RecordAsync(platformUserId, "AppUser", user.Id.ToString(), "Create", $"Created user '{user.DisplayName}' (external id '{user.ExternalUserId}') in application {ApplicationId}");
 
             _newUser.ExternalUserId = string.Empty;
             _newUser.DisplayName = string.Empty;
@@ -123,6 +138,10 @@
     private async Task SaveRenameAsync(int userId)
     {
         await AppUserRepository.RenameAsync(userId, _editModel!.DisplayName);
+
+        var platformUserId = await CurrentPlatformUserIdAsync();
+        await Audit.RecordAsync(platformUserId, "AppUser", userId.ToString(), "Update", $"Renamed user {userId} to '{_editModel!.DisplayName}' in application {ApplicationId}");
+
         _editingId = null;
         _editModel = null;
         _users = (await AppUserRepository.GetByApplicationIdAsync(ApplicationId)).ToList();
@@ -131,6 +150,10 @@
     private async Task DeactivateAsync(int userId)
     {
         await AppUserRepository.DeactivateAsync(userId);
+
+        var platformUserId = await CurrentPlatformUserIdAsync();
+        await Audit.RecordAsync(platformUserId, "AppUser", userId.ToString(), "Deactivate", $"Deactivated user {userId} in application {ApplicationId}");
+
         _users = (await AppUserRepository.GetByApplicationIdAsync(ApplicationId)).ToList();
     }
 

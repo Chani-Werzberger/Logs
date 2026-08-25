@@ -5,9 +5,12 @@
 @using LogsPlatform.Domain.Repositories
 @using LogsPlatform.Web
 @using LogsPlatform.Web.Services
+@using Microsoft.AspNetCore.Components.Authorization
 @using Microsoft.EntityFrameworkCore
+@using System.Security.Claims
 @inject IScreenServiceRepository ScreenServiceRepository
 @inject BreadcrumbBuilder BreadcrumbBuilder
+@inject AuditLogger Audit
 @rendermode InteractiveServer
 
 <nav aria-label="breadcrumb">
@@ -130,6 +133,14 @@
     private EditScreenServiceModel? _editModel;
     private string? _editError;
 
+    [CascadingParameter] private Task<AuthenticationState>? AuthenticationStateTask { get; set; }
+
+    private async Task<int> CurrentPlatformUserIdAsync()
+    {
+        var authState = await AuthenticationStateTask!;
+        return int.Parse(authState.User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+    }
+
     protected override async Task OnInitializedAsync()
     {
         _breadcrumb = await BreadcrumbBuilder.BuildAsync(AppId, ModuleId);
@@ -141,13 +152,16 @@
         _createError = null;
         try
         {
-            await ScreenServiceRepository.AddAsync(new ScreenService
+            var screenService = await ScreenServiceRepository.AddAsync(new ScreenService
             {
                 ModuleId = ModuleId,
                 Name = _newScreenService.Name,
                 Type = _newScreenService.Type,
                 Description = _newScreenService.Description
             });
+
+            var platformUserId = await CurrentPlatformUserIdAsync();
+            await Audit.RecordAsync(platformUserId, "ScreenService", screenService.Id.ToString(), "Create", $"Created screen/service '{screenService.Name}' in module {ModuleId}");
 
             _newScreenService.Name = string.Empty;
             _newScreenService.Type = ScreenServiceType.Screen;
@@ -187,6 +201,10 @@
         try
         {
             await ScreenServiceRepository.RenameAsync(screenServiceId, _editModel!.Name, _editModel!.Description);
+
+            var platformUserId = await CurrentPlatformUserIdAsync();
+            await Audit.RecordAsync(platformUserId, "ScreenService", screenServiceId.ToString(), "Update", $"Renamed screen/service {screenServiceId} to '{_editModel!.Name}' in module {ModuleId}");
+
             _editingId = null;
             _editModel = null;
             _screenServices = (await ScreenServiceRepository.GetByModuleIdAsync(ModuleId)).ToList();
@@ -200,6 +218,10 @@
     private async Task DeactivateAsync(int screenServiceId)
     {
         await ScreenServiceRepository.DeactivateAsync(screenServiceId);
+
+        var platformUserId = await CurrentPlatformUserIdAsync();
+        await Audit.RecordAsync(platformUserId, "ScreenService", screenServiceId.ToString(), "Deactivate", $"Deactivated screen/service {screenServiceId} in module {ModuleId}");
+
         _screenServices = (await ScreenServiceRepository.GetByModuleIdAsync(ModuleId)).ToList();
     }
 

@@ -5,9 +5,12 @@
 @using LogsPlatform.Domain.Repositories
 @using LogsPlatform.Web
 @using LogsPlatform.Web.Services
+@using Microsoft.AspNetCore.Components.Authorization
 @using Microsoft.EntityFrameworkCore
+@using System.Security.Claims
 @inject IProcessNodeRepository ProcessRepository
 @inject BreadcrumbBuilder BreadcrumbBuilder
+@inject AuditLogger Audit
 @rendermode InteractiveServer
 
 <nav aria-label="breadcrumb">
@@ -122,6 +125,14 @@
     private EditProcessModel? _editModel;
     private string? _editError;
 
+    [CascadingParameter] private Task<AuthenticationState>? AuthenticationStateTask { get; set; }
+
+    private async Task<int> CurrentPlatformUserIdAsync()
+    {
+        var authState = await AuthenticationStateTask!;
+        return int.Parse(authState.User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+    }
+
     protected override async Task OnInitializedAsync()
     {
         _breadcrumb = await BreadcrumbBuilder.BuildAsync(AppId, ModuleId, ScreenServiceId);
@@ -133,12 +144,15 @@
         _createError = null;
         try
         {
-            await ProcessRepository.AddAsync(new ProcessNode
+            var process = await ProcessRepository.AddAsync(new ProcessNode
             {
                 ScreenServiceId = ScreenServiceId,
                 Name = _newProcess.Name,
                 Description = _newProcess.Description
             });
+
+            var platformUserId = await CurrentPlatformUserIdAsync();
+            await Audit.RecordAsync(platformUserId, "ProcessNode", process.Id.ToString(), "Create", $"Created process '{process.Name}' in screen/service {ScreenServiceId}");
 
             _newProcess.Name = string.Empty;
             _newProcess.Description = null;
@@ -170,6 +184,10 @@
         try
         {
             await ProcessRepository.RenameAsync(processId, _editModel!.Name, _editModel!.Description);
+
+            var platformUserId = await CurrentPlatformUserIdAsync();
+            await Audit.RecordAsync(platformUserId, "ProcessNode", processId.ToString(), "Update", $"Renamed process {processId} to '{_editModel!.Name}' in screen/service {ScreenServiceId}");
+
             _editingId = null;
             _editModel = null;
             _processes = (await ProcessRepository.GetByScreenServiceIdAsync(ScreenServiceId)).ToList();
@@ -183,6 +201,10 @@
     private async Task DeactivateAsync(int processId)
     {
         await ProcessRepository.DeactivateAsync(processId);
+
+        var platformUserId = await CurrentPlatformUserIdAsync();
+        await Audit.RecordAsync(platformUserId, "ProcessNode", processId.ToString(), "Deactivate", $"Deactivated process {processId} in screen/service {ScreenServiceId}");
+
         _processes = (await ProcessRepository.GetByScreenServiceIdAsync(ScreenServiceId)).ToList();
     }
 
