@@ -10,7 +10,7 @@ public class LogsPlatformDbContextFactory : IDesignTimeDbContextFactory<LogsPlat
     public LogsPlatformDbContext CreateDbContext(string[] args)
     {
         var optionsBuilder = new DbContextOptionsBuilder<LogsPlatformDbContext>();
-        optionsBuilder.UseSqlServer("Server=(localdb)\\mssqllocaldb;Database=LogsPlatformDev;Trusted_Connection=True;");
+        optionsBuilder.UseSqlServer("Server=localhost\\SQLEXPRESS;Database=LogsPlatformDev;Trusted_Connection=True;TrustServerCertificate=True;");
         return new LogsPlatformDbContext(optionsBuilder.Options);
     }
 }

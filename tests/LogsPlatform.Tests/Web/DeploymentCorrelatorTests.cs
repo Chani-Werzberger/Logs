@@ -43,7 +43,7 @@ public class DeploymentCorrelatorTests
         await context.SaveChangesAsync();
 
         var findingRepository = new FindingRepository(context);
-        var deploymentRepository = new DeploymentRepository(context);
+        var deploymentRepository = new DeploymentRepository(TestDatabase.CreateFactory());
         var correlator = new DeploymentCorrelator(findingRepository, deploymentRepository);
 
         await correlator.RunAsync(finding);
@@ -69,7 +69,7 @@ public class DeploymentCorrelatorTests
         await context.SaveChangesAsync();
 
         var findingRepository = new FindingRepository(context);
-        var deploymentRepository = new DeploymentRepository(context);
+        var deploymentRepository = new DeploymentRepository(TestDatabase.CreateFactory());
         var correlator = new DeploymentCorrelator(findingRepository, deploymentRepository);
 
         await correlator.RunAsync(finding);

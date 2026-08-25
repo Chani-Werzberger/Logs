@@ -18,4 +18,19 @@ public static class TestDatabase
         context.Database.Migrate();
         return context;
     }
+
+    // For repositories converted to IDbContextFactory<LogsPlatformDbContext> (see Program.cs).
+    // Does not EnsureDeleted/Migrate — call CreateContext() once first to establish schema.
+    public static IDbContextFactory<LogsPlatformDbContext> CreateFactory() => new TestDbContextFactory();
+
+    private sealed class TestDbContextFactory : IDbContextFactory<LogsPlatformDbContext>
+    {
+        public LogsPlatformDbContext CreateDbContext()
+        {
+            var options = new DbContextOptionsBuilder<LogsPlatformDbContext>()
+                .UseSqlServer(ConnectionString)
+                .Options;
+            return new LogsPlatformDbContext(options);
+        }
+    }
 }

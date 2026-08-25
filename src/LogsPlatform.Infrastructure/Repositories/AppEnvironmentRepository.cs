@@ -6,32 +6,39 @@ namespace LogsPlatform.Infrastructure.Repositories;
 
 public class AppEnvironmentRepository : IAppEnvironmentRepository
 {
-    private readonly LogsPlatformDbContext _context;
+    private readonly IDbContextFactory<LogsPlatformDbContext> _contextFactory;
 
-    public AppEnvironmentRepository(LogsPlatformDbContext context)
+    public AppEnvironmentRepository(IDbContextFactory<LogsPlatformDbContext> contextFactory)
     {
-        _context = context;
+        _contextFactory = contextFactory;
     }
 
-    public async Task<AppEnvironment?> GetByIdAsync(int id) =>
-        await _context.AppEnvironments.FindAsync(id);
+    public async Task<AppEnvironment?> GetByIdAsync(int id)
+    {
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        return await context.AppEnvironments.FindAsync(id);
+    }
 
-    public async Task<IReadOnlyList<AppEnvironment>> GetByApplicationIdAsync(int applicationId) =>
-        await _context.AppEnvironments
+    public async Task<IReadOnlyList<AppEnvironment>> GetByApplicationIdAsync(int applicationId)
+    {
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        return await context.AppEnvironments
             .AsNoTracking()
             .Where(e => e.ApplicationId == applicationId)
             .ToListAsync();
+    }
 
     public async Task<AppEnvironment> AddAsync(AppEnvironment environment)
     {
-        _context.AppEnvironments.Add(environment);
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        context.AppEnvironments.Add(environment);
         try
         {
-            await _context.SaveChangesAsync();
+            await context.SaveChangesAsync();
         }
         catch
         {
-            _context.Entry(environment).State = EntityState.Detached;
+            context.Entry(environment).State = EntityState.Detached;
             throw;
         }
         return environment;

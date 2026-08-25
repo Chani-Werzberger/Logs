@@ -21,6 +21,7 @@ public class ExceptionGroupRepository : IExceptionGroupRepository
             .FirstOrDefaultAsync(g => g.ApplicationId == applicationId && g.Fingerprint == fingerprint);
         if (existing is not null)
         {
+            await RecordOccurrenceAsync(existing, seenAt);
             return existing;
         }
 
@@ -53,6 +54,7 @@ public class ExceptionGroupRepository : IExceptionGroupRepository
                 .FirstOrDefaultAsync(g => g.ApplicationId == applicationId && g.Fingerprint == fingerprint);
             if (winner is not null)
             {
+                await RecordOccurrenceAsync(winner, seenAt);
                 return winner;
             }
             throw;
@@ -63,6 +65,17 @@ public class ExceptionGroupRepository : IExceptionGroupRepository
             throw;
         }
         return group;
+    }
+
+    // Called whenever an event matches an ExceptionGroup that already exists (whether found on the
+    // first check or after losing a concurrent-insert race) - every such call represents a real,
+    // distinct exception occurrence that must be reflected in OccurrenceCount/LastSeenAt, not just
+    // the group's original creation.
+    private async Task RecordOccurrenceAsync(ExceptionGroup group, DateTime seenAt)
+    {
+        group.OccurrenceCount++;
+        group.LastSeenAt = seenAt;
+        await _context.SaveChangesAsync();
     }
 
     // Mirrors DbUpdateExceptionExtensions.IsUniqueViolation() (src/LogsPlatform.Web/DbUpdateExceptionExtensions.cs),

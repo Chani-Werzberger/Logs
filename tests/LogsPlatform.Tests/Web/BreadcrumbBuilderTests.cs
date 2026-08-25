@@ -27,7 +27,7 @@ public class BreadcrumbBuilderTests
 
     private static BreadcrumbBuilder CreateBuilder(LogsPlatformDbContext context) =>
         new(
-            new ApplicationRepository(context),
+            new ApplicationRepository(TestDatabase.CreateFactory()),
             new AppModuleRepository(context),
             new ScreenServiceRepository(context),
             new ProcessNodeRepository(context));

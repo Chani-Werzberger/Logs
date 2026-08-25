@@ -6,19 +6,23 @@ namespace LogsPlatform.Infrastructure.Repositories;
 
 public class LogSourceRepository : ILogSourceRepository
 {
-    private readonly LogsPlatformDbContext _context;
+    private readonly IDbContextFactory<LogsPlatformDbContext> _contextFactory;
 
-    public LogSourceRepository(LogsPlatformDbContext context)
+    public LogSourceRepository(IDbContextFactory<LogsPlatformDbContext> contextFactory)
     {
-        _context = context;
+        _contextFactory = contextFactory;
     }
 
-    public async Task<LogSource?> GetByIdAsync(int id) =>
-        await _context.LogSources.FindAsync(id);
+    public async Task<LogSource?> GetByIdAsync(int id)
+    {
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        return await context.LogSources.FindAsync(id);
+    }
 
     public async Task<IReadOnlyList<LogSource>> GetByApplicationIdAsync(int applicationId, bool includeInactive = false)
     {
-        var query = _context.LogSources.AsNoTracking().Where(l => l.ApplicationId == applicationId);
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        var query = context.LogSources.AsNoTracking().Where(l => l.ApplicationId == applicationId);
         if (!includeInactive)
         {
             query = query.Where(l => l.IsActive);
@@ -28,14 +32,15 @@ public class LogSourceRepository : ILogSourceRepository
 
     public async Task<LogSource> AddAsync(LogSource logSource)
     {
-        _context.LogSources.Add(logSource);
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        context.LogSources.Add(logSource);
         try
         {
-            await _context.SaveChangesAsync();
+            await context.SaveChangesAsync();
         }
         catch
         {
-            _context.Entry(logSource).State = EntityState.Detached;
+            context.Entry(logSource).State = EntityState.Detached;
             throw;
         }
         return logSource;
@@ -43,17 +48,18 @@ public class LogSourceRepository : ILogSourceRepository
 
     public async Task<LogSource> RenameAsync(int id, string name, string? description)
     {
-        var logSource = await _context.LogSources.FindAsync(id)
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        var logSource = await context.LogSources.FindAsync(id)
             ?? throw new InvalidOperationException($"LogSource {id} not found.");
         logSource.Name = name;
         logSource.Description = description;
         try
         {
-            await _context.SaveChangesAsync();
+            await context.SaveChangesAsync();
         }
         catch
         {
-            _context.Entry(logSource).State = EntityState.Detached;
+            context.Entry(logSource).State = EntityState.Detached;
             throw;
         }
         return logSource;
@@ -61,16 +67,17 @@ public class LogSourceRepository : ILogSourceRepository
 
     public async Task DeactivateAsync(int id)
     {
-        var logSource = await _context.LogSources.FindAsync(id)
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        var logSource = await context.LogSources.FindAsync(id)
             ?? throw new InvalidOperationException($"LogSource {id} not found.");
         logSource.IsActive = false;
         try
         {
-            await _context.SaveChangesAsync();
+            await context.SaveChangesAsync();
         }
         catch
         {
-            _context.Entry(logSource).State = EntityState.Detached;
+            context.Entry(logSource).State = EntityState.Detached;
             throw;
         }
     }

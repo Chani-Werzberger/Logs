@@ -4,6 +4,7 @@ using LogsPlatform.Infrastructure;
 using LogsPlatform.Infrastructure.Repositories;
 using LogsPlatform.Tests.Infrastructure;
 using LogsPlatform.Web.Services.Analysis;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -31,6 +32,11 @@ public class AnalysisEngineBackgroundServiceTests
         // one DI scope sees the same in-flight data as the context the test seeded directly.
         var services = new ServiceCollection();
         services.AddSingleton(context);
+        // ApplicationRepository/AppEnvironmentRepository/DeploymentRepository now take
+        // IDbContextFactory<LogsPlatformDbContext> (see Program.cs) instead of the context
+        // directly, so each of their calls gets a fresh context — fine here since SeedAppEnvAsync
+        // already committed via SaveChangesAsync, so a fresh context sees the same persisted data.
+        services.AddSingleton(TestDatabase.CreateFactory());
         services.AddSingleton<IApplicationRepository, ApplicationRepository>();
         services.AddSingleton<IAppEnvironmentRepository, AppEnvironmentRepository>();
         services.AddSingleton<IMetricsRepository, MetricsRepository>();

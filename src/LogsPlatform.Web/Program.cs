@@ -53,6 +53,15 @@ builder.Services.AddDbContext<LogsPlatformDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("LogsPlatformDb")
         ?? throw new InvalidOperationException("Missing ConnectionStrings:LogsPlatformDb configuration.")));
 
+// Repositories used by pages that render multiple DB-backed child components concurrently
+// (e.g. ApplicationsAdmin.razor's expanded row) need their own short-lived DbContext per call,
+// since Blazor Server's circuit-scoped DbContext throws "a second operation was started on this
+// context instance before a previous operation completed" when siblings' OnInitializedAsync race.
+builder.Services.AddDbContextFactory<LogsPlatformDbContext>(options =>
+    options.UseSqlServer(builder.Configuration.GetConnectionString("LogsPlatformDb")
+        ?? throw new InvalidOperationException("Missing ConnectionStrings:LogsPlatformDb configuration.")),
+    lifetime: ServiceLifetime.Scoped);
+
 builder.Services.AddScoped<IApplicationRepository, ApplicationRepository>();
 builder.Services.AddScoped<IPlatformUserRepository, PlatformUserRepository>();
 builder.Services.AddScoped<IAppEnvironmentRepository, AppEnvironmentRepository>();

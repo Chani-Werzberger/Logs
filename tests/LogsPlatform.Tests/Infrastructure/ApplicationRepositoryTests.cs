@@ -12,7 +12,7 @@ public class ApplicationRepositoryTests
     public async Task AddAsync_PersistsApplication_RetrievableByGetByIdAsync()
     {
         using var context = TestDatabase.CreateContext();
-        var repository = new ApplicationRepository(context);
+        var repository = new ApplicationRepository(TestDatabase.CreateFactory());
 
         var created = await repository.AddAsync(new Application
         {
@@ -31,7 +31,7 @@ public class ApplicationRepositoryTests
     public async Task GetAllAsync_ReturnsAllPersistedApplications()
     {
         using var context = TestDatabase.CreateContext();
-        var repository = new ApplicationRepository(context);
+        var repository = new ApplicationRepository(TestDatabase.CreateFactory());
 
         await repository.AddAsync(new Application { Name = "RetailPulse", CreatedAt = DateTime.UtcNow });
         await repository.AddAsync(new Application { Name = "FieldOps", CreatedAt = DateTime.UtcNow });
@@ -48,7 +48,7 @@ public class ApplicationRepositoryTests
         // a single DbContext instance (matching one Blazor circuit's lifetime) used across
         // multiple sequential AddAsync calls, where an earlier failure must not poison later ones.
         using var context = TestDatabase.CreateContext();
-        var repository = new ApplicationRepository(context);
+        var repository = new ApplicationRepository(TestDatabase.CreateFactory());
 
         await repository.AddAsync(new Application { Name = "CircuitTest1", CreatedAt = DateTime.UtcNow });
 

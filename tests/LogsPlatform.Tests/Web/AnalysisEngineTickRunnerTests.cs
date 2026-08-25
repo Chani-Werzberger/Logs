@@ -23,12 +23,12 @@ public class AnalysisEngineTickRunnerTests
 
     private static AnalysisEngineTickRunner BuildRunner(LogsPlatformDbContext context)
     {
-        var applicationRepository = new ApplicationRepository(context);
-        var environmentRepository = new AppEnvironmentRepository(context);
+        var applicationRepository = new ApplicationRepository(TestDatabase.CreateFactory());
+        var environmentRepository = new AppEnvironmentRepository(TestDatabase.CreateFactory());
         var metricsRepository = new MetricsRepository(context);
         var baselineRepository = new BaselineRepository(context);
         var findingRepository = new FindingRepository(context);
-        var deploymentRepository = new DeploymentRepository(context);
+        var deploymentRepository = new DeploymentRepository(TestDatabase.CreateFactory());
         var writer = new FindingWriter(findingRepository);
         var downstreamFailureCorrelator = new DownstreamFailureCorrelator(findingRepository, context);
         var baselineCalculator = new BaselineCalculator(metricsRepository, baselineRepository);

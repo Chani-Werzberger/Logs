@@ -6,19 +6,23 @@ namespace LogsPlatform.Infrastructure.Repositories;
 
 public class AppVersionRepository : IAppVersionRepository
 {
-    private readonly LogsPlatformDbContext _context;
+    private readonly IDbContextFactory<LogsPlatformDbContext> _contextFactory;
 
-    public AppVersionRepository(LogsPlatformDbContext context)
+    public AppVersionRepository(IDbContextFactory<LogsPlatformDbContext> contextFactory)
     {
-        _context = context;
+        _contextFactory = contextFactory;
     }
 
-    public async Task<AppVersion?> GetByIdAsync(int id) =>
-        await _context.Versions.FindAsync(id);
+    public async Task<AppVersion?> GetByIdAsync(int id)
+    {
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        return await context.Versions.FindAsync(id);
+    }
 
     public async Task<IReadOnlyList<AppVersion>> GetByApplicationIdAsync(int applicationId, bool includeInactive = false)
     {
-        var query = _context.Versions.AsNoTracking().Where(v => v.ApplicationId == applicationId);
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        var query = context.Versions.AsNoTracking().Where(v => v.ApplicationId == applicationId);
         if (!includeInactive)
         {
             query = query.Where(v => v.IsActive);
@@ -28,14 +32,15 @@ public class AppVersionRepository : IAppVersionRepository
 
     public async Task<AppVersion> AddAsync(AppVersion version)
     {
-        _context.Versions.Add(version);
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        context.Versions.Add(version);
         try
         {
-            await _context.SaveChangesAsync();
+            await context.SaveChangesAsync();
         }
         catch
         {
-            _context.Entry(version).State = EntityState.Detached;
+            context.Entry(version).State = EntityState.Detached;
             throw;
         }
         return version;
@@ -43,16 +48,17 @@ public class AppVersionRepository : IAppVersionRepository
 
     public async Task<AppVersion> RenameAsync(int id, string? releaseNotes)
     {
-        var version = await _context.Versions.FindAsync(id)
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        var version = await context.Versions.FindAsync(id)
             ?? throw new InvalidOperationException($"AppVersion {id} not found.");
         version.ReleaseNotes = releaseNotes;
         try
         {
-            await _context.SaveChangesAsync();
+            await context.SaveChangesAsync();
         }
         catch
         {
-            _context.Entry(version).State = EntityState.Detached;
+            context.Entry(version).State = EntityState.Detached;
             throw;
         }
         return version;
@@ -60,16 +66,17 @@ public class AppVersionRepository : IAppVersionRepository
 
     public async Task DeactivateAsync(int id)
     {
-        var version = await _context.Versions.FindAsync(id)
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        var version = await context.Versions.FindAsync(id)
             ?? throw new InvalidOperationException($"AppVersion {id} not found.");
         version.IsActive = false;
         try
         {
-            await _context.SaveChangesAsync();
+            await context.SaveChangesAsync();
         }
         catch
         {
-            _context.Entry(version).State = EntityState.Detached;
+            context.Entry(version).State = EntityState.Detached;
             throw;
         }
     }

@@ -6,19 +6,23 @@ namespace LogsPlatform.Infrastructure.Repositories;
 
 public class DeploymentRepository : IDeploymentRepository
 {
-    private readonly LogsPlatformDbContext _context;
+    private readonly IDbContextFactory<LogsPlatformDbContext> _contextFactory;
 
-    public DeploymentRepository(LogsPlatformDbContext context)
+    public DeploymentRepository(IDbContextFactory<LogsPlatformDbContext> contextFactory)
     {
-        _context = context;
+        _contextFactory = contextFactory;
     }
 
-    public async Task<Deployment?> GetByIdAsync(int id) =>
-        await _context.Deployments.FindAsync(id);
+    public async Task<Deployment?> GetByIdAsync(int id)
+    {
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        return await context.Deployments.FindAsync(id);
+    }
 
     public async Task<IReadOnlyList<Deployment>> GetByApplicationIdAsync(int applicationId, bool includeInactive = false)
     {
-        var query = _context.Deployments.AsNoTracking().Where(d => d.ApplicationId == applicationId);
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        var query = context.Deployments.AsNoTracking().Where(d => d.ApplicationId == applicationId);
         if (!includeInactive)
         {
             query = query.Where(d => d.IsActive);
@@ -26,23 +30,27 @@ public class DeploymentRepository : IDeploymentRepository
         return await query.OrderBy(d => d.DeployedAt).ThenBy(d => d.Id).ToListAsync();
     }
 
-    public async Task<IReadOnlyList<Deployment>> GetInWindowAsync(int applicationId, int environmentId, DateTime windowStart, DateTime windowEnd) =>
-        await _context.Deployments.AsNoTracking()
+    public async Task<IReadOnlyList<Deployment>> GetInWindowAsync(int applicationId, int environmentId, DateTime windowStart, DateTime windowEnd)
+    {
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        return await context.Deployments.AsNoTracking()
             .Where(d => d.ApplicationId == applicationId && d.EnvironmentId == environmentId
                 && d.DeployedAt >= windowStart && d.DeployedAt <= windowEnd)
             .OrderByDescending(d => d.DeployedAt)
             .ToListAsync();
+    }
 
     public async Task<Deployment> AddAsync(Deployment deployment)
     {
-        _context.Deployments.Add(deployment);
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        context.Deployments.Add(deployment);
         try
         {
-            await _context.SaveChangesAsync();
+            await context.SaveChangesAsync();
         }
         catch
         {
-            _context.Entry(deployment).State = EntityState.Detached;
+            context.Entry(deployment).State = EntityState.Detached;
             throw;
         }
         return deployment;
@@ -50,16 +58,17 @@ public class DeploymentRepository : IDeploymentRepository
 
     public async Task<Deployment> RenameAsync(int id, string? notes)
     {
-        var deployment = await _context.Deployments.FindAsync(id)
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        var deployment = await context.Deployments.FindAsync(id)
             ?? throw new InvalidOperationException($"Deployment {id} not found.");
         deployment.Notes = notes;
         try
         {
-            await _context.SaveChangesAsync();
+            await context.SaveChangesAsync();
         }
         catch
         {
-            _context.Entry(deployment).State = EntityState.Detached;
+            context.Entry(deployment).State = EntityState.Detached;
             throw;
         }
         return deployment;
@@ -67,16 +76,17 @@ public class DeploymentRepository : IDeploymentRepository
 
     public async Task DeactivateAsync(int id)
     {
-        var deployment = await _context.Deployments.FindAsync(id)
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        var deployment = await context.Deployments.FindAsync(id)
             ?? throw new InvalidOperationException($"Deployment {id} not found.");
         deployment.IsActive = false;
         try
         {
-            await _context.SaveChangesAsync();
+            await context.SaveChangesAsync();
         }
         catch
         {
-            _context.Entry(deployment).State = EntityState.Detached;
+            context.Entry(deployment).State = EntityState.Detached;
             throw;
         }
     }

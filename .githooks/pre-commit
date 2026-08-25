@@ -8,7 +8,9 @@ if [ -z "$staged_files" ]; then
     exit 0
 fi
 
-pattern='(Password[[:space:]]*=[^;]{4,}|pwd[[:space:]]*=[^;]{4,}|AKIA[0-9A-Z]{16}|-----BEGIN[A-Z ]*PRIVATE KEY-----|Server=.*;.*Password=)'
+# ([^A-Za-z]|^) before password/pwd requires a word boundary, so identifiers that merely end in
+# "password" (e.g. a local variable `generatedPassword = Convert.ToBase64String(...)`) don't match.
+pattern='(([^A-Za-z]|^)password[[:space:]]*=[^;]{4,}|([^A-Za-z]|^)pwd[[:space:]]*=[^;]{4,}|AKIA[0-9A-Z]{16}|-----BEGIN[A-Z ]*PRIVATE KEY-----|Server=.*;.*Password=)'
 found=0
 
 for file in $staged_files; do

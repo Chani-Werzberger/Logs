@@ -6,19 +6,23 @@ namespace LogsPlatform.Infrastructure.Repositories;
 
 public class AppUserRepository : IAppUserRepository
 {
-    private readonly LogsPlatformDbContext _context;
+    private readonly IDbContextFactory<LogsPlatformDbContext> _contextFactory;
 
-    public AppUserRepository(LogsPlatformDbContext context)
+    public AppUserRepository(IDbContextFactory<LogsPlatformDbContext> contextFactory)
     {
-        _context = context;
+        _contextFactory = contextFactory;
     }
 
-    public async Task<AppUser?> GetByIdAsync(int id) =>
-        await _context.Users.FindAsync(id);
+    public async Task<AppUser?> GetByIdAsync(int id)
+    {
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        return await context.Users.FindAsync(id);
+    }
 
     public async Task<IReadOnlyList<AppUser>> GetByApplicationIdAsync(int applicationId, bool includeInactive = false)
     {
-        var query = _context.Users.AsNoTracking().Where(u => u.ApplicationId == applicationId);
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        var query = context.Users.AsNoTracking().Where(u => u.ApplicationId == applicationId);
         if (!includeInactive)
         {
             query = query.Where(u => u.IsActive);
@@ -28,14 +32,15 @@ public class AppUserRepository : IAppUserRepository
 
     public async Task<AppUser> AddAsync(AppUser user)
     {
-        _context.Users.Add(user);
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        context.Users.Add(user);
         try
         {
-            await _context.SaveChangesAsync();
+            await context.SaveChangesAsync();
         }
         catch
         {
-            _context.Entry(user).State = EntityState.Detached;
+            context.Entry(user).State = EntityState.Detached;
             throw;
         }
         return user;
@@ -43,16 +48,17 @@ public class AppUserRepository : IAppUserRepository
 
     public async Task<AppUser> RenameAsync(int id, string displayName)
     {
-        var user = await _context.Users.FindAsync(id)
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        var user = await context.Users.FindAsync(id)
             ?? throw new InvalidOperationException($"AppUser {id} not found.");
         user.DisplayName = displayName;
         try
         {
-            await _context.SaveChangesAsync();
+            await context.SaveChangesAsync();
         }
         catch
         {
-            _context.Entry(user).State = EntityState.Detached;
+            context.Entry(user).State = EntityState.Detached;
             throw;
         }
         return user;
@@ -60,16 +66,17 @@ public class AppUserRepository : IAppUserRepository
 
     public async Task DeactivateAsync(int id)
     {
-        var user = await _context.Users.FindAsync(id)
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        var user = await context.Users.FindAsync(id)
             ?? throw new InvalidOperationException($"AppUser {id} not found.");
         user.IsActive = false;
         try
         {
-            await _context.SaveChangesAsync();
+            await context.SaveChangesAsync();
         }
         catch
         {
-            _context.Entry(user).State = EntityState.Detached;
+            context.Entry(user).State = EntityState.Detached;
             throw;
         }
     }

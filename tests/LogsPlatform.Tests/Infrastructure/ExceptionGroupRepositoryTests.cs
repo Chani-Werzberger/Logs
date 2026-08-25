@@ -33,17 +33,35 @@ public class ExceptionGroupRepositoryTests
     }
 
     [Fact]
-    public async Task GetOrCreateAsync_ExistingFingerprint_ReturnsSameGroupWithoutIncrementingCount()
+    public async Task GetOrCreateAsync_ExistingFingerprint_IncrementsCountAndUpdatesLastSeenAt()
     {
         using var context = TestDatabase.CreateContext();
         var appId = await CreateTestApplicationAsync(context, "ExceptionGroupReuseTestApp");
         var repository = new ExceptionGroupRepository(context);
-        var first = await repository.GetOrCreateAsync(appId, "fp-2", "System.Exception", "boom", "at Foo()", DateTime.UtcNow);
+        var firstSeenAt = DateTime.UtcNow;
+        var secondSeenAt = firstSeenAt.AddMinutes(5);
+        var first = await repository.GetOrCreateAsync(appId, "fp-2", "System.Exception", "boom", "at Foo()", firstSeenAt);
 
-        var second = await repository.GetOrCreateAsync(appId, "fp-2", "System.Exception", "boom", "at Foo()", DateTime.UtcNow.AddMinutes(5));
+        var second = await repository.GetOrCreateAsync(appId, "fp-2", "System.Exception", "boom", "at Foo()", secondSeenAt);
 
         Assert.Equal(first.Id, second.Id);
-        Assert.Equal(1, second.OccurrenceCount);
+        Assert.Equal(2, second.OccurrenceCount);
+        Assert.Equal(secondSeenAt, second.LastSeenAt);
+        Assert.Equal(firstSeenAt, second.FirstSeenAt);
+    }
+
+    [Fact]
+    public async Task GetOrCreateAsync_ThirdOccurrenceOfSameFingerprint_CountReachesThree()
+    {
+        using var context = TestDatabase.CreateContext();
+        var appId = await CreateTestApplicationAsync(context, "ExceptionGroupTripleOccurrenceTestApp");
+        var repository = new ExceptionGroupRepository(context);
+
+        await repository.GetOrCreateAsync(appId, "fp-triple", "System.Exception", "boom", "at Foo()", DateTime.UtcNow);
+        await repository.GetOrCreateAsync(appId, "fp-triple", "System.Exception", "boom", "at Foo()", DateTime.UtcNow);
+        var third = await repository.GetOrCreateAsync(appId, "fp-triple", "System.Exception", "boom", "at Foo()", DateTime.UtcNow);
+
+        Assert.Equal(3, third.OccurrenceCount);
     }
 
     [Fact]
@@ -70,9 +88,13 @@ public class ExceptionGroupRepositoryTests
         });
         await context.SaveChangesAsync();
 
-        var result = await repository.GetOrCreateAsync(appId, "fp-race", "System.Exception", "boom", "at Foo()", seenAt);
+        var result = await repository.GetOrCreateAsync(appId, "fp-race", "System.Exception", "boom", "at Foo()", seenAt.AddMinutes(1));
 
         Assert.Equal("fp-race", result.Fingerprint);
         Assert.Equal(1, await context.ExceptionGroups.CountAsync(g => g.Fingerprint == "fp-race"));
+        // The recovered "winner" row's own occurrence (created via the bypassed insert, count=1)
+        // plus this call's occurrence (the request that lost the insert race) are both real,
+        // distinct exception occurrences - the count reflects both.
+        Assert.Equal(2, result.OccurrenceCount);
     }
 }

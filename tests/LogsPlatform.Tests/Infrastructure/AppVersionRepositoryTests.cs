@@ -22,7 +22,7 @@ public class AppVersionRepositoryTests
     {
         using var context = TestDatabase.CreateContext();
         var appId = await CreateTestApplicationAsync(context, "AppVersionAddTestApp");
-        var repository = new AppVersionRepository(context);
+        var repository = new AppVersionRepository(TestDatabase.CreateFactory());
 
         var created = await repository.AddAsync(new AppVersion { ApplicationId = appId, VersionNumber = "1.0.0", ReleaseNotes = "Initial release", CreatedAt = DateTime.UtcNow });
         var loaded = await repository.GetByIdAsync(created.Id);
@@ -38,7 +38,7 @@ public class AppVersionRepositoryTests
     {
         using var context = TestDatabase.CreateContext();
         var appId = await CreateTestApplicationAsync(context, "AppVersionFilterTestApp");
-        var repository = new AppVersionRepository(context);
+        var repository = new AppVersionRepository(TestDatabase.CreateFactory());
 
         var active = await repository.AddAsync(new AppVersion { ApplicationId = appId, VersionNumber = "1.0.0", CreatedAt = DateTime.UtcNow });
         var toDeactivate = await repository.AddAsync(new AppVersion { ApplicationId = appId, VersionNumber = "0.9.0", CreatedAt = DateTime.UtcNow });
@@ -57,7 +57,7 @@ public class AppVersionRepositoryTests
     {
         using var context = TestDatabase.CreateContext();
         var appId = await CreateTestApplicationAsync(context, "AppVersionRenameTestApp");
-        var repository = new AppVersionRepository(context);
+        var repository = new AppVersionRepository(TestDatabase.CreateFactory());
         var created = await repository.AddAsync(new AppVersion { ApplicationId = appId, VersionNumber = "1.0.0", ReleaseNotes = "OldNotes", CreatedAt = DateTime.UtcNow });
 
         var renamed = await repository.RenameAsync(created.Id, "NewNotes");
@@ -71,7 +71,7 @@ public class AppVersionRepositoryTests
     {
         using var context = TestDatabase.CreateContext();
         var appId = await CreateTestApplicationAsync(context, "AppVersionDeactivateTestApp");
-        var repository = new AppVersionRepository(context);
+        var repository = new AppVersionRepository(TestDatabase.CreateFactory());
         var created = await repository.AddAsync(new AppVersion { ApplicationId = appId, VersionNumber = "1.0.0", CreatedAt = DateTime.UtcNow });
 
         await repository.DeactivateAsync(created.Id);
@@ -85,7 +85,7 @@ public class AppVersionRepositoryTests
     {
         using var context = TestDatabase.CreateContext();
         var appId = await CreateTestApplicationAsync(context, "AppVersionCircuitTestApp");
-        var repository = new AppVersionRepository(context);
+        var repository = new AppVersionRepository(TestDatabase.CreateFactory());
 
         await repository.AddAsync(new AppVersion { ApplicationId = appId, VersionNumber = "1.0.0-dup", CreatedAt = DateTime.UtcNow });
 

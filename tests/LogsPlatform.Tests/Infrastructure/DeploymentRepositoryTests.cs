@@ -26,7 +26,7 @@ public class DeploymentRepositoryTests
     {
         using var context = TestDatabase.CreateContext();
         var (appId, envId, versionId) = await CreateTestFixtureAsync(context, "DeploymentAddTestApp");
-        var repository = new DeploymentRepository(context);
+        var repository = new DeploymentRepository(TestDatabase.CreateFactory());
 
         var created = await repository.AddAsync(new Deployment
         {
@@ -50,7 +50,7 @@ public class DeploymentRepositoryTests
     {
         using var context = TestDatabase.CreateContext();
         var (appId, envId, versionId) = await CreateTestFixtureAsync(context, "DeploymentFilterTestApp");
-        var repository = new DeploymentRepository(context);
+        var repository = new DeploymentRepository(TestDatabase.CreateFactory());
 
         var active = await repository.AddAsync(new Deployment { ApplicationId = appId, EnvironmentId = envId, VersionId = versionId, DeployedAt = DateTime.UtcNow });
         var toDeactivate = await repository.AddAsync(new Deployment { ApplicationId = appId, EnvironmentId = envId, VersionId = versionId, DeployedAt = DateTime.UtcNow });
@@ -69,7 +69,7 @@ public class DeploymentRepositoryTests
     {
         using var context = TestDatabase.CreateContext();
         var (appId, envId, versionId) = await CreateTestFixtureAsync(context, "DeploymentRenameTestApp");
-        var repository = new DeploymentRepository(context);
+        var repository = new DeploymentRepository(TestDatabase.CreateFactory());
         var created = await repository.AddAsync(new Deployment { ApplicationId = appId, EnvironmentId = envId, VersionId = versionId, DeployedAt = DateTime.UtcNow, Notes = "OldNotes" });
 
         var renamed = await repository.RenameAsync(created.Id, "NewNotes");
@@ -84,7 +84,7 @@ public class DeploymentRepositoryTests
     {
         using var context = TestDatabase.CreateContext();
         var (appId, envId, versionId) = await CreateTestFixtureAsync(context, "DeploymentDeactivateTestApp");
-        var repository = new DeploymentRepository(context);
+        var repository = new DeploymentRepository(TestDatabase.CreateFactory());
         var created = await repository.AddAsync(new Deployment { ApplicationId = appId, EnvironmentId = envId, VersionId = versionId, DeployedAt = DateTime.UtcNow });
 
         await repository.DeactivateAsync(created.Id);
@@ -98,7 +98,7 @@ public class DeploymentRepositoryTests
     {
         using var context = TestDatabase.CreateContext();
         var (appId, envId, versionId) = await CreateTestFixtureAsync(context, "DeploymentRedeployTestApp");
-        var repository = new DeploymentRepository(context);
+        var repository = new DeploymentRepository(TestDatabase.CreateFactory());
 
         var first = await repository.AddAsync(new Deployment { ApplicationId = appId, EnvironmentId = envId, VersionId = versionId, DeployedAt = DateTime.UtcNow });
         var second = await repository.AddAsync(new Deployment { ApplicationId = appId, EnvironmentId = envId, VersionId = versionId, DeployedAt = DateTime.UtcNow });

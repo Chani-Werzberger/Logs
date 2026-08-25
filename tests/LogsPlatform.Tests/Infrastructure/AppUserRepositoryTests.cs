@@ -22,7 +22,7 @@ public class AppUserRepositoryTests
     {
         using var context = TestDatabase.CreateContext();
         var appId = await CreateTestApplicationAsync(context, "AppUserAddTestApp");
-        var repository = new AppUserRepository(context);
+        var repository = new AppUserRepository(TestDatabase.CreateFactory());
 
         var created = await repository.AddAsync(new AppUser { ApplicationId = appId, ExternalUserId = "user-1", DisplayName = "Jane Doe" });
         var loaded = await repository.GetByIdAsync(created.Id);
@@ -38,7 +38,7 @@ public class AppUserRepositoryTests
     {
         using var context = TestDatabase.CreateContext();
         var appId = await CreateTestApplicationAsync(context, "AppUserFilterTestApp");
-        var repository = new AppUserRepository(context);
+        var repository = new AppUserRepository(TestDatabase.CreateFactory());
 
         var active = await repository.AddAsync(new AppUser { ApplicationId = appId, ExternalUserId = "user-active", DisplayName = "Active" });
         var toDeactivate = await repository.AddAsync(new AppUser { ApplicationId = appId, ExternalUserId = "user-inactive", DisplayName = "WillBeInactive" });
@@ -57,7 +57,7 @@ public class AppUserRepositoryTests
     {
         using var context = TestDatabase.CreateContext();
         var appId = await CreateTestApplicationAsync(context, "AppUserRenameTestApp");
-        var repository = new AppUserRepository(context);
+        var repository = new AppUserRepository(TestDatabase.CreateFactory());
         var created = await repository.AddAsync(new AppUser { ApplicationId = appId, ExternalUserId = "user-1", DisplayName = "OldName" });
 
         var renamed = await repository.RenameAsync(created.Id, "NewName");
@@ -71,7 +71,7 @@ public class AppUserRepositoryTests
     {
         using var context = TestDatabase.CreateContext();
         var appId = await CreateTestApplicationAsync(context, "AppUserDeactivateTestApp");
-        var repository = new AppUserRepository(context);
+        var repository = new AppUserRepository(TestDatabase.CreateFactory());
         var created = await repository.AddAsync(new AppUser { ApplicationId = appId, ExternalUserId = "user-1", DisplayName = "ToDeactivate" });
 
         await repository.DeactivateAsync(created.Id);
@@ -85,7 +85,7 @@ public class AppUserRepositoryTests
     {
         using var context = TestDatabase.CreateContext();
         var appId = await CreateTestApplicationAsync(context, "AppUserCircuitTestApp");
-        var repository = new AppUserRepository(context);
+        var repository = new AppUserRepository(TestDatabase.CreateFactory());
 
         await repository.AddAsync(new AppUser { ApplicationId = appId, ExternalUserId = "user-dup", DisplayName = "First" });
 

@@ -23,8 +23,8 @@ public class IngestionProcessorTests
     }
 
     private static IngestionProcessor CreateProcessor(LogsPlatformDbContext context) => new(
-        new AppEnvironmentRepository(context), new AppVersionRepository(context),
-        new CustomerRepository(context), new AppUserRepository(context),
+        new AppEnvironmentRepository(TestDatabase.CreateFactory()), new AppVersionRepository(TestDatabase.CreateFactory()),
+        new CustomerRepository(TestDatabase.CreateFactory()), new AppUserRepository(TestDatabase.CreateFactory()),
         new ExceptionGroupRepository(context),
         new HierarchyResolver(new AppModuleRepository(context), new ScreenServiceRepository(context), new ProcessNodeRepository(context), new OperationRepository(context)));
 
@@ -139,7 +139,7 @@ public class IngestionProcessorTests
     {
         using var context = TestDatabase.CreateContext();
         var (appId, _) = await CreateFixtureAsync(context, "ProcessorDeactivatedCustomerTestApp");
-        var customerRepository = new CustomerRepository(context);
+        var customerRepository = new CustomerRepository(TestDatabase.CreateFactory());
         var customer = await customerRepository.AddAsync(new Customer { ApplicationId = appId, ExternalCustomerId = "cust-retired", Name = "Retired Customer" });
         await customerRepository.DeactivateAsync(customer.Id);
         var processor = CreateProcessor(context);

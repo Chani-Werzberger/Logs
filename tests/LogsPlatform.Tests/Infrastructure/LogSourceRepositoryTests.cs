@@ -23,7 +23,7 @@ public class LogSourceRepositoryTests
     {
         using var context = TestDatabase.CreateContext();
         var appId = await CreateTestApplicationAsync(context, "LogSourceAddTestApp");
-        var repository = new LogSourceRepository(context);
+        var repository = new LogSourceRepository(TestDatabase.CreateFactory());
 
         var created = await repository.AddAsync(new LogSource { ApplicationId = appId, Name = "PaymentServiceLogs", Description = "Structured logs" });
         var loaded = await repository.GetByIdAsync(created.Id);
@@ -38,7 +38,7 @@ public class LogSourceRepositoryTests
     {
         using var context = TestDatabase.CreateContext();
         var appId = await CreateTestApplicationAsync(context, "LogSourceFilterTestApp");
-        var repository = new LogSourceRepository(context);
+        var repository = new LogSourceRepository(TestDatabase.CreateFactory());
 
         var active = await repository.AddAsync(new LogSource { ApplicationId = appId, Name = "Active" });
         var toDeactivate = await repository.AddAsync(new LogSource { ApplicationId = appId, Name = "WillBeInactive" });
@@ -57,7 +57,7 @@ public class LogSourceRepositoryTests
     {
         using var context = TestDatabase.CreateContext();
         var appId = await CreateTestApplicationAsync(context, "LogSourceRenameTestApp");
-        var repository = new LogSourceRepository(context);
+        var repository = new LogSourceRepository(TestDatabase.CreateFactory());
         var created = await repository.AddAsync(new LogSource { ApplicationId = appId, Name = "OldName" });
 
         var renamed = await repository.RenameAsync(created.Id, "NewName", "new description");
@@ -71,7 +71,7 @@ public class LogSourceRepositoryTests
     {
         using var context = TestDatabase.CreateContext();
         var appId = await CreateTestApplicationAsync(context, "LogSourceDeactivateTestApp");
-        var repository = new LogSourceRepository(context);
+        var repository = new LogSourceRepository(TestDatabase.CreateFactory());
         var created = await repository.AddAsync(new LogSource { ApplicationId = appId, Name = "ToDeactivate" });
 
         await repository.DeactivateAsync(created.Id);
@@ -85,7 +85,7 @@ public class LogSourceRepositoryTests
     {
         using var context = TestDatabase.CreateContext();
         var appId = await CreateTestApplicationAsync(context, "LogSourceCircuitTestApp");
-        var repository = new LogSourceRepository(context);
+        var repository = new LogSourceRepository(TestDatabase.CreateFactory());
 
         await repository.AddAsync(new LogSource { ApplicationId = appId, Name = "DupSource" });
 
@@ -102,7 +102,7 @@ public class LogSourceRepositoryTests
     {
         using var context = TestDatabase.CreateContext();
         var appId = await CreateTestApplicationAsync(context, "LogSourceRenameConflictTestApp");
-        var repository = new LogSourceRepository(context);
+        var repository = new LogSourceRepository(TestDatabase.CreateFactory());
         await repository.AddAsync(new LogSource { ApplicationId = appId, Name = "Taken" });
         var toRename = await repository.AddAsync(new LogSource { ApplicationId = appId, Name = "ToRename" });
 

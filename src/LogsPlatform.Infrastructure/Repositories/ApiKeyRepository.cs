@@ -9,19 +9,23 @@ public class ApiKeyRepository : IApiKeyRepository
 {
     private const string KeyPrefix = "lgp_";
 
-    private readonly LogsPlatformDbContext _context;
+    private readonly IDbContextFactory<LogsPlatformDbContext> _contextFactory;
 
-    public ApiKeyRepository(LogsPlatformDbContext context)
+    public ApiKeyRepository(IDbContextFactory<LogsPlatformDbContext> contextFactory)
     {
-        _context = context;
+        _contextFactory = contextFactory;
     }
 
-    public async Task<ApiKey?> GetByIdAsync(int id) =>
-        await _context.ApiKeys.FindAsync(id);
+    public async Task<ApiKey?> GetByIdAsync(int id)
+    {
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        return await context.ApiKeys.FindAsync(id);
+    }
 
     public async Task<IReadOnlyList<ApiKey>> GetByApplicationIdAsync(int applicationId, bool includeRevoked = false)
     {
-        var query = _context.ApiKeys.AsNoTracking().Where(k => k.ApplicationId == applicationId);
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        var query = context.ApiKeys.AsNoTracking().Where(k => k.ApplicationId == applicationId);
         if (!includeRevoked)
         {
             query = query.Where(k => k.RevokedAt == null);
@@ -29,11 +33,15 @@ public class ApiKeyRepository : IApiKeyRepository
         return await query.OrderBy(k => k.CreatedAt).ThenBy(k => k.Id).ToListAsync();
     }
 
-    public async Task<ApiKey?> GetByKeyHashAsync(string keyHash) =>
-        await _context.ApiKeys.AsNoTracking().FirstOrDefaultAsync(k => k.KeyHash == keyHash);
+    public async Task<ApiKey?> GetByKeyHashAsync(string keyHash)
+    {
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        return await context.ApiKeys.AsNoTracking().FirstOrDefaultAsync(k => k.KeyHash == keyHash);
+    }
 
     public async Task<(ApiKey Entity, string RawKey)> AddAsync(int applicationId, string label)
     {
+        await using var context = await _contextFactory.CreateDbContextAsync();
         var rawKey = GenerateRawKey();
         var apiKey = new ApiKey
         {
@@ -43,14 +51,14 @@ public class ApiKeyRepository : IApiKeyRepository
             CreatedAt = DateTime.UtcNow
         };
 
-        _context.ApiKeys.Add(apiKey);
+        context.ApiKeys.Add(apiKey);
         try
         {
-            await _context.SaveChangesAsync();
+            await context.SaveChangesAsync();
         }
         catch
         {
-            _context.Entry(apiKey).State = EntityState.Detached;
+            context.Entry(apiKey).State = EntityState.Detached;
             throw;
         }
         return (apiKey, rawKey);
@@ -58,10 +66,9 @@ public class ApiKeyRepository : IApiKeyRepository
 
     public async Task RevokeAsync(int id)
     {
-        var apiKey = await _context.ApiKeys.FindAsync(id)
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        var apiKey = await context.ApiKeys.FindAsync(id)
             ?? throw new InvalidOperationException($"ApiKey {id} not found.");
-
-        await _context.Entry(apiKey).ReloadAsync();
 
         if (apiKey.RevokedAt is not null)
         {
@@ -71,11 +78,11 @@ public class ApiKeyRepository : IApiKeyRepository
         apiKey.RevokedAt = DateTime.UtcNow;
         try
         {
-            await _context.SaveChangesAsync();
+            await context.SaveChangesAsync();
         }
         catch
         {
-            _context.Entry(apiKey).State = EntityState.Detached;
+            context.Entry(apiKey).State = EntityState.Detached;
             throw;
         }
     }

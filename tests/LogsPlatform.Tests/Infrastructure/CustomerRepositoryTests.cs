@@ -22,7 +22,7 @@ public class CustomerRepositoryTests
     {
         using var context = TestDatabase.CreateContext();
         var appId = await CreateTestApplicationAsync(context, "CustomerAddTestApp");
-        var repository = new CustomerRepository(context);
+        var repository = new CustomerRepository(TestDatabase.CreateFactory());
 
         var created = await repository.AddAsync(new Customer { ApplicationId = appId, ExternalCustomerId = "cust-1", Name = "Acme Corp" });
         var loaded = await repository.GetByIdAsync(created.Id);
@@ -38,7 +38,7 @@ public class CustomerRepositoryTests
     {
         using var context = TestDatabase.CreateContext();
         var appId = await CreateTestApplicationAsync(context, "CustomerFilterTestApp");
-        var repository = new CustomerRepository(context);
+        var repository = new CustomerRepository(TestDatabase.CreateFactory());
 
         var active = await repository.AddAsync(new Customer { ApplicationId = appId, ExternalCustomerId = "cust-active", Name = "Active" });
         var toDeactivate = await repository.AddAsync(new Customer { ApplicationId = appId, ExternalCustomerId = "cust-inactive", Name = "WillBeInactive" });
@@ -57,7 +57,7 @@ public class CustomerRepositoryTests
     {
         using var context = TestDatabase.CreateContext();
         var appId = await CreateTestApplicationAsync(context, "CustomerRenameTestApp");
-        var repository = new CustomerRepository(context);
+        var repository = new CustomerRepository(TestDatabase.CreateFactory());
         var created = await repository.AddAsync(new Customer { ApplicationId = appId, ExternalCustomerId = "cust-1", Name = "OldName" });
 
         var renamed = await repository.RenameAsync(created.Id, "NewName");
@@ -71,7 +71,7 @@ public class CustomerRepositoryTests
     {
         using var context = TestDatabase.CreateContext();
         var appId = await CreateTestApplicationAsync(context, "CustomerDeactivateTestApp");
-        var repository = new CustomerRepository(context);
+        var repository = new CustomerRepository(TestDatabase.CreateFactory());
         var created = await repository.AddAsync(new Customer { ApplicationId = appId, ExternalCustomerId = "cust-1", Name = "ToDeactivate" });
 
         await repository.DeactivateAsync(created.Id);
@@ -85,7 +85,7 @@ public class CustomerRepositoryTests
     {
         using var context = TestDatabase.CreateContext();
         var appId = await CreateTestApplicationAsync(context, "CustomerCircuitTestApp");
-        var repository = new CustomerRepository(context);
+        var repository = new CustomerRepository(TestDatabase.CreateFactory());
 
         await repository.AddAsync(new Customer { ApplicationId = appId, ExternalCustomerId = "cust-dup", Name = "First" });
 

@@ -6,29 +6,36 @@ namespace LogsPlatform.Infrastructure.Repositories;
 
 public class ApplicationRepository : IApplicationRepository
 {
-    private readonly LogsPlatformDbContext _context;
+    private readonly IDbContextFactory<LogsPlatformDbContext> _contextFactory;
 
-    public ApplicationRepository(LogsPlatformDbContext context)
+    public ApplicationRepository(IDbContextFactory<LogsPlatformDbContext> contextFactory)
     {
-        _context = context;
+        _contextFactory = contextFactory;
     }
 
-    public async Task<Application?> GetByIdAsync(int id) =>
-        await _context.Applications.FindAsync(id);
+    public async Task<Application?> GetByIdAsync(int id)
+    {
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        return await context.Applications.FindAsync(id);
+    }
 
-    public async Task<IReadOnlyList<Application>> GetAllAsync() =>
-        await _context.Applications.AsNoTracking().ToListAsync();
+    public async Task<IReadOnlyList<Application>> GetAllAsync()
+    {
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        return await context.Applications.AsNoTracking().ToListAsync();
+    }
 
     public async Task<Application> AddAsync(Application application)
     {
-        _context.Applications.Add(application);
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        context.Applications.Add(application);
         try
         {
-            await _context.SaveChangesAsync();
+            await context.SaveChangesAsync();
         }
         catch
         {
-            _context.Entry(application).State = EntityState.Detached;
+            context.Entry(application).State = EntityState.Detached;
             throw;
         }
         return application;
