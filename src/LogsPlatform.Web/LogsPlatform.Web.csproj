@@ -10,11 +10,20 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.11" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="10.2.3" />
+    <PackageReference Include="Google.Protobuf" Version="3.36.0" />
+    <PackageReference Include="Grpc.Tools" Version="2.83.0" PrivateAssets="All" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\LogsPlatform.Domain\LogsPlatform.Domain.csproj" />
     <ProjectReference Include="..\LogsPlatform.Infrastructure\LogsPlatform.Infrastructure.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Protobuf Include="Otlp/opentelemetry/proto/common/v1/common.proto" ProtoRoot="Otlp" GrpcServices="None" />
+    <Protobuf Include="Otlp/opentelemetry/proto/resource/v1/resource.proto" ProtoRoot="Otlp" GrpcServices="None" />
+    <Protobuf Include="Otlp/opentelemetry/proto/logs/v1/logs.proto" ProtoRoot="Otlp" GrpcServices="None" />
+    <Protobuf Include="Otlp/opentelemetry/proto/collector/logs/v1/logs_service.proto" ProtoRoot="Otlp" GrpcServices="None" />
   </ItemGroup>
 
 </Project>
