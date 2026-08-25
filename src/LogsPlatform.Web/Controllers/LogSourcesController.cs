@@ -1,6 +1,8 @@
+using System.Security.Claims;
 using LogsPlatform.Domain.Entities;
 using LogsPlatform.Domain.Repositories;
 using LogsPlatform.Web.Contracts;
+using LogsPlatform.Web.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -14,11 +16,13 @@ public class LogSourcesController : ControllerBase
 {
     private readonly IApplicationRepository _applications;
     private readonly ILogSourceRepository _logSources;
+    private readonly AuditLogger _audit;
 
-    public LogSourcesController(IApplicationRepository applications, ILogSourceRepository logSources)
+    public LogSourcesController(IApplicationRepository applications, ILogSourceRepository logSources, AuditLogger audit)
     {
         _applications = applications;
         _logSources = logSources;
+        _audit = audit;
     }
 
     [HttpPost]
@@ -37,6 +41,9 @@ public class LogSourcesController : ControllerBase
                 Name = request.Name,
                 Description = request.Description
             });
+
+            var platformUserId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            await _audit.RecordAsync(platformUserId, "LogSource", logSource.Id.ToString(), "Create", $"Created log source '{logSource.Name}' in application {appId}");
 
             return CreatedAtAction(nameof(GetById), new { appId, id = logSource.Id }, ToResponse(logSource));
         }
@@ -70,6 +77,10 @@ public class LogSourcesController : ControllerBase
         try
         {
             var logSource = await _logSources.RenameAsync(id, request.Name, request.Description);
+
+            var platformUserId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            await _audit.RecordAsync(platformUserId, "LogSource", id.ToString(), "Update", $"Renamed log source {id} to '{request.Name}' in application {appId}");
+
             return ToResponse(logSource);
         }
         catch (DbUpdateException ex) when (ex.IsUniqueViolation())
@@ -85,6 +96,10 @@ public class LogSourcesController : ControllerBase
         if (existing is null || existing.ApplicationId != appId) return NotFound();
 
         await _logSources.DeactivateAsync(id);
+
+        var platformUserId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        await _audit.RecordAsync(platformUserId, "LogSource", id.ToString(), "Deactivate", $"Deactivated log source {id} in application {appId}");
+
         return NoContent();
     }
 

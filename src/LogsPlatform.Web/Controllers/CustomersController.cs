@@ -1,6 +1,8 @@
+using System.Security.Claims;
 using LogsPlatform.Domain.Entities;
 using LogsPlatform.Domain.Repositories;
 using LogsPlatform.Web.Contracts;
+using LogsPlatform.Web.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -14,11 +16,13 @@ public class CustomersController : ControllerBase
 {
     private readonly IApplicationRepository _applications;
     private readonly ICustomerRepository _customers;
+    private readonly AuditLogger _audit;
 
-    public CustomersController(IApplicationRepository applications, ICustomerRepository customers)
+    public CustomersController(IApplicationRepository applications, ICustomerRepository customers, AuditLogger audit)
     {
         _applications = applications;
         _customers = customers;
+        _audit = audit;
     }
 
     [HttpPost]
@@ -37,6 +41,9 @@ public class CustomersController : ControllerBase
                 ExternalCustomerId = request.ExternalCustomerId,
                 Name = request.Name
             });
+
+            var platformUserId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            await _audit.RecordAsync(platformUserId, "Customer", customer.Id.ToString(), "Create", $"Created customer '{customer.Name}' (external id '{customer.ExternalCustomerId}') in application {appId}");
 
             return CreatedAtAction(nameof(GetById), new { appId, id = customer.Id }, ToResponse(customer));
         }
@@ -68,6 +75,10 @@ public class CustomersController : ControllerBase
         if (existing is null || existing.ApplicationId != appId) return NotFound();
 
         var customer = await _customers.RenameAsync(id, request.Name);
+
+        var platformUserId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        await _audit.RecordAsync(platformUserId, "Customer", id.ToString(), "Update", $"Renamed customer {id} to '{request.Name}' in application {appId}");
+
         return ToResponse(customer);
     }
 
@@ -78,6 +89,10 @@ public class CustomersController : ControllerBase
         if (existing is null || existing.ApplicationId != appId) return NotFound();
 
         await _customers.DeactivateAsync(id);
+
+        var platformUserId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        await _audit.RecordAsync(platformUserId, "Customer", id.ToString(), "Deactivate", $"Deactivated customer {id} in application {appId}");
+
         return NoContent();
     }
 

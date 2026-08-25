@@ -1,6 +1,8 @@
+using System.Security.Claims;
 using LogsPlatform.Domain.Entities;
 using LogsPlatform.Domain.Repositories;
 using LogsPlatform.Web.Contracts;
+using LogsPlatform.Web.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -14,11 +16,13 @@ public class AppUsersController : ControllerBase
 {
     private readonly IApplicationRepository _applications;
     private readonly IAppUserRepository _users;
+    private readonly AuditLogger _audit;
 
-    public AppUsersController(IApplicationRepository applications, IAppUserRepository users)
+    public AppUsersController(IApplicationRepository applications, IAppUserRepository users, AuditLogger audit)
     {
         _applications = applications;
         _users = users;
+        _audit = audit;
     }
 
     [HttpPost]
@@ -37,6 +41,9 @@ public class AppUsersController : ControllerBase
                 ExternalUserId = request.ExternalUserId,
                 DisplayName = request.DisplayName
             });
+
+            var platformUserId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            await _audit.RecordAsync(platformUserId, "AppUser", user.Id.ToString(), "Create", $"Created user '{user.DisplayName}' (external id '{user.ExternalUserId}') in application {appId}");
 
             return CreatedAtAction(nameof(GetById), new { appId, id = user.Id }, ToResponse(user));
         }
@@ -68,6 +75,10 @@ public class AppUsersController : ControllerBase
         if (existing is null || existing.ApplicationId != appId) return NotFound();
 
         var user = await _users.RenameAsync(id, request.DisplayName);
+
+        var platformUserId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        await _audit.RecordAsync(platformUserId, "AppUser", id.ToString(), "Update", $"Renamed user {id} to '{request.DisplayName}' in application {appId}");
+
         return ToResponse(user);
     }
 
@@ -78,6 +89,10 @@ public class AppUsersController : ControllerBase
         if (existing is null || existing.ApplicationId != appId) return NotFound();
 
         await _users.DeactivateAsync(id);
+
+        var platformUserId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        await _audit.RecordAsync(platformUserId, "AppUser", id.ToString(), "Deactivate", $"Deactivated user {id} in application {appId}");
+
         return NoContent();
     }
 
