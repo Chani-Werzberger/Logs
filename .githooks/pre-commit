@@ -24,7 +24,10 @@ for file in $staged_files; do
             ;;
     esac
 
-    if git show ":$file" 2>/dev/null | grep -Eiq "$pattern"; then
+    matches=$(git show ":$file" 2>/dev/null | grep -Ei "$pattern")
+    # A match assigning an obviously-empty/null value (e.g. `Password = string.Empty;`, a form
+    # reset — not a secret) doesn't block by itself; only block if some match isn't like that.
+    if [ -n "$matches" ] && echo "$matches" | grep -Eqv '=[[:space:]]*(string\.Empty|null|""|'"'"''"'"')[[:space:]]*;'; then
         echo "pre-commit: possible secret detected in '$file' — commit blocked."
         found=1
     fi
