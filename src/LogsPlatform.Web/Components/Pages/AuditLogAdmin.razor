@@ -1,0 +1,9 @@
+@page "/admin/audit-log"
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Policy = "RequireAdmin")]
+@using LogsPlatform.Web.Components.Shared
+@rendermode InteractiveServer
+
+<h1>Audit Log</h1>
+<p class="text-muted">תיעוד של כל פעולת שינוי שביצע/ה משתמש/ת אדמין במסכי הניהול.</p>
+
+<AuditLogSection />

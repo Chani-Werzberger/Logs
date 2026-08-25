@@ -1,0 +1,72 @@
+@using LogsPlatform.Domain.Repositories
+@inject IAuditLogRepository AuditLogRepository
+
+<div class="row g-3 align-items-end mb-3">
+    <div class="col-auto">
+        <label class="form-label">סוג ישות</label>
+        <input class="form-control" @bind="_entityTypeFilter" @bind:event="oninput" placeholder="לדוגמה: Application" />
+    </div>
+    <div class="col-auto">
+        <label class="form-label">פעולה</label>
+        <select class="form-select" @bind="_actionFilter">
+            <option value="">הכל</option>
+            <option value="Create">Create</option>
+            <option value="Update">Update</option>
+            <option value="Deactivate">Deactivate</option>
+            <option value="Revoke">Revoke</option>
+        </select>
+    </div>
+    <div class="col-auto">
+        <button class="btn btn-primary" @onclick="LoadAsync">סינון</button>
+    </div>
+</div>
+
+<table class="table table-sm table-striped align-middle">
+    <thead>
+        <tr>
+            <th>זמן</th>
+            <th>משתמש</th>
+            <th>סוג ישות</th>
+            <th>מזהה</th>
+            <th>פעולה</th>
+            <th>תיאור</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var entry in _entries)
+        {
+            <tr>
+                <td>@entry.Timestamp.ToString("u")</td>
+                <td>@entry.PlatformUser.Username</td>
+                <td>@entry.EntityType</td>
+                <td>@entry.EntityId</td>
+                <td>@entry.Action</td>
+                <td>@entry.Description</td>
+            </tr>
+        }
+    </tbody>
+</table>
+<p class="text-muted">@_totalCount רשומות סה"כ</p>
+
+@code {
+    private List<LogsPlatform.Domain.Entities.AdminAuditLogEntry> _entries = new();
+    private int _totalCount;
+    private string _entityTypeFilter = string.Empty;
+    private string _actionFilter = string.Empty;
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        var (items, totalCount) = await AuditLogRepository.QueryAsync(new AuditLogQueryParameters(
+            PlatformUserId: null,
+            EntityType: string.IsNullOrWhiteSpace(_entityTypeFilter) ? null : _entityTypeFilter,
+            Action: string.IsNullOrWhiteSpace(_actionFilter) ? null : _actionFilter,
+            From: null,
+            To: null,
+            Page: 1,
+            PageSize: 100));
+        _entries = items.ToList();
+        _totalCount = totalCount;
+    }
+}

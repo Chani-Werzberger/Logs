@@ -2,8 +2,12 @@
 @using LogsPlatform.Domain.Repositories
 @using LogsPlatform.Infrastructure
 @using LogsPlatform.Web
+@using LogsPlatform.Web.Services
+@using Microsoft.AspNetCore.Components.Authorization
 @using Microsoft.EntityFrameworkCore
+@using System.Security.Claims
 @inject IPlatformUserRepository PlatformUserRepository
+@inject AuditLogger Audit
 
 <table class="table table-sm table-striped align-middle">
     <thead>
@@ -61,6 +65,14 @@
     private readonly NewUserModel _newUser = new();
     private string? _createError;
 
+    [CascadingParameter] private Task<AuthenticationState>? AuthenticationStateTask { get; set; }
+
+    private async Task<int> CurrentPlatformUserIdAsync()
+    {
+        var authState = await AuthenticationStateTask!;
+        return int.Parse(authState.User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+    }
+
     protected override async Task OnInitializedAsync()
     {
         _users = (await PlatformUserRepository.GetAllAsync()).ToList();
@@ -71,13 +83,16 @@
         _createError = null;
         try
         {
-            await PlatformUserRepository.AddAsync(new PlatformUser
+            var newUser = await PlatformUserRepository.AddAsync(new PlatformUser
             {
                 Username = _newUser.Username,
                 PasswordHash = PasswordHasher.Hash(_newUser.Password),
                 IsAdmin = _newUser.IsAdmin,
                 CreatedAt = DateTime.UtcNow
             });
+
+            var currentPlatformUserId = await CurrentPlatformUserIdAsync();
+            await Audit.RecordAsync(currentPlatformUserId, "PlatformUser", newUser.Id.ToString(), "Create", $"Created platform user '{newUser.Username}' (admin: {newUser.IsAdmin})");
 
             _newUser.Username = string.Empty;
             _newUser.Password = string.Empty;
@@ -93,6 +108,10 @@
     private async Task DeactivateAsync(int id)
     {
         await PlatformUserRepository.DeactivateAsync(id);
+
+        var currentPlatformUserId = await CurrentPlatformUserIdAsync();
+        await Audit.RecordAsync(currentPlatformUserId, "PlatformUser", id.ToString(), "Deactivate", $"Deactivated platform user {id}");
+
         _users = (await PlatformUserRepository.GetAllAsync()).ToList();
     }
 
