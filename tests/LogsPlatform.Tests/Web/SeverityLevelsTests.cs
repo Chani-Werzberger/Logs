@@ -25,4 +25,32 @@ public class SeverityLevelsTests
         }
         Assert.Equal(SeverityLevels.ByName.Count, SeverityLevels.ByValue.Count);
     }
+
+    [Theory]
+    [InlineData(1, "Trace")]
+    [InlineData(2, "Trace")]
+    [InlineData(4, "Trace")]
+    [InlineData(5, "Debug")]
+    [InlineData(8, "Debug")]
+    [InlineData(9, "Info")]
+    [InlineData(12, "Info")]
+    [InlineData(13, "Warn")]
+    [InlineData(16, "Warn")]
+    [InlineData(17, "Error")]
+    [InlineData(20, "Error")]
+    [InlineData(21, "Fatal")]
+    [InlineData(24, "Fatal")]
+    public void FromOtelSeverityNumber_ValueInBand_ReturnsBandName(int severityNumber, string expected)
+    {
+        Assert.Equal(expected, SeverityLevels.FromOtelSeverityNumber(severityNumber));
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(25)]
+    [InlineData(-1)]
+    public void FromOtelSeverityNumber_OutOfRange_ReturnsNull(int severityNumber)
+    {
+        Assert.Null(SeverityLevels.FromOtelSeverityNumber(severityNumber));
+    }
 }
