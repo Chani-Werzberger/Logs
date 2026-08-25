@@ -26,3 +26,7 @@ public record EvidenceDto(long Id, string EvidenceType, long ReferenceId, string
 public record FindingDetail(long Id, string Type, string Title, string Severity, string ConfidenceLevel, string Status, DateTime DetectedAt, string ApplicationName, string EnvironmentName, IReadOnlyList<FindingStatementDto> Statements, IReadOnlyList<EvidenceDto> Evidence);
 
 public record UpdateFindingStatusRequest(string Status);
+
+public record AuditLogEntrySummary(long Id, int PlatformUserId, string PlatformUsername, DateTime Timestamp, string EntityType, string EntityId, string Action, string Description);
+
+public record AuditLogListResponse(IReadOnlyList<AuditLogEntrySummary> Items, int TotalCount);
