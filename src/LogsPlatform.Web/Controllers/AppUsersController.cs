@@ -11,18 +11,23 @@ namespace LogsPlatform.Web.Controllers;
 
 [ApiController]
 [Route("api/v1/admin/applications/{appId:int}/users")]
-[Authorize(Policy = "RequireAdmin")]
 public class AppUsersController : ControllerBase
 {
     private readonly IApplicationRepository _applications;
     private readonly IAppUserRepository _users;
     private readonly AuditLogger _audit;
+    private readonly ApplicationAccessService _access;
 
-    public AppUsersController(IApplicationRepository applications, IAppUserRepository users, AuditLogger audit)
+    public AppUsersController(
+        IApplicationRepository applications,
+        IAppUserRepository users,
+        AuditLogger audit,
+        ApplicationAccessService access)
     {
         _applications = applications;
         _users = users;
         _audit = audit;
+        _access = access;
     }
 
     [HttpPost]
@@ -31,6 +36,13 @@ public class AppUsersController : ControllerBase
         if (await _applications.GetByIdAsync(appId) is null)
         {
             return NotFound(new { message = $"Application {appId} not found." });
+        }
+
+        var platformUserId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        var isSuperAdmin = User.FindFirstValue("IsAdmin") == "true";
+        if (!await _access.CanManageApplicationAsync(isSuperAdmin, platformUserId, appId))
+        {
+            return Forbid();
         }
 
         try
@@ -42,7 +54,6 @@ public class AppUsersController : ControllerBase
                 DisplayName = request.DisplayName
             });
 
-            var platformUserId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
             await _audit.RecordAsync(platformUserId, "AppUser", user.Id.ToString(), "Create", $"Created user '{user.DisplayName}' (external id '{user.ExternalUserId}') in application {appId}");
 
             return CreatedAtAction(nameof(GetById), new { appId, id = user.Id }, ToResponse(user));
@@ -74,9 +85,15 @@ public class AppUsersController : ControllerBase
         var existing = await _users.GetByIdAsync(id);
         if (existing is null || existing.ApplicationId != appId) return NotFound();
 
+        var platformUserId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        var isSuperAdmin = User.FindFirstValue("IsAdmin") == "true";
+        if (!await _access.CanManageApplicationAsync(isSuperAdmin, platformUserId, appId))
+        {
+            return Forbid();
+        }
+
         var user = await _users.RenameAsync(id, request.DisplayName);
 
-        var platformUserId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
         await _audit.RecordAsync(platformUserId, "AppUser", id.ToString(), "Update", $"Renamed user {id} to '{request.DisplayName}' in application {appId}");
 
         return ToResponse(user);
@@ -88,9 +105,15 @@ public class AppUsersController : ControllerBase
         var existing = await _users.GetByIdAsync(id);
         if (existing is null || existing.ApplicationId != appId) return NotFound();
 
+        var platformUserId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        var isSuperAdmin = User.FindFirstValue("IsAdmin") == "true";
+        if (!await _access.CanManageApplicationAsync(isSuperAdmin, platformUserId, appId))
+        {
+            return Forbid();
+        }
+
         await _users.DeactivateAsync(id);
 
-        var platformUserId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
         await _audit.RecordAsync(platformUserId, "AppUser", id.ToString(), "Deactivate", $"Deactivated user {id} in application {appId}");
 
         return NoContent();

@@ -11,18 +11,23 @@ namespace LogsPlatform.Web.Controllers;
 
 [ApiController]
 [Route("api/v1/admin/applications/{appId:int}/customers")]
-[Authorize(Policy = "RequireAdmin")]
 public class CustomersController : ControllerBase
 {
     private readonly IApplicationRepository _applications;
     private readonly ICustomerRepository _customers;
     private readonly AuditLogger _audit;
+    private readonly ApplicationAccessService _access;
 
-    public CustomersController(IApplicationRepository applications, ICustomerRepository customers, AuditLogger audit)
+    public CustomersController(
+        IApplicationRepository applications,
+        ICustomerRepository customers,
+        AuditLogger audit,
+        ApplicationAccessService access)
     {
         _applications = applications;
         _customers = customers;
         _audit = audit;
+        _access = access;
     }
 
     [HttpPost]
@@ -31,6 +36,13 @@ public class CustomersController : ControllerBase
         if (await _applications.GetByIdAsync(appId) is null)
         {
             return NotFound(new { message = $"Application {appId} not found." });
+        }
+
+        var platformUserId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        var isSuperAdmin = User.FindFirstValue("IsAdmin") == "true";
+        if (!await _access.CanManageApplicationAsync(isSuperAdmin, platformUserId, appId))
+        {
+            return Forbid();
         }
 
         try
@@ -42,7 +54,6 @@ public class CustomersController : ControllerBase
                 Name = request.Name
             });
 
-            var platformUserId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
             await _audit.RecordAsync(platformUserId, "Customer", customer.Id.ToString(), "Create", $"Created customer '{customer.Name}' (external id '{customer.ExternalCustomerId}') in application {appId}");
 
             return CreatedAtAction(nameof(GetById), new { appId, id = customer.Id }, ToResponse(customer));
@@ -74,9 +85,15 @@ public class CustomersController : ControllerBase
         var existing = await _customers.GetByIdAsync(id);
         if (existing is null || existing.ApplicationId != appId) return NotFound();
 
+        var platformUserId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        var isSuperAdmin = User.FindFirstValue("IsAdmin") == "true";
+        if (!await _access.CanManageApplicationAsync(isSuperAdmin, platformUserId, appId))
+        {
+            return Forbid();
+        }
+
         var customer = await _customers.RenameAsync(id, request.Name);
 
-        var platformUserId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
         await _audit.RecordAsync(platformUserId, "Customer", id.ToString(), "Update", $"Renamed customer {id} to '{request.Name}' in application {appId}");
 
         return ToResponse(customer);
@@ -88,9 +105,15 @@ public class CustomersController : ControllerBase
         var existing = await _customers.GetByIdAsync(id);
         if (existing is null || existing.ApplicationId != appId) return NotFound();
 
+        var platformUserId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        var isSuperAdmin = User.FindFirstValue("IsAdmin") == "true";
+        if (!await _access.CanManageApplicationAsync(isSuperAdmin, platformUserId, appId))
+        {
+            return Forbid();
+        }
+
         await _customers.DeactivateAsync(id);
 
-        var platformUserId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
         await _audit.RecordAsync(platformUserId, "Customer", id.ToString(), "Deactivate", $"Deactivated customer {id} in application {appId}");
 
         return NoContent();
