@@ -1,6 +1,5 @@
 @* src/LogsPlatform.Web/Components/Pages/ScreenServicesAdmin.razor *@
 @page "/admin/applications/{AppId:int}/modules/{ModuleId:int}/screen-services"
-@attribute [Microsoft.AspNetCore.Authorization.Authorize(Policy = "RequireAdmin")]
 @using LogsPlatform.Domain.Entities
 @using LogsPlatform.Domain.Repositories
 @using LogsPlatform.Web
@@ -11,6 +10,7 @@
 @inject IScreenServiceRepository ScreenServiceRepository
 @inject BreadcrumbBuilder BreadcrumbBuilder
 @inject AuditLogger Audit
+@inject ApplicationAccessService Access
 @rendermode InteractiveServer
 
 <nav aria-label="breadcrumb">
@@ -133,16 +133,17 @@
     private EditScreenServiceModel? _editModel;
     private string? _editError;
 
-    [CascadingParameter] private Task<AuthenticationState>? AuthenticationStateTask { get; set; }
+    private bool _isSuperAdmin;
+    private int _currentPlatformUserId;
 
-    private async Task<int> CurrentPlatformUserIdAsync()
-    {
-        var authState = await AuthenticationStateTask!;
-        return int.Parse(authState.User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-    }
+    [CascadingParameter] private Task<AuthenticationState>? AuthenticationStateTask { get; set; }
 
     protected override async Task OnInitializedAsync()
     {
+        var authState = await AuthenticationStateTask!;
+        _isSuperAdmin = authState.User.FindFirstValue("IsAdmin") == "true";
+        _currentPlatformUserId = int.Parse(authState.User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+
         _breadcrumb = await BreadcrumbBuilder.BuildAsync(AppId, ModuleId);
         _screenServices = (await ScreenServiceRepository.GetByModuleIdAsync(ModuleId)).ToList();
     }
@@ -150,6 +151,12 @@
     private async Task CreateScreenServiceAsync()
     {
         _createError = null;
+        if (!await Access.CanManageApplicationAsync(_isSuperAdmin, _currentPlatformUserId, AppId))
+        {
+            _createError = "אין לך הרשאת ניהול לאפליקציה זו.";
+            return;
+        }
+
         try
         {
             var screenService = await ScreenServiceRepository.AddAsync(new ScreenService
@@ -160,8 +167,7 @@
                 Description = _newScreenService.Description
             });
 
-            var platformUserId = await CurrentPlatformUserIdAsync();
-            await Audit.RecordAsync(platformUserId, "ScreenService", screenService.Id.ToString(), "Create", $"Created screen/service '{screenService.Name}' in module {ModuleId}");
+            await Audit.RecordAsync(_currentPlatformUserId, "ScreenService", screenService.Id.ToString(), "Create", $"Created screen/service '{screenService.Name}' in module {ModuleId}");
 
             _newScreenService.Name = string.Empty;
             _newScreenService.Type = ScreenServiceType.Screen;
@@ -198,12 +204,17 @@
     private async Task SaveRenameAsync(int screenServiceId)
     {
         _editError = null;
+        if (!await Access.CanManageApplicationAsync(_isSuperAdmin, _currentPlatformUserId, AppId))
+        {
+            _editError = "אין לך הרשאת ניהול לאפליקציה זו.";
+            return;
+        }
+
         try
         {
             await ScreenServiceRepository.RenameAsync(screenServiceId, _editModel!.Name, _editModel!.Description);
 
-            var platformUserId = await CurrentPlatformUserIdAsync();
-            await Audit.RecordAsync(platformUserId, "ScreenService", screenServiceId.ToString(), "Update", $"Renamed screen/service {screenServiceId} to '{_editModel!.Name}' in module {ModuleId}");
+            await Audit.RecordAsync(_currentPlatformUserId, "ScreenService", screenServiceId.ToString(), "Update", $"Renamed screen/service {screenServiceId} to '{_editModel!.Name}' in module {ModuleId}");
 
             _editingId = null;
             _editModel = null;
@@ -217,10 +228,16 @@
 
     private async Task DeactivateAsync(int screenServiceId)
     {
+        _editError = null;
+        if (!await Access.CanManageApplicationAsync(_isSuperAdmin, _currentPlatformUserId, AppId))
+        {
+            _editError = "אין לך הרשאת ניהול לאפליקציה זו.";
+            return;
+        }
+
         await ScreenServiceRepository.DeactivateAsync(screenServiceId);
 
-        var platformUserId = await CurrentPlatformUserIdAsync();
-        await Audit.RecordAsync(platformUserId, "ScreenService", screenServiceId.ToString(), "Deactivate", $"Deactivated screen/service {screenServiceId} in module {ModuleId}");
+        await Audit.RecordAsync(_currentPlatformUserId, "ScreenService", screenServiceId.ToString(), "Deactivate", $"Deactivated screen/service {screenServiceId} in module {ModuleId}");
 
         _screenServices = (await ScreenServiceRepository.GetByModuleIdAsync(ModuleId)).ToList();
     }

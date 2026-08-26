@@ -1,6 +1,5 @@
 @* src/LogsPlatform.Web/Components/Pages/ModulesAdmin.razor *@
 @page "/admin/applications/{AppId:int}/modules"
-@attribute [Microsoft.AspNetCore.Authorization.Authorize(Policy = "RequireAdmin")]
 @using LogsPlatform.Domain.Entities
 @using LogsPlatform.Domain.Repositories
 @using LogsPlatform.Web
@@ -11,6 +10,7 @@
 @inject IAppModuleRepository ModuleRepository
 @inject BreadcrumbBuilder BreadcrumbBuilder
 @inject AuditLogger Audit
+@inject ApplicationAccessService Access
 @rendermode InteractiveServer
 
 <nav aria-label="breadcrumb">
@@ -121,16 +121,17 @@
     private EditModuleModel? _editModel;
     private string? _editError;
 
-    [CascadingParameter] private Task<AuthenticationState>? AuthenticationStateTask { get; set; }
+    private bool _isSuperAdmin;
+    private int _currentPlatformUserId;
 
-    private async Task<int> CurrentPlatformUserIdAsync()
-    {
-        var authState = await AuthenticationStateTask!;
-        return int.Parse(authState.User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-    }
+    [CascadingParameter] private Task<AuthenticationState>? AuthenticationStateTask { get; set; }
 
     protected override async Task OnInitializedAsync()
     {
+        var authState = await AuthenticationStateTask!;
+        _isSuperAdmin = authState.User.FindFirstValue("IsAdmin") == "true";
+        _currentPlatformUserId = int.Parse(authState.User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+
         _breadcrumb = await BreadcrumbBuilder.BuildAsync(AppId);
         _modules = (await ModuleRepository.GetByApplicationIdAsync(AppId)).ToList();
     }
@@ -138,6 +139,12 @@
     private async Task CreateModuleAsync()
     {
         _createError = null;
+        if (!await Access.CanManageApplicationAsync(_isSuperAdmin, _currentPlatformUserId, AppId))
+        {
+            _createError = "אין לך הרשאת ניהול לאפליקציה זו.";
+            return;
+        }
+
         try
         {
             var module = await ModuleRepository.AddAsync(new AppModule
@@ -147,8 +154,7 @@
                 Description = _newModule.Description
             });
 
-            var platformUserId = await CurrentPlatformUserIdAsync();
-            await Audit.RecordAsync(platformUserId, "AppModule", module.Id.ToString(), "Create", $"Created module '{module.Name}' in application {AppId}");
+            await Audit.RecordAsync(_currentPlatformUserId, "AppModule", module.Id.ToString(), "Create", $"Created module '{module.Name}' in application {AppId}");
 
             _newModule.Name = string.Empty;
             _newModule.Description = null;
@@ -177,12 +183,17 @@
     private async Task SaveRenameAsync(int moduleId)
     {
         _editError = null;
+        if (!await Access.CanManageApplicationAsync(_isSuperAdmin, _currentPlatformUserId, AppId))
+        {
+            _editError = "אין לך הרשאת ניהול לאפליקציה זו.";
+            return;
+        }
+
         try
         {
             await ModuleRepository.RenameAsync(moduleId, _editModel!.Name, _editModel!.Description);
 
-            var platformUserId = await CurrentPlatformUserIdAsync();
-            await Audit.RecordAsync(platformUserId, "AppModule", moduleId.ToString(), "Update", $"Renamed module {moduleId} to '{_editModel!.Name}' in application {AppId}");
+            await Audit.RecordAsync(_currentPlatformUserId, "AppModule", moduleId.ToString(), "Update", $"Renamed module {moduleId} to '{_editModel!.Name}' in application {AppId}");
 
             _editingId = null;
             _editModel = null;
@@ -196,10 +207,16 @@
 
     private async Task DeactivateAsync(int moduleId)
     {
+        _editError = null;
+        if (!await Access.CanManageApplicationAsync(_isSuperAdmin, _currentPlatformUserId, AppId))
+        {
+            _editError = "אין לך הרשאת ניהול לאפליקציה זו.";
+            return;
+        }
+
         await ModuleRepository.DeactivateAsync(moduleId);
 
-        var platformUserId = await CurrentPlatformUserIdAsync();
-        await Audit.RecordAsync(platformUserId, "AppModule", moduleId.ToString(), "Deactivate", $"Deactivated module {moduleId} in application {AppId}");
+        await Audit.RecordAsync(_currentPlatformUserId, "AppModule", moduleId.ToString(), "Deactivate", $"Deactivated module {moduleId} in application {AppId}");
 
         _modules = (await ModuleRepository.GetByApplicationIdAsync(AppId)).ToList();
     }

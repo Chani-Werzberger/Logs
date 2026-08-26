@@ -1,6 +1,5 @@
 @* src/LogsPlatform.Web/Components/Pages/OperationsAdmin.razor *@
 @page "/admin/applications/{AppId:int}/modules/{ModuleId:int}/screen-services/{ScreenServiceId:int}/processes/{ProcessId:int}/operations"
-@attribute [Microsoft.AspNetCore.Authorization.Authorize(Policy = "RequireAdmin")]
 @using LogsPlatform.Domain.Entities
 @using LogsPlatform.Domain.Repositories
 @using LogsPlatform.Web
@@ -11,6 +10,7 @@
 @inject IOperationRepository OperationRepository
 @inject BreadcrumbBuilder BreadcrumbBuilder
 @inject AuditLogger Audit
+@inject ApplicationAccessService Access
 @rendermode InteractiveServer
 
 <nav aria-label="breadcrumb">
@@ -124,16 +124,17 @@
     private EditOperationModel? _editModel;
     private string? _editError;
 
-    [CascadingParameter] private Task<AuthenticationState>? AuthenticationStateTask { get; set; }
+    private bool _isSuperAdmin;
+    private int _currentPlatformUserId;
 
-    private async Task<int> CurrentPlatformUserIdAsync()
-    {
-        var authState = await AuthenticationStateTask!;
-        return int.Parse(authState.User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-    }
+    [CascadingParameter] private Task<AuthenticationState>? AuthenticationStateTask { get; set; }
 
     protected override async Task OnInitializedAsync()
     {
+        var authState = await AuthenticationStateTask!;
+        _isSuperAdmin = authState.User.FindFirstValue("IsAdmin") == "true";
+        _currentPlatformUserId = int.Parse(authState.User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+
         _breadcrumb = await BreadcrumbBuilder.BuildAsync(AppId, ModuleId, ScreenServiceId, ProcessId);
         _operations = (await OperationRepository.GetByProcessIdAsync(ProcessId)).ToList();
     }
@@ -141,6 +142,12 @@
     private async Task CreateOperationAsync()
     {
         _createError = null;
+        if (!await Access.CanManageApplicationAsync(_isSuperAdmin, _currentPlatformUserId, AppId))
+        {
+            _createError = "אין לך הרשאת ניהול לאפליקציה זו.";
+            return;
+        }
+
         try
         {
             var operation = await OperationRepository.AddAsync(new Operation
@@ -150,8 +157,7 @@
                 Description = _newOperation.Description
             });
 
-            var platformUserId = await CurrentPlatformUserIdAsync();
-            await Audit.RecordAsync(platformUserId, "Operation", operation.Id.ToString(), "Create", $"Created operation '{operation.Name}' in process {ProcessId}");
+            await Audit.RecordAsync(_currentPlatformUserId, "Operation", operation.Id.ToString(), "Create", $"Created operation '{operation.Name}' in process {ProcessId}");
 
             _newOperation.Name = string.Empty;
             _newOperation.Description = null;
@@ -180,12 +186,17 @@
     private async Task SaveRenameAsync(int operationId)
     {
         _editError = null;
+        if (!await Access.CanManageApplicationAsync(_isSuperAdmin, _currentPlatformUserId, AppId))
+        {
+            _editError = "אין לך הרשאת ניהול לאפליקציה זו.";
+            return;
+        }
+
         try
         {
             await OperationRepository.RenameAsync(operationId, _editModel!.Name, _editModel!.Description);
 
-            var platformUserId = await CurrentPlatformUserIdAsync();
-            await Audit.RecordAsync(platformUserId, "Operation", operationId.ToString(), "Update", $"Renamed operation {operationId} to '{_editModel!.Name}' in process {ProcessId}");
+            await Audit.RecordAsync(_currentPlatformUserId, "Operation", operationId.ToString(), "Update", $"Renamed operation {operationId} to '{_editModel!.Name}' in process {ProcessId}");
 
             _editingId = null;
             _editModel = null;
@@ -199,10 +210,16 @@
 
     private async Task DeactivateAsync(int operationId)
     {
+        _editError = null;
+        if (!await Access.CanManageApplicationAsync(_isSuperAdmin, _currentPlatformUserId, AppId))
+        {
+            _editError = "אין לך הרשאת ניהול לאפליקציה זו.";
+            return;
+        }
+
         await OperationRepository.DeactivateAsync(operationId);
 
-        var platformUserId = await CurrentPlatformUserIdAsync();
-        await Audit.RecordAsync(platformUserId, "Operation", operationId.ToString(), "Deactivate", $"Deactivated operation {operationId} in process {ProcessId}");
+        await Audit.RecordAsync(_currentPlatformUserId, "Operation", operationId.ToString(), "Deactivate", $"Deactivated operation {operationId} in process {ProcessId}");
 
         _operations = (await OperationRepository.GetByProcessIdAsync(ProcessId)).ToList();
     }

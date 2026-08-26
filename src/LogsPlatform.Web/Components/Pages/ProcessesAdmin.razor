@@ -1,6 +1,5 @@
 @* src/LogsPlatform.Web/Components/Pages/ProcessesAdmin.razor *@
 @page "/admin/applications/{AppId:int}/modules/{ModuleId:int}/screen-services/{ScreenServiceId:int}/processes"
-@attribute [Microsoft.AspNetCore.Authorization.Authorize(Policy = "RequireAdmin")]
 @using LogsPlatform.Domain.Entities
 @using LogsPlatform.Domain.Repositories
 @using LogsPlatform.Web
@@ -11,6 +10,7 @@
 @inject IProcessNodeRepository ProcessRepository
 @inject BreadcrumbBuilder BreadcrumbBuilder
 @inject AuditLogger Audit
+@inject ApplicationAccessService Access
 @rendermode InteractiveServer
 
 <nav aria-label="breadcrumb">
@@ -125,16 +125,17 @@
     private EditProcessModel? _editModel;
     private string? _editError;
 
-    [CascadingParameter] private Task<AuthenticationState>? AuthenticationStateTask { get; set; }
+    private bool _isSuperAdmin;
+    private int _currentPlatformUserId;
 
-    private async Task<int> CurrentPlatformUserIdAsync()
-    {
-        var authState = await AuthenticationStateTask!;
-        return int.Parse(authState.User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-    }
+    [CascadingParameter] private Task<AuthenticationState>? AuthenticationStateTask { get; set; }
 
     protected override async Task OnInitializedAsync()
     {
+        var authState = await AuthenticationStateTask!;
+        _isSuperAdmin = authState.User.FindFirstValue("IsAdmin") == "true";
+        _currentPlatformUserId = int.Parse(authState.User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+
         _breadcrumb = await BreadcrumbBuilder.BuildAsync(AppId, ModuleId, ScreenServiceId);
         _processes = (await ProcessRepository.GetByScreenServiceIdAsync(ScreenServiceId)).ToList();
     }
@@ -142,6 +143,12 @@
     private async Task CreateProcessAsync()
     {
         _createError = null;
+        if (!await Access.CanManageApplicationAsync(_isSuperAdmin, _currentPlatformUserId, AppId))
+        {
+            _createError = "אין לך הרשאת ניהול לאפליקציה זו.";
+            return;
+        }
+
         try
         {
             var process = await ProcessRepository.AddAsync(new ProcessNode
@@ -151,8 +158,7 @@
                 Description = _newProcess.Description
             });
 
-            var platformUserId = await CurrentPlatformUserIdAsync();
-            await Audit.RecordAsync(platformUserId, "ProcessNode", process.Id.ToString(), "Create", $"Created process '{process.Name}' in screen/service {ScreenServiceId}");
+            await Audit.RecordAsync(_currentPlatformUserId, "ProcessNode", process.Id.ToString(), "Create", $"Created process '{process.Name}' in screen/service {ScreenServiceId}");
 
             _newProcess.Name = string.Empty;
             _newProcess.Description = null;
@@ -181,12 +187,17 @@
     private async Task SaveRenameAsync(int processId)
     {
         _editError = null;
+        if (!await Access.CanManageApplicationAsync(_isSuperAdmin, _currentPlatformUserId, AppId))
+        {
+            _editError = "אין לך הרשאת ניהול לאפליקציה זו.";
+            return;
+        }
+
         try
         {
             await ProcessRepository.RenameAsync(processId, _editModel!.Name, _editModel!.Description);
 
-            var platformUserId = await CurrentPlatformUserIdAsync();
-            await Audit.RecordAsync(platformUserId, "ProcessNode", processId.ToString(), "Update", $"Renamed process {processId} to '{_editModel!.Name}' in screen/service {ScreenServiceId}");
+            await Audit.RecordAsync(_currentPlatformUserId, "ProcessNode", processId.ToString(), "Update", $"Renamed process {processId} to '{_editModel!.Name}' in screen/service {ScreenServiceId}");
 
             _editingId = null;
             _editModel = null;
@@ -200,10 +211,16 @@
 
     private async Task DeactivateAsync(int processId)
     {
+        _editError = null;
+        if (!await Access.CanManageApplicationAsync(_isSuperAdmin, _currentPlatformUserId, AppId))
+        {
+            _editError = "אין לך הרשאת ניהול לאפליקציה זו.";
+            return;
+        }
+
         await ProcessRepository.DeactivateAsync(processId);
 
-        var platformUserId = await CurrentPlatformUserIdAsync();
-        await Audit.RecordAsync(platformUserId, "ProcessNode", processId.ToString(), "Deactivate", $"Deactivated process {processId} in screen/service {ScreenServiceId}");
+        await Audit.RecordAsync(_currentPlatformUserId, "ProcessNode", processId.ToString(), "Deactivate", $"Deactivated process {processId} in screen/service {ScreenServiceId}");
 
         _processes = (await ProcessRepository.GetByScreenServiceIdAsync(ScreenServiceId)).ToList();
     }
