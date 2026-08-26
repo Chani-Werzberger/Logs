@@ -192,4 +192,107 @@ public class FindingRepositoryTests
 
         Assert.Null(promoted);
     }
+
+    [Fact]
+    public async Task GetOtherOpenFindingsForApplicationAsync_OtherOpenFindingExists_ReturnsIt()
+    {
+        using var context = TestDatabase.CreateContext();
+        var (appId, envId) = await SeedAppEnvAsync(context, "FindingRepoConcurrentTestApp");
+        var repository = new FindingRepository(context);
+
+        var thisFinding = await repository.AddAsync(new Finding
+        {
+            ApplicationId = appId, EnvironmentId = envId, Type = FindingType.ErrorSpike,
+            ScopeType = AnalysisScopeType.Operation, ScopeId = 1, Title = "this one",
+            DetectedAt = DateTime.UtcNow, Severity = FindingSeverity.High, ConfidenceLevel = ConfidenceLevel.High, Status = FindingStatus.New
+        });
+        var otherFinding = await repository.AddAsync(new Finding
+        {
+            ApplicationId = appId, EnvironmentId = envId, Type = FindingType.PerformanceDegradation,
+            ScopeType = AnalysisScopeType.Operation, ScopeId = 2, Title = "other one",
+            DetectedAt = DateTime.UtcNow, Severity = FindingSeverity.Medium, ConfidenceLevel = ConfidenceLevel.Medium, Status = FindingStatus.Acknowledged
+        });
+
+        var others = await repository.GetOtherOpenFindingsForApplicationAsync(appId, thisFinding.Id);
+
+        Assert.Single(others);
+        Assert.Equal(otherFinding.Id, others[0].Id);
+    }
+
+    [Fact]
+    public async Task GetOtherOpenFindingsForApplicationAsync_OnlyResolvedFindingsExist_ReturnsEmpty()
+    {
+        using var context = TestDatabase.CreateContext();
+        var (appId, envId) = await SeedAppEnvAsync(context, "FindingRepoConcurrentResolvedTestApp");
+        var repository = new FindingRepository(context);
+
+        var thisFinding = await repository.AddAsync(new Finding
+        {
+            ApplicationId = appId, EnvironmentId = envId, Type = FindingType.ErrorSpike,
+            ScopeType = AnalysisScopeType.Operation, ScopeId = 1, Title = "this one",
+            DetectedAt = DateTime.UtcNow, Severity = FindingSeverity.High, ConfidenceLevel = ConfidenceLevel.High, Status = FindingStatus.New
+        });
+        await repository.AddAsync(new Finding
+        {
+            ApplicationId = appId, EnvironmentId = envId, Type = FindingType.PerformanceDegradation,
+            ScopeType = AnalysisScopeType.Operation, ScopeId = 2, Title = "resolved one",
+            DetectedAt = DateTime.UtcNow, Severity = FindingSeverity.Medium, ConfidenceLevel = ConfidenceLevel.Medium, Status = FindingStatus.Resolved
+        });
+
+        var others = await repository.GetOtherOpenFindingsForApplicationAsync(appId, thisFinding.Id);
+
+        Assert.Empty(others);
+    }
+
+    [Fact]
+    public async Task FindMostRecentClosedAsync_MatchingResolvedFindingExists_ReturnsIt()
+    {
+        using var context = TestDatabase.CreateContext();
+        var (appId, envId) = await SeedAppEnvAsync(context, "FindingRepoRecurrenceTestApp");
+        var repository = new FindingRepository(context);
+
+        var older = await repository.AddAsync(new Finding
+        {
+            ApplicationId = appId, EnvironmentId = envId, Type = FindingType.ErrorSpike,
+            ScopeType = AnalysisScopeType.Operation, ScopeId = 1, Title = "older resolved",
+            DetectedAt = DateTime.UtcNow.AddDays(-2), Severity = FindingSeverity.High, ConfidenceLevel = ConfidenceLevel.High, Status = FindingStatus.Resolved
+        });
+        var newer = await repository.AddAsync(new Finding
+        {
+            ApplicationId = appId, EnvironmentId = envId, Type = FindingType.ErrorSpike,
+            ScopeType = AnalysisScopeType.Operation, ScopeId = 1, Title = "newer resolved",
+            DetectedAt = DateTime.UtcNow.AddDays(-1), Severity = FindingSeverity.High, ConfidenceLevel = ConfidenceLevel.High, Status = FindingStatus.Dismissed
+        });
+        var current = await repository.AddAsync(new Finding
+        {
+            ApplicationId = appId, EnvironmentId = envId, Type = FindingType.ErrorSpike,
+            ScopeType = AnalysisScopeType.Operation, ScopeId = 1, Title = "current",
+            DetectedAt = DateTime.UtcNow, Severity = FindingSeverity.High, ConfidenceLevel = ConfidenceLevel.High, Status = FindingStatus.New
+        });
+
+        var found = await repository.FindMostRecentClosedAsync(appId, envId, AnalysisScopeType.Operation, 1, FindingType.ErrorSpike, current.Id);
+
+        Assert.NotNull(found);
+        Assert.Equal(newer.Id, found!.Id);
+        _ = older; // only used to prove "most recent" ordering, not the older one
+    }
+
+    [Fact]
+    public async Task FindMostRecentClosedAsync_NoClosedMatch_ReturnsNull()
+    {
+        using var context = TestDatabase.CreateContext();
+        var (appId, envId) = await SeedAppEnvAsync(context, "FindingRepoRecurrenceNoneTestApp");
+        var repository = new FindingRepository(context);
+
+        var current = await repository.AddAsync(new Finding
+        {
+            ApplicationId = appId, EnvironmentId = envId, Type = FindingType.ErrorSpike,
+            ScopeType = AnalysisScopeType.Operation, ScopeId = 1, Title = "current",
+            DetectedAt = DateTime.UtcNow, Severity = FindingSeverity.High, ConfidenceLevel = ConfidenceLevel.High, Status = FindingStatus.New
+        });
+
+        var found = await repository.FindMostRecentClosedAsync(appId, envId, AnalysisScopeType.Operation, 1, FindingType.ErrorSpike, current.Id);
+
+        Assert.Null(found);
+    }
 }

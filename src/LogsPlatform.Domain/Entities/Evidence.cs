@@ -1,6 +1,6 @@
 namespace LogsPlatform.Domain.Entities;
 
-public enum EvidenceType { Event, ExceptionGroup, Deployment, Baseline, Operation }
+public enum EvidenceType { Event, ExceptionGroup, Deployment, Baseline, Operation, Finding }
 
 public class Evidence
 {

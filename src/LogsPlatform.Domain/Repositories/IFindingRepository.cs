@@ -13,6 +13,8 @@ public interface IFindingRepository
     Task<IReadOnlyList<Finding>> QueryAsync(FindingQueryParameters parameters);
     Task<Finding?> UpdateStatusAsync(long findingId, FindingStatus status);
     Task<FindingStatement?> PromoteToConclusionAsync(long findingId, long statementId, string approvedBy);
+    Task<IReadOnlyList<Finding>> GetOtherOpenFindingsForApplicationAsync(int applicationId, long excludeFindingId);
+    Task<Finding?> FindMostRecentClosedAsync(int applicationId, int environmentId, AnalysisScopeType scopeType, long scopeId, FindingType type, long excludeFindingId);
 }
 
 public record FindingWithDetails(Finding Finding, IReadOnlyList<FindingStatement> Statements, IReadOnlyList<Evidence> Evidence)

@@ -118,4 +118,18 @@ public class FindingRepository : IFindingRepository
         await _context.SaveChangesAsync();
         return statement;
     }
+
+    public async Task<IReadOnlyList<Finding>> GetOtherOpenFindingsForApplicationAsync(int applicationId, long excludeFindingId) =>
+        await _context.Findings.AsNoTracking()
+            .Where(f => f.ApplicationId == applicationId && f.Id != excludeFindingId &&
+                (f.Status == FindingStatus.New || f.Status == FindingStatus.Acknowledged))
+            .ToListAsync();
+
+    public async Task<Finding?> FindMostRecentClosedAsync(int applicationId, int environmentId, AnalysisScopeType scopeType, long scopeId, FindingType type, long excludeFindingId) =>
+        await _context.Findings.AsNoTracking()
+            .Where(f => f.ApplicationId == applicationId && f.EnvironmentId == environmentId &&
+                f.ScopeType == scopeType && f.ScopeId == scopeId && f.Type == type && f.Id != excludeFindingId &&
+                (f.Status == FindingStatus.Resolved || f.Status == FindingStatus.Dismissed))
+            .OrderByDescending(f => f.DetectedAt)
+            .FirstOrDefaultAsync();
 }
