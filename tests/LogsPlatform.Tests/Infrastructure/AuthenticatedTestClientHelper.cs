@@ -43,4 +43,36 @@ public static class AuthenticatedTestClientHelper
 
         return client;
     }
+
+    private const string TestNonAdminPassword = "Test-Password-123!";
+
+    public static async Task<(HttpClient Client, int PlatformUserId)> CreateNonAdminAuthenticatedClientAsync<TEntryPoint>(
+        WebApplicationFactory<TEntryPoint> factory, string username) where TEntryPoint : class
+    {
+        int platformUserId;
+        using (var scope = factory.Services.CreateScope())
+        {
+            var context = scope.ServiceProvider.GetRequiredService<LogsPlatformDbContext>();
+            var user = new PlatformUser
+            {
+                Username = username,
+                PasswordHash = PasswordHasher.Hash(TestNonAdminPassword),
+                IsAdmin = false,
+                CreatedAt = DateTime.UtcNow
+            };
+            context.PlatformUsers.Add(user);
+            await context.SaveChangesAsync();
+            platformUserId = user.Id;
+        }
+
+        var client = factory.CreateClient();
+        var loginResponse = await client.PostAsJsonAsync("/api/v1/auth/login", new LoginRequest(username, TestNonAdminPassword));
+        if (loginResponse.StatusCode != System.Net.HttpStatusCode.NoContent)
+        {
+            throw new InvalidOperationException(
+                $"AuthenticatedTestClientHelper: non-admin test login failed with {loginResponse.StatusCode} for user '{username}'.");
+        }
+
+        return (client, platformUserId);
+    }
 }

@@ -76,6 +76,8 @@ builder.Services.AddScoped<ILogSourceRepository, LogSourceRepository>();
 builder.Services.AddScoped<IApiKeyRepository, ApiKeyRepository>();
 builder.Services.AddScoped<IAuditLogRepository, AuditLogRepository>();
 builder.Services.AddScoped<AuditLogger>();
+builder.Services.AddScoped<IApplicationAccessGrantRepository, ApplicationAccessGrantRepository>();
+builder.Services.AddScoped<ApplicationAccessService>();
 builder.Services.AddScoped<IAppVersionRepository, AppVersionRepository>();
 builder.Services.AddScoped<IDeploymentRepository, DeploymentRepository>();
 builder.Services.AddScoped<IEventRepository, EventRepository>();

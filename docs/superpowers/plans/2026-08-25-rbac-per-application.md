@@ -355,6 +355,7 @@ public class ApplicationAccessGrantRepositoryTests
 using LogsPlatform.Domain.Entities;
 using LogsPlatform.Infrastructure;
 using LogsPlatform.Infrastructure.Repositories;
+using LogsPlatform.Tests.Infrastructure;
 using LogsPlatform.Web.Services;
 using Xunit;
 

@@ -29,6 +29,7 @@ public class LogsPlatformDbContext : DbContext
     public DbSet<Evidence> Evidence => Set<Evidence>();
     public DbSet<PlatformUser> PlatformUsers => Set<PlatformUser>();
     public DbSet<AdminAuditLogEntry> AdminAuditLogEntries => Set<AdminAuditLogEntry>();
+    public DbSet<PlatformUserApplicationGrant> PlatformUserApplicationGrants => Set<PlatformUserApplicationGrant>();
 
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
     {
@@ -250,6 +251,19 @@ public class LogsPlatformDbContext : DbContext
             entity.HasOne(e => e.PlatformUser).WithMany().HasForeignKey(e => e.PlatformUserId).OnDelete(DeleteBehavior.Restrict);
             entity.HasIndex(e => e.Timestamp);
             entity.HasIndex(e => new { e.EntityType, e.EntityId });
+        });
+
+        modelBuilder.Entity<PlatformUserApplicationGrant>(entity =>
+        {
+            entity.HasOne(g => g.PlatformUser)
+                .WithMany()
+                .HasForeignKey(g => g.PlatformUserId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(g => g.Application)
+                .WithMany()
+                .HasForeignKey(g => g.ApplicationId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasIndex(g => new { g.PlatformUserId, g.ApplicationId }).IsUnique();
         });
     }
 }
