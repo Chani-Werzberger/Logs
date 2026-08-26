@@ -93,6 +93,8 @@ builder.Services.AddScoped<LogsPlatform.Web.Services.Analysis.RateAnomalyDetecto
 builder.Services.AddScoped<LogsPlatform.Web.Services.Analysis.NewExceptionDetector>();
 builder.Services.AddScoped<LogsPlatform.Web.Services.Analysis.CustomerOutlierDetector>();
 builder.Services.AddScoped<LogsPlatform.Web.Services.Analysis.DeploymentCorrelator>();
+builder.Services.AddScoped<LogsPlatform.Web.Services.Analysis.ConcurrentFindingCorrelator>();
+builder.Services.AddScoped<LogsPlatform.Web.Services.Analysis.RecurrenceCorrelator>();
 builder.Services.AddScoped<LogsPlatform.Web.Services.Analysis.DownstreamFailureCorrelator>();
 builder.Services.AddScoped<LogsPlatform.Web.Services.Analysis.UpstreamCauseCorrelator>();
 builder.Services.AddScoped<LogsPlatform.Web.Services.Analysis.AnalysisEngineTickRunner>();

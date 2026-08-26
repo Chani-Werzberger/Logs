@@ -37,10 +37,13 @@ public class AnalysisEngineTickRunnerTests
         var newExceptionDetector = new NewExceptionDetector(context, writer, downstreamFailureCorrelator, upstreamCauseCorrelator);
         var customerOutlierDetector = new CustomerOutlierDetector(metricsRepository, writer);
         var deploymentCorrelator = new DeploymentCorrelator(findingRepository, deploymentRepository);
+        var concurrentFindingCorrelator = new ConcurrentFindingCorrelator(findingRepository);
+        var recurrenceCorrelator = new RecurrenceCorrelator(findingRepository);
 
         return new AnalysisEngineTickRunner(
             applicationRepository, environmentRepository, baselineRepository, findingRepository,
-            baselineCalculator, rateAnomalyDetector, newExceptionDetector, customerOutlierDetector, deploymentCorrelator);
+            baselineCalculator, rateAnomalyDetector, newExceptionDetector, customerOutlierDetector,
+            deploymentCorrelator, concurrentFindingCorrelator, recurrenceCorrelator);
     }
 
     [Fact]
@@ -106,5 +109,58 @@ public class AnalysisEngineTickRunnerTests
         var findingRepository = new FindingRepository(verifyContext);
         var details = await findingRepository.GetByIdAsync(finding!.Id);
         Assert.Contains(details!.Statements, s => s.Kind == FindingStatementKind.Hypothesis);
+    }
+
+    [Fact]
+    public async Task RunOneTickAsync_ErrorSpikeWithOtherOpenFinding_ConcurrentCorrelatorAttachesHypothesis()
+    {
+        using var context = TestDatabase.CreateContext();
+        var (appId, envId) = await SeedAppEnvAsync(context, "TickRunnerConcurrentTestApp");
+
+        var module = new AppModule { ApplicationId = appId, Name = "Billing" };
+        context.Modules.Add(module);
+        await context.SaveChangesAsync();
+        var screenService = new ScreenService { ModuleId = module.Id, Name = "Invoicing", Type = ScreenServiceType.Service };
+        context.ScreenServices.Add(screenService);
+        await context.SaveChangesAsync();
+        var process = new ProcessNode { ScreenServiceId = screenService.Id, Name = "ChargeCard" };
+        context.Processes.Add(process);
+        await context.SaveChangesAsync();
+        var operation = new Operation { ProcessId = process.Id, Name = "Authorize" };
+        context.Operations.Add(operation);
+        await context.SaveChangesAsync();
+
+        var currentHourStart = DateTime.UtcNow.Date.AddHours(DateTime.UtcNow.Hour);
+        context.Baselines.Add(new Baseline
+        {
+            ApplicationId = appId, EnvironmentId = envId, ScopeType = AnalysisScopeType.Operation, ScopeId = operation.Id,
+            MetricType = AnalysisMetricType.EventCount, BucketHourOfDay = (byte)currentHourStart.Hour,
+            MeanValue = 5, StdDevValue = 1, SampleCount = 20, LastUpdatedAt = DateTime.UtcNow
+        });
+        for (var i = 0; i < 40; i++)
+        {
+            context.Events.Add(new Event { ApplicationId = appId, EnvironmentId = envId, OperationId = operation.Id, Timestamp = currentHourStart.AddMinutes(i % 59), Severity = 17, Message = $"spike-{i}" });
+        }
+        await context.SaveChangesAsync();
+
+        var findingRepository = new FindingRepository(context);
+        await findingRepository.AddAsync(new Finding
+        {
+            ApplicationId = appId, EnvironmentId = envId, Type = FindingType.PerformanceDegradation,
+            ScopeType = AnalysisScopeType.Operation, ScopeId = operation.Id, Title = "already open",
+            DetectedAt = DateTime.UtcNow, Severity = FindingSeverity.Medium, ConfidenceLevel = ConfidenceLevel.Medium, Status = FindingStatus.New
+        });
+
+        var runner = BuildRunner(context);
+        await runner.RunOneTickAsync();
+
+        var options = new DbContextOptionsBuilder<LogsPlatformDbContext>().UseSqlServer(TestDatabase.ConnectionString).Options;
+        await using var verifyContext = new LogsPlatformDbContext(options);
+        var finding = await verifyContext.Findings.FirstOrDefaultAsync(f => f.ApplicationId == appId && f.Type == FindingType.ErrorSpike);
+        Assert.NotNull(finding);
+
+        var verifyRepository = new FindingRepository(verifyContext);
+        var details = await verifyRepository.GetByIdAsync(finding!.Id);
+        Assert.Contains(details!.Evidence, e => e.EvidenceType == EvidenceType.Finding);
     }
 }

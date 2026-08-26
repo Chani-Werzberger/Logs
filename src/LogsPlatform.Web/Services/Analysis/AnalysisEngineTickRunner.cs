@@ -15,6 +15,8 @@ public class AnalysisEngineTickRunner
     private readonly NewExceptionDetector _newExceptionDetector;
     private readonly CustomerOutlierDetector _customerOutlierDetector;
     private readonly DeploymentCorrelator _deploymentCorrelator;
+    private readonly ConcurrentFindingCorrelator _concurrentFindingCorrelator;
+    private readonly RecurrenceCorrelator _recurrenceCorrelator;
 
     public AnalysisEngineTickRunner(
         IApplicationRepository applications,
@@ -25,7 +27,9 @@ public class AnalysisEngineTickRunner
         RateAnomalyDetector rateAnomalyDetector,
         NewExceptionDetector newExceptionDetector,
         CustomerOutlierDetector customerOutlierDetector,
-        DeploymentCorrelator deploymentCorrelator)
+        DeploymentCorrelator deploymentCorrelator,
+        ConcurrentFindingCorrelator concurrentFindingCorrelator,
+        RecurrenceCorrelator recurrenceCorrelator)
     {
         _applications = applications;
         _environments = environments;
@@ -36,6 +40,8 @@ public class AnalysisEngineTickRunner
         _newExceptionDetector = newExceptionDetector;
         _customerOutlierDetector = customerOutlierDetector;
         _deploymentCorrelator = deploymentCorrelator;
+        _concurrentFindingCorrelator = concurrentFindingCorrelator;
+        _recurrenceCorrelator = recurrenceCorrelator;
     }
 
     public async Task RunOneTickAsync()
@@ -68,6 +74,8 @@ public class AnalysisEngineTickRunner
         foreach (var finding in newFindings)
         {
             await _deploymentCorrelator.RunAsync(finding);
+            await _concurrentFindingCorrelator.RunAsync(finding);
+            await _recurrenceCorrelator.RunAsync(finding);
         }
     }
 }
