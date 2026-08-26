@@ -47,7 +47,8 @@ public class NewExceptionDetectorTests
         var findingRepository = new FindingRepository(context);
         var writer = new FindingWriter(findingRepository);
         var downstreamCorrelator = new DownstreamFailureCorrelator(findingRepository, context);
-        var detector = new NewExceptionDetector(context, writer, downstreamCorrelator);
+        var upstreamCorrelator = new UpstreamCauseCorrelator(findingRepository, context);
+        var detector = new NewExceptionDetector(context, writer, downstreamCorrelator, upstreamCorrelator);
 
         await detector.RunAsync(appId, envId);
 
@@ -78,7 +79,8 @@ public class NewExceptionDetectorTests
         var findingRepository = new FindingRepository(context);
         var writer = new FindingWriter(findingRepository);
         var downstreamCorrelator = new DownstreamFailureCorrelator(findingRepository, context);
-        var detector = new NewExceptionDetector(context, writer, downstreamCorrelator);
+        var upstreamCorrelator = new UpstreamCauseCorrelator(findingRepository, context);
+        var detector = new NewExceptionDetector(context, writer, downstreamCorrelator, upstreamCorrelator);
 
         await detector.RunAsync(appId, envId);
 
@@ -134,7 +136,8 @@ public class NewExceptionDetectorTests
         var findingRepository = new FindingRepository(context);
         var writer = new FindingWriter(findingRepository);
         var downstreamCorrelator = new DownstreamFailureCorrelator(findingRepository, context);
-        var detector = new NewExceptionDetector(context, writer, downstreamCorrelator);
+        var upstreamCorrelator = new UpstreamCauseCorrelator(findingRepository, context);
+        var detector = new NewExceptionDetector(context, writer, downstreamCorrelator, upstreamCorrelator);
 
         await detector.RunAsync(appId, envId);
 

@@ -11,12 +11,14 @@ public class NewExceptionDetector
     private readonly LogsPlatformDbContext _context;
     private readonly FindingWriter _writer;
     private readonly DownstreamFailureCorrelator _downstreamCorrelator;
+    private readonly UpstreamCauseCorrelator _upstreamCorrelator;
 
-    public NewExceptionDetector(LogsPlatformDbContext context, FindingWriter writer, DownstreamFailureCorrelator downstreamCorrelator)
+    public NewExceptionDetector(LogsPlatformDbContext context, FindingWriter writer, DownstreamFailureCorrelator downstreamCorrelator, UpstreamCauseCorrelator upstreamCorrelator)
     {
         _context = context;
         _writer = writer;
         _downstreamCorrelator = downstreamCorrelator;
+        _upstreamCorrelator = upstreamCorrelator;
     }
 
     public async Task RunAsync(int applicationId, int environmentId)
@@ -49,6 +51,7 @@ public class NewExceptionDetector
                 if (triggerEvent.CorrelationId is not null && triggerEvent.OperationId is not null)
                 {
                     await _downstreamCorrelator.RunAsync(finding, triggerEvent.CorrelationId, triggerEvent.OperationId.Value, triggerEvent.Timestamp);
+                    await _upstreamCorrelator.RunAsync(finding, triggerEvent.CorrelationId, triggerEvent.OperationId.Value, triggerEvent.Timestamp);
                 }
             }
         }

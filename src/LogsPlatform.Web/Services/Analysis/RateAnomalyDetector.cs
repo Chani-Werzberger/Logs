@@ -15,14 +15,16 @@ public class RateAnomalyDetector
     private readonly IBaselineRepository _baselines;
     private readonly FindingWriter _writer;
     private readonly DownstreamFailureCorrelator _downstreamCorrelator;
+    private readonly UpstreamCauseCorrelator _upstreamCorrelator;
     private readonly LogsPlatformDbContext _context;
 
-    public RateAnomalyDetector(IMetricsRepository metrics, IBaselineRepository baselines, FindingWriter writer, DownstreamFailureCorrelator downstreamCorrelator, LogsPlatformDbContext context)
+    public RateAnomalyDetector(IMetricsRepository metrics, IBaselineRepository baselines, FindingWriter writer, DownstreamFailureCorrelator downstreamCorrelator, UpstreamCauseCorrelator upstreamCorrelator, LogsPlatformDbContext context)
     {
         _metrics = metrics;
         _baselines = baselines;
         _writer = writer;
         _downstreamCorrelator = downstreamCorrelator;
+        _upstreamCorrelator = upstreamCorrelator;
         _context = context;
     }
 
@@ -114,6 +116,7 @@ public class RateAnomalyDetector
             if (triggerEvent is not null)
             {
                 await _downstreamCorrelator.RunAsync(finding, triggerEvent.CorrelationId!, operationId, triggerEvent.Timestamp);
+                await _upstreamCorrelator.RunAsync(finding, triggerEvent.CorrelationId!, operationId, triggerEvent.Timestamp);
             }
         }
     }

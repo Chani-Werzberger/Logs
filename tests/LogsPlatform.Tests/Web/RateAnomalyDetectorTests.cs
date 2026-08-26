@@ -63,7 +63,8 @@ public class RateAnomalyDetectorTests
         var findingRepository = new FindingRepository(context);
         var writer = new FindingWriter(findingRepository);
         var downstreamCorrelator = new DownstreamFailureCorrelator(findingRepository, context);
-        var detector = new RateAnomalyDetector(metrics, baselines, writer, downstreamCorrelator, context);
+        var upstreamCorrelator = new UpstreamCauseCorrelator(findingRepository, context);
+        var detector = new RateAnomalyDetector(metrics, baselines, writer, downstreamCorrelator, upstreamCorrelator, context);
 
         await detector.RunAsync(appId, envId);
 
@@ -105,7 +106,8 @@ public class RateAnomalyDetectorTests
         var findingRepository = new FindingRepository(context);
         var writer = new FindingWriter(findingRepository);
         var downstreamCorrelator = new DownstreamFailureCorrelator(findingRepository, context);
-        var detector = new RateAnomalyDetector(metrics, baselines, writer, downstreamCorrelator, context);
+        var upstreamCorrelator = new UpstreamCauseCorrelator(findingRepository, context);
+        var detector = new RateAnomalyDetector(metrics, baselines, writer, downstreamCorrelator, upstreamCorrelator, context);
 
         await detector.RunAsync(appId, envId);
 
@@ -160,7 +162,8 @@ public class RateAnomalyDetectorTests
         var findingRepository = new FindingRepository(context);
         var writer = new FindingWriter(findingRepository);
         var downstreamCorrelator = new DownstreamFailureCorrelator(findingRepository, context);
-        var detector = new RateAnomalyDetector(metrics, baselines, writer, downstreamCorrelator, context);
+        var upstreamCorrelator = new UpstreamCauseCorrelator(findingRepository, context);
+        var detector = new RateAnomalyDetector(metrics, baselines, writer, downstreamCorrelator, upstreamCorrelator, context);
 
         await detector.RunAsync(appId, envId);
 

@@ -94,6 +94,7 @@ builder.Services.AddScoped<LogsPlatform.Web.Services.Analysis.NewExceptionDetect
 builder.Services.AddScoped<LogsPlatform.Web.Services.Analysis.CustomerOutlierDetector>();
 builder.Services.AddScoped<LogsPlatform.Web.Services.Analysis.DeploymentCorrelator>();
 builder.Services.AddScoped<LogsPlatform.Web.Services.Analysis.DownstreamFailureCorrelator>();
+builder.Services.AddScoped<LogsPlatform.Web.Services.Analysis.UpstreamCauseCorrelator>();
 builder.Services.AddScoped<LogsPlatform.Web.Services.Analysis.AnalysisEngineTickRunner>();
 builder.Services.AddHostedService<LogsPlatform.Web.Services.Analysis.AnalysisEngineBackgroundService>();
 
