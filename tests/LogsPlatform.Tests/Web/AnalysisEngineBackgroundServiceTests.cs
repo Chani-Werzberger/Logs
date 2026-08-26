@@ -57,8 +57,9 @@ public class AnalysisEngineBackgroundServiceTests
 
         var provider = services.BuildServiceProvider();
         var scopeFactory = provider.GetRequiredService<IServiceScopeFactory>();
+        var healthStatus = new AnalysisEngineHealthStatus();
 
-        return new AnalysisEngineBackgroundService(scopeFactory, NullLogger<AnalysisEngineBackgroundService>.Instance);
+        return new AnalysisEngineBackgroundService(scopeFactory, healthStatus, NullLogger<AnalysisEngineBackgroundService>.Instance);
     }
 
     [Fact]

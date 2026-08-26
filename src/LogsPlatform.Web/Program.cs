@@ -98,6 +98,7 @@ builder.Services.AddScoped<LogsPlatform.Web.Services.Analysis.RecurrenceCorrelat
 builder.Services.AddScoped<LogsPlatform.Web.Services.Analysis.DownstreamFailureCorrelator>();
 builder.Services.AddScoped<LogsPlatform.Web.Services.Analysis.UpstreamCauseCorrelator>();
 builder.Services.AddScoped<LogsPlatform.Web.Services.Analysis.AnalysisEngineTickRunner>();
+builder.Services.AddSingleton<LogsPlatform.Web.Services.Analysis.AnalysisEngineHealthStatus>();
 builder.Services.AddHostedService<LogsPlatform.Web.Services.Analysis.AnalysisEngineBackgroundService>();
 
 var app = builder.Build();

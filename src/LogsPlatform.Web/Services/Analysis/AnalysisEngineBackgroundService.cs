@@ -8,13 +8,15 @@ public class AnalysisEngineBackgroundService : BackgroundService
     private static readonly TimeSpan TickPeriod = TimeSpan.FromMinutes(5);
 
     private readonly IServiceScopeFactory _scopeFactory;
+    private readonly AnalysisEngineHealthStatus _healthStatus;
     private readonly ILogger<AnalysisEngineBackgroundService> _logger;
 
     private int _isRunning;
 
-    public AnalysisEngineBackgroundService(IServiceScopeFactory scopeFactory, ILogger<AnalysisEngineBackgroundService> logger)
+    public AnalysisEngineBackgroundService(IServiceScopeFactory scopeFactory, AnalysisEngineHealthStatus healthStatus, ILogger<AnalysisEngineBackgroundService> logger)
     {
         _scopeFactory = scopeFactory;
+        _healthStatus = healthStatus;
         _logger = logger;
     }
 
@@ -42,6 +44,7 @@ public class AnalysisEngineBackgroundService : BackgroundService
             using var scope = _scopeFactory.CreateScope();
             var runner = scope.ServiceProvider.GetRequiredService<AnalysisEngineTickRunner>();
             await runner.RunOneTickAsync();
+            _healthStatus.RecordTickCompleted(DateTime.UtcNow);
             return true;
         }
         finally
