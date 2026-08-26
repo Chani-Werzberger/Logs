@@ -11,18 +11,41 @@ namespace LogsPlatform.Web.Controllers;
 
 [ApiController]
 [Route("api/v1/admin/processes/{processId:int}/operations")]
-[Authorize(Policy = "RequireAdmin")]
 public class OperationsController : ControllerBase
 {
     private readonly IProcessNodeRepository _processes;
+    private readonly IScreenServiceRepository _screenServices;
+    private readonly IAppModuleRepository _modules;
     private readonly IOperationRepository _operations;
     private readonly AuditLogger _audit;
+    private readonly ApplicationAccessService _access;
 
-    public OperationsController(IProcessNodeRepository processes, IOperationRepository operations, AuditLogger audit)
+    public OperationsController(
+        IProcessNodeRepository processes,
+        IScreenServiceRepository screenServices,
+        IAppModuleRepository modules,
+        IOperationRepository operations,
+        AuditLogger audit,
+        ApplicationAccessService access)
     {
         _processes = processes;
+        _screenServices = screenServices;
+        _modules = modules;
         _operations = operations;
         _audit = audit;
+        _access = access;
+    }
+
+    private async Task<int?> ResolveApplicationIdAsync(int processId)
+    {
+        var process = await _processes.GetByIdAsync(processId);
+        if (process is null) return null;
+
+        var screenService = await _screenServices.GetByIdAsync(process.ScreenServiceId);
+        if (screenService is null) return null;
+
+        var module = await _modules.GetByIdAsync(screenService.ModuleId);
+        return module?.ApplicationId;
     }
 
     [HttpPost]
@@ -31,6 +54,19 @@ public class OperationsController : ControllerBase
         if (await _processes.GetByIdAsync(processId) is null)
         {
             return NotFound(new { message = $"ProcessNode {processId} not found." });
+        }
+
+        var applicationId = await ResolveApplicationIdAsync(processId);
+        if (applicationId is null)
+        {
+            return NotFound(new { message = $"ProcessNode {processId} not found." });
+        }
+
+        var platformUserId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        var isSuperAdmin = User.FindFirstValue("IsAdmin") == "true";
+        if (!await _access.CanManageApplicationAsync(isSuperAdmin, platformUserId, applicationId.Value))
+        {
+            return Forbid();
         }
 
         try
@@ -42,7 +78,6 @@ public class OperationsController : ControllerBase
                 Description = request.Description
             });
 
-            var platformUserId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
             await _audit.RecordAsync(platformUserId, "Operation", operation.Id.ToString(), "Create", $"Created operation '{operation.Name}' in process {processId}");
 
             return CreatedAtAction(nameof(GetById), new { processId, id = operation.Id }, ToResponse(operation));
@@ -74,11 +109,20 @@ public class OperationsController : ControllerBase
         var existing = await _operations.GetByIdAsync(id);
         if (existing is null || existing.ProcessId != processId) return NotFound();
 
+        var applicationId = await ResolveApplicationIdAsync(processId);
+        if (applicationId is null) return NotFound();
+
+        var platformUserId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        var isSuperAdmin = User.FindFirstValue("IsAdmin") == "true";
+        if (!await _access.CanManageApplicationAsync(isSuperAdmin, platformUserId, applicationId.Value))
+        {
+            return Forbid();
+        }
+
         try
         {
             var operation = await _operations.RenameAsync(id, request.Name, request.Description);
 
-            var platformUserId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
             await _audit.RecordAsync(platformUserId, "Operation", id.ToString(), "Update", $"Renamed operation {id} to '{request.Name}' in process {processId}");
 
             return ToResponse(operation);
@@ -95,9 +139,18 @@ public class OperationsController : ControllerBase
         var existing = await _operations.GetByIdAsync(id);
         if (existing is null || existing.ProcessId != processId) return NotFound();
 
-        await _operations.DeactivateAsync(id);
+        var applicationId = await ResolveApplicationIdAsync(processId);
+        if (applicationId is null) return NotFound();
 
         var platformUserId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        var isSuperAdmin = User.FindFirstValue("IsAdmin") == "true";
+        if (!await _access.CanManageApplicationAsync(isSuperAdmin, platformUserId, applicationId.Value))
+        {
+            return Forbid();
+        }
+
+        await _operations.DeactivateAsync(id);
+
         await _audit.RecordAsync(platformUserId, "Operation", id.ToString(), "Deactivate", $"Deactivated operation {id} in process {processId}");
 
         return NoContent();

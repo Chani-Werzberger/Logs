@@ -11,18 +11,35 @@ namespace LogsPlatform.Web.Controllers;
 
 [ApiController]
 [Route("api/v1/admin/screen-services/{screenServiceId:int}/processes")]
-[Authorize(Policy = "RequireAdmin")]
 public class ProcessesController : ControllerBase
 {
     private readonly IScreenServiceRepository _screenServices;
+    private readonly IAppModuleRepository _modules;
     private readonly IProcessNodeRepository _processes;
     private readonly AuditLogger _audit;
+    private readonly ApplicationAccessService _access;
 
-    public ProcessesController(IScreenServiceRepository screenServices, IProcessNodeRepository processes, AuditLogger audit)
+    public ProcessesController(
+        IScreenServiceRepository screenServices,
+        IAppModuleRepository modules,
+        IProcessNodeRepository processes,
+        AuditLogger audit,
+        ApplicationAccessService access)
     {
         _screenServices = screenServices;
+        _modules = modules;
         _processes = processes;
         _audit = audit;
+        _access = access;
+    }
+
+    private async Task<int?> ResolveApplicationIdAsync(int screenServiceId)
+    {
+        var screenService = await _screenServices.GetByIdAsync(screenServiceId);
+        if (screenService is null) return null;
+
+        var module = await _modules.GetByIdAsync(screenService.ModuleId);
+        return module?.ApplicationId;
     }
 
     [HttpPost]
@@ -31,6 +48,19 @@ public class ProcessesController : ControllerBase
         if (await _screenServices.GetByIdAsync(screenServiceId) is null)
         {
             return NotFound(new { message = $"ScreenService {screenServiceId} not found." });
+        }
+
+        var applicationId = await ResolveApplicationIdAsync(screenServiceId);
+        if (applicationId is null)
+        {
+            return NotFound(new { message = $"ScreenService {screenServiceId} not found." });
+        }
+
+        var platformUserId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        var isSuperAdmin = User.FindFirstValue("IsAdmin") == "true";
+        if (!await _access.CanManageApplicationAsync(isSuperAdmin, platformUserId, applicationId.Value))
+        {
+            return Forbid();
         }
 
         try
@@ -42,7 +72,6 @@ public class ProcessesController : ControllerBase
                 Description = request.Description
             });
 
-            var platformUserId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
             await _audit.RecordAsync(platformUserId, "ProcessNode", process.Id.ToString(), "Create", $"Created process '{process.Name}' in screen/service {screenServiceId}");
 
             return CreatedAtAction(nameof(GetById), new { screenServiceId, id = process.Id }, ToResponse(process));
@@ -74,11 +103,20 @@ public class ProcessesController : ControllerBase
         var existing = await _processes.GetByIdAsync(id);
         if (existing is null || existing.ScreenServiceId != screenServiceId) return NotFound();
 
+        var applicationId = await ResolveApplicationIdAsync(screenServiceId);
+        if (applicationId is null) return NotFound();
+
+        var platformUserId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        var isSuperAdmin = User.FindFirstValue("IsAdmin") == "true";
+        if (!await _access.CanManageApplicationAsync(isSuperAdmin, platformUserId, applicationId.Value))
+        {
+            return Forbid();
+        }
+
         try
         {
             var process = await _processes.RenameAsync(id, request.Name, request.Description);
 
-            var platformUserId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
             await _audit.RecordAsync(platformUserId, "ProcessNode", id.ToString(), "Update", $"Renamed process {id} to '{request.Name}' in screen/service {screenServiceId}");
 
             return ToResponse(process);
@@ -95,9 +133,18 @@ public class ProcessesController : ControllerBase
         var existing = await _processes.GetByIdAsync(id);
         if (existing is null || existing.ScreenServiceId != screenServiceId) return NotFound();
 
-        await _processes.DeactivateAsync(id);
+        var applicationId = await ResolveApplicationIdAsync(screenServiceId);
+        if (applicationId is null) return NotFound();
 
         var platformUserId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        var isSuperAdmin = User.FindFirstValue("IsAdmin") == "true";
+        if (!await _access.CanManageApplicationAsync(isSuperAdmin, platformUserId, applicationId.Value))
+        {
+            return Forbid();
+        }
+
+        await _processes.DeactivateAsync(id);
+
         await _audit.RecordAsync(platformUserId, "ProcessNode", id.ToString(), "Deactivate", $"Deactivated process {id} in screen/service {screenServiceId}");
 
         return NoContent();

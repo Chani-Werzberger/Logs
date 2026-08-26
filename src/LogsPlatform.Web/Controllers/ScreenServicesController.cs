@@ -11,26 +11,39 @@ namespace LogsPlatform.Web.Controllers;
 
 [ApiController]
 [Route("api/v1/admin/modules/{moduleId:int}/screen-services")]
-[Authorize(Policy = "RequireAdmin")]
 public class ScreenServicesController : ControllerBase
 {
     private readonly IAppModuleRepository _modules;
     private readonly IScreenServiceRepository _screenServices;
     private readonly AuditLogger _audit;
+    private readonly ApplicationAccessService _access;
 
-    public ScreenServicesController(IAppModuleRepository modules, IScreenServiceRepository screenServices, AuditLogger audit)
+    public ScreenServicesController(
+        IAppModuleRepository modules,
+        IScreenServiceRepository screenServices,
+        AuditLogger audit,
+        ApplicationAccessService access)
     {
         _modules = modules;
         _screenServices = screenServices;
         _audit = audit;
+        _access = access;
     }
 
     [HttpPost]
     public async Task<ActionResult<ScreenServiceResponse>> Create(int moduleId, CreateScreenServiceRequest request)
     {
-        if (await _modules.GetByIdAsync(moduleId) is null)
+        var module = await _modules.GetByIdAsync(moduleId);
+        if (module is null)
         {
             return NotFound(new { message = $"Module {moduleId} not found." });
+        }
+
+        var platformUserId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        var isSuperAdmin = User.FindFirstValue("IsAdmin") == "true";
+        if (!await _access.CanManageApplicationAsync(isSuperAdmin, platformUserId, module.ApplicationId))
+        {
+            return Forbid();
         }
 
         if (!Enum.TryParse<ScreenServiceType>(request.Type, ignoreCase: true, out var type))
@@ -48,7 +61,6 @@ public class ScreenServicesController : ControllerBase
                 Description = request.Description
             });
 
-            var platformUserId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
             await _audit.RecordAsync(platformUserId, "ScreenService", screenService.Id.ToString(), "Create", $"Created screen/service '{screenService.Name}' in module {moduleId}");
 
             return CreatedAtAction(nameof(GetById), new { moduleId, id = screenService.Id }, ToResponse(screenService));
@@ -80,11 +92,20 @@ public class ScreenServicesController : ControllerBase
         var existing = await _screenServices.GetByIdAsync(id);
         if (existing is null || existing.ModuleId != moduleId) return NotFound();
 
+        var module = await _modules.GetByIdAsync(moduleId);
+        if (module is null) return NotFound();
+
+        var platformUserId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        var isSuperAdmin = User.FindFirstValue("IsAdmin") == "true";
+        if (!await _access.CanManageApplicationAsync(isSuperAdmin, platformUserId, module.ApplicationId))
+        {
+            return Forbid();
+        }
+
         try
         {
             var screenService = await _screenServices.RenameAsync(id, request.Name, request.Description);
 
-            var platformUserId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
             await _audit.RecordAsync(platformUserId, "ScreenService", id.ToString(), "Update", $"Renamed screen/service {id} to '{request.Name}' in module {moduleId}");
 
             return ToResponse(screenService);
@@ -101,9 +122,18 @@ public class ScreenServicesController : ControllerBase
         var existing = await _screenServices.GetByIdAsync(id);
         if (existing is null || existing.ModuleId != moduleId) return NotFound();
 
-        await _screenServices.DeactivateAsync(id);
+        var module = await _modules.GetByIdAsync(moduleId);
+        if (module is null) return NotFound();
 
         var platformUserId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        var isSuperAdmin = User.FindFirstValue("IsAdmin") == "true";
+        if (!await _access.CanManageApplicationAsync(isSuperAdmin, platformUserId, module.ApplicationId))
+        {
+            return Forbid();
+        }
+
+        await _screenServices.DeactivateAsync(id);
+
         await _audit.RecordAsync(platformUserId, "ScreenService", id.ToString(), "Deactivate", $"Deactivated screen/service {id} in module {moduleId}");
 
         return NoContent();
