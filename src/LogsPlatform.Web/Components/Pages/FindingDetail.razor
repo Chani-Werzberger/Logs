@@ -71,6 +71,10 @@ else
                 {
                     <a href="/admin/applications">@item.Description</a>
                 }
+                else if (item.EvidenceType.ToString() == "Finding")
+                {
+                    <a href="/findings/@item.ReferenceId">@item.Description</a>
+                }
                 else
                 {
                     @item.Description
