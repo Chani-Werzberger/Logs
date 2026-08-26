@@ -11,18 +11,23 @@ namespace LogsPlatform.Web.Controllers;
 
 [ApiController]
 [Route("api/v1/admin/applications/{appId:int}/versions")]
-[Authorize(Policy = "RequireAdmin")]
 public class VersionsController : ControllerBase
 {
     private readonly IApplicationRepository _applications;
     private readonly IAppVersionRepository _versions;
     private readonly AuditLogger _audit;
+    private readonly ApplicationAccessService _access;
 
-    public VersionsController(IApplicationRepository applications, IAppVersionRepository versions, AuditLogger audit)
+    public VersionsController(
+        IApplicationRepository applications,
+        IAppVersionRepository versions,
+        AuditLogger audit,
+        ApplicationAccessService access)
     {
         _applications = applications;
         _versions = versions;
         _audit = audit;
+        _access = access;
     }
 
     [HttpPost]
@@ -31,6 +36,13 @@ public class VersionsController : ControllerBase
         if (await _applications.GetByIdAsync(appId) is null)
         {
             return NotFound(new { message = $"Application {appId} not found." });
+        }
+
+        var platformUserId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        var isSuperAdmin = User.FindFirstValue("IsAdmin") == "true";
+        if (!await _access.CanManageApplicationAsync(isSuperAdmin, platformUserId, appId))
+        {
+            return Forbid();
         }
 
         try
@@ -43,7 +55,6 @@ public class VersionsController : ControllerBase
                 CreatedAt = DateTime.UtcNow
             });
 
-            var platformUserId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
             await _audit.RecordAsync(platformUserId, "AppVersion", version.Id.ToString(), "Create", $"Created version '{version.VersionNumber}' in application {appId}");
 
             return CreatedAtAction(nameof(GetById), new { appId, id = version.Id }, ToResponse(version));
@@ -75,9 +86,15 @@ public class VersionsController : ControllerBase
         var existing = await _versions.GetByIdAsync(id);
         if (existing is null || existing.ApplicationId != appId) return NotFound();
 
+        var platformUserId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        var isSuperAdmin = User.FindFirstValue("IsAdmin") == "true";
+        if (!await _access.CanManageApplicationAsync(isSuperAdmin, platformUserId, appId))
+        {
+            return Forbid();
+        }
+
         var version = await _versions.RenameAsync(id, request.ReleaseNotes);
 
-        var platformUserId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
         await _audit.RecordAsync(platformUserId, "AppVersion", id.ToString(), "Update", $"Updated version {id} release notes in application {appId}");
 
         return ToResponse(version);
@@ -89,9 +106,15 @@ public class VersionsController : ControllerBase
         var existing = await _versions.GetByIdAsync(id);
         if (existing is null || existing.ApplicationId != appId) return NotFound();
 
+        var platformUserId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        var isSuperAdmin = User.FindFirstValue("IsAdmin") == "true";
+        if (!await _access.CanManageApplicationAsync(isSuperAdmin, platformUserId, appId))
+        {
+            return Forbid();
+        }
+
         await _versions.DeactivateAsync(id);
 
-        var platformUserId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
         await _audit.RecordAsync(platformUserId, "AppVersion", id.ToString(), "Deactivate", $"Deactivated version {id} in application {appId}");
 
         return NoContent();

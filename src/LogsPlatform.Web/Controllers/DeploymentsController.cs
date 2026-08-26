@@ -10,7 +10,6 @@ namespace LogsPlatform.Web.Controllers;
 
 [ApiController]
 [Route("api/v1/admin/applications/{appId:int}/deployments")]
-[Authorize(Policy = "RequireAdmin")]
 public class DeploymentsController : ControllerBase
 {
     private readonly IApplicationRepository _applications;
@@ -18,19 +17,22 @@ public class DeploymentsController : ControllerBase
     private readonly IAppVersionRepository _versions;
     private readonly IDeploymentRepository _deployments;
     private readonly AuditLogger _audit;
+    private readonly ApplicationAccessService _access;
 
     public DeploymentsController(
         IApplicationRepository applications,
         IAppEnvironmentRepository environments,
         IAppVersionRepository versions,
         IDeploymentRepository deployments,
-        AuditLogger audit)
+        AuditLogger audit,
+        ApplicationAccessService access)
     {
         _applications = applications;
         _environments = environments;
         _versions = versions;
         _deployments = deployments;
         _audit = audit;
+        _access = access;
     }
 
     [HttpPost]
@@ -39,6 +41,13 @@ public class DeploymentsController : ControllerBase
         if (await _applications.GetByIdAsync(appId) is null)
         {
             return NotFound(new { message = $"Application {appId} not found." });
+        }
+
+        var platformUserId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        var isSuperAdmin = User.FindFirstValue("IsAdmin") == "true";
+        if (!await _access.CanManageApplicationAsync(isSuperAdmin, platformUserId, appId))
+        {
+            return Forbid();
         }
 
         var environment = await _environments.GetByIdAsync(request.EnvironmentId);
@@ -62,7 +71,6 @@ public class DeploymentsController : ControllerBase
             Notes = request.Notes
         });
 
-        var platformUserId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
         await _audit.RecordAsync(platformUserId, "Deployment", deployment.Id.ToString(), "Create", $"Created deployment {deployment.Id} (environment {request.EnvironmentId}, version {request.VersionId}) in application {appId}");
 
         return CreatedAtAction(nameof(GetById), new { appId, id = deployment.Id }, ToResponse(deployment));
@@ -89,9 +97,15 @@ public class DeploymentsController : ControllerBase
         var existing = await _deployments.GetByIdAsync(id);
         if (existing is null || existing.ApplicationId != appId) return NotFound();
 
+        var platformUserId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        var isSuperAdmin = User.FindFirstValue("IsAdmin") == "true";
+        if (!await _access.CanManageApplicationAsync(isSuperAdmin, platformUserId, appId))
+        {
+            return Forbid();
+        }
+
         var deployment = await _deployments.RenameAsync(id, request.Notes);
 
-        var platformUserId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
         await _audit.RecordAsync(platformUserId, "Deployment", id.ToString(), "Update", $"Updated deployment {id} notes in application {appId}");
 
         return ToResponse(deployment);
@@ -103,9 +117,15 @@ public class DeploymentsController : ControllerBase
         var existing = await _deployments.GetByIdAsync(id);
         if (existing is null || existing.ApplicationId != appId) return NotFound();
 
+        var platformUserId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        var isSuperAdmin = User.FindFirstValue("IsAdmin") == "true";
+        if (!await _access.CanManageApplicationAsync(isSuperAdmin, platformUserId, appId))
+        {
+            return Forbid();
+        }
+
         await _deployments.DeactivateAsync(id);
 
-        var platformUserId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
         await _audit.RecordAsync(platformUserId, "Deployment", id.ToString(), "Deactivate", $"Deactivated deployment {id} in application {appId}");
 
         return NoContent();
