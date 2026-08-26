@@ -106,6 +106,7 @@ else
     private string? _operationName;
     private long? _promotingStatementId;
     private string _currentUsername = string.Empty;
+    private long? _lastLoadedId;
 
     [CascadingParameter] private Task<AuthenticationState>? AuthenticationStateTask { get; set; }
 
@@ -116,6 +117,17 @@ else
             var authState = await AuthenticationStateTask;
             _currentUsername = authState.User.FindFirstValue(ClaimTypes.Name) ?? string.Empty;
         }
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (_lastLoadedId == Id)
+        {
+            return;
+        }
+
+        _lastLoadedId = Id;
+        _promotingStatementId = null;
         await LoadAsync();
     }
 
