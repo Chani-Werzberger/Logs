@@ -10,18 +10,23 @@ namespace LogsPlatform.Web.Controllers;
 
 [ApiController]
 [Route("api/v1/admin/applications/{appId:int}/api-keys")]
-[Authorize(Policy = "RequireAdmin")]
 public class ApiKeysController : ControllerBase
 {
     private readonly IApplicationRepository _applications;
     private readonly IApiKeyRepository _apiKeys;
     private readonly AuditLogger _audit;
+    private readonly ApplicationAccessService _access;
 
-    public ApiKeysController(IApplicationRepository applications, IApiKeyRepository apiKeys, AuditLogger audit)
+    public ApiKeysController(
+        IApplicationRepository applications,
+        IApiKeyRepository apiKeys,
+        AuditLogger audit,
+        ApplicationAccessService access)
     {
         _applications = applications;
         _apiKeys = apiKeys;
         _audit = audit;
+        _access = access;
     }
 
     [HttpPost]
@@ -32,9 +37,15 @@ public class ApiKeysController : ControllerBase
             return NotFound(new { message = $"Application {appId} not found." });
         }
 
+        var platformUserId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        var isSuperAdmin = User.FindFirstValue("IsAdmin") == "true";
+        if (!await _access.CanManageApplicationAsync(isSuperAdmin, platformUserId, appId))
+        {
+            return Forbid();
+        }
+
         var (apiKey, rawKey) = await _apiKeys.AddAsync(appId, request.Label);
 
-        var platformUserId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
         await _audit.RecordAsync(platformUserId, "ApiKey", apiKey.Id.ToString(), "Create", $"Created API key '{apiKey.Label}' in application {appId}");
 
         var response = new CreateApiKeyResponse(apiKey.Id, apiKey.ApplicationId, apiKey.Label, apiKey.CreatedAt, rawKey);
@@ -62,9 +73,15 @@ public class ApiKeysController : ControllerBase
         var existing = await _apiKeys.GetByIdAsync(id);
         if (existing is null || existing.ApplicationId != appId) return NotFound();
 
+        var platformUserId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        var isSuperAdmin = User.FindFirstValue("IsAdmin") == "true";
+        if (!await _access.CanManageApplicationAsync(isSuperAdmin, platformUserId, appId))
+        {
+            return Forbid();
+        }
+
         await _apiKeys.RevokeAsync(id);
 
-        var platformUserId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
         await _audit.RecordAsync(platformUserId, "ApiKey", id.ToString(), "Revoke", $"Revoked API key {id} in application {appId}");
 
         return NoContent();

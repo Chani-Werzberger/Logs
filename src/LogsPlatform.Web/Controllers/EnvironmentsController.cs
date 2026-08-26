@@ -10,18 +10,23 @@ namespace LogsPlatform.Web.Controllers;
 
 [ApiController]
 [Route("api/v1/admin/applications/{appId:int}/environments")]
-[Authorize(Policy = "RequireAdmin")]
 public class EnvironmentsController : ControllerBase
 {
     private readonly IApplicationRepository _applications;
     private readonly IAppEnvironmentRepository _environments;
     private readonly AuditLogger _audit;
+    private readonly ApplicationAccessService _access;
 
-    public EnvironmentsController(IApplicationRepository applications, IAppEnvironmentRepository environments, AuditLogger audit)
+    public EnvironmentsController(
+        IApplicationRepository applications,
+        IAppEnvironmentRepository environments,
+        AuditLogger audit,
+        ApplicationAccessService access)
     {
         _applications = applications;
         _environments = environments;
         _audit = audit;
+        _access = access;
     }
 
     [HttpPost]
@@ -32,6 +37,13 @@ public class EnvironmentsController : ControllerBase
             return NotFound(new { message = $"Application {appId} not found." });
         }
 
+        var platformUserId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        var isSuperAdmin = User.FindFirstValue("IsAdmin") == "true";
+        if (!await _access.CanManageApplicationAsync(isSuperAdmin, platformUserId, appId))
+        {
+            return Forbid();
+        }
+
         var environment = await _environments.AddAsync(new AppEnvironment
         {
             ApplicationId = appId,
@@ -39,7 +51,6 @@ public class EnvironmentsController : ControllerBase
             IsProduction = request.IsProduction
         });
 
-        var platformUserId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
         await _audit.RecordAsync(platformUserId, "AppEnvironment", environment.Id.ToString(), "Create", $"Created environment '{environment.Name}' in application {appId}");
 
         var response = new EnvironmentResponse(environment.Id, environment.ApplicationId, environment.Name, environment.IsProduction);
