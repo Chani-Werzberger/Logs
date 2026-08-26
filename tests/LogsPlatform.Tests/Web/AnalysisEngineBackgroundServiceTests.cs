@@ -50,6 +50,9 @@ public class AnalysisEngineBackgroundServiceTests
         services.AddSingleton<CustomerOutlierDetector>();
         services.AddSingleton<DeploymentCorrelator>();
         services.AddSingleton<DownstreamFailureCorrelator>();
+        services.AddSingleton<UpstreamCauseCorrelator>();
+        services.AddSingleton<ConcurrentFindingCorrelator>();
+        services.AddSingleton<RecurrenceCorrelator>();
         services.AddScoped<AnalysisEngineTickRunner>();
 
         var provider = services.BuildServiceProvider();
