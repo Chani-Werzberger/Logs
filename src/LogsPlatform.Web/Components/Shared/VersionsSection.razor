@@ -8,6 +8,7 @@
 @using System.Security.Claims
 @inject IAppVersionRepository VersionRepository
 @inject AuditLogger Audit
+@inject ApplicationAccessService Access
 
 <h4>גרסאות</h4>
 <table class="table table-sm table-striped align-middle">
@@ -86,13 +87,10 @@
     private EditVersionModel? _editModel;
     private int? _lastLoadedApplicationId;
 
-    [CascadingParameter] private Task<AuthenticationState>? AuthenticationStateTask { get; set; }
+    private bool _isSuperAdmin;
+    private int _currentPlatformUserId;
 
-    private async Task<int> CurrentPlatformUserIdAsync()
-    {
-        var authState = await AuthenticationStateTask!;
-        return int.Parse(authState.User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-    }
+    [CascadingParameter] private Task<AuthenticationState>? AuthenticationStateTask { get; set; }
 
     protected override async Task OnParametersSetAsync()
     {
@@ -100,6 +98,10 @@
         {
             return;
         }
+
+        var authState = await AuthenticationStateTask!;
+        _isSuperAdmin = authState.User.FindFirstValue("IsAdmin") == "true";
+        _currentPlatformUserId = int.Parse(authState.User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
         _lastLoadedApplicationId = ApplicationId;
         _createError = null;
@@ -111,6 +113,12 @@
     private async Task CreateVersionAsync()
     {
         _createError = null;
+        if (!await Access.CanManageApplicationAsync(_isSuperAdmin, _currentPlatformUserId, ApplicationId))
+        {
+            _createError = "אין לך הרשאת ניהול לאפליקציה זו.";
+            return;
+        }
+
         try
         {
             var version = await VersionRepository.AddAsync(new AppVersion
@@ -121,8 +129,7 @@
                 CreatedAt = DateTime.UtcNow
             });
 
-            var platformUserId = await CurrentPlatformUserIdAsync();
-            await Audit.RecordAsync(platformUserId, "AppVersion", version.Id.ToString(), "Create", $"Created version '{version.VersionNumber}' in application {ApplicationId}");
+            await Audit.RecordAsync(_currentPlatformUserId, "AppVersion", version.Id.ToString(), "Create", $"Created version '{version.VersionNumber}' in application {ApplicationId}");
 
             _newVersion.VersionNumber = string.Empty;
             _newVersion.ReleaseNotes = null;
@@ -148,10 +155,16 @@
 
     private async Task SaveRenameAsync(int versionId)
     {
+        _createError = null;
+        if (!await Access.CanManageApplicationAsync(_isSuperAdmin, _currentPlatformUserId, ApplicationId))
+        {
+            _createError = "אין לך הרשאת ניהול לאפליקציה זו.";
+            return;
+        }
+
         await VersionRepository.RenameAsync(versionId, _editModel!.ReleaseNotes);
 
-        var platformUserId = await CurrentPlatformUserIdAsync();
-        await Audit.RecordAsync(platformUserId, "AppVersion", versionId.ToString(), "Update", $"Updated version {versionId} release notes in application {ApplicationId}");
+        await Audit.RecordAsync(_currentPlatformUserId, "AppVersion", versionId.ToString(), "Update", $"Updated version {versionId} release notes in application {ApplicationId}");
 
         _editingId = null;
         _editModel = null;
@@ -160,10 +173,16 @@
 
     private async Task DeactivateAsync(int versionId)
     {
+        _createError = null;
+        if (!await Access.CanManageApplicationAsync(_isSuperAdmin, _currentPlatformUserId, ApplicationId))
+        {
+            _createError = "אין לך הרשאת ניהול לאפליקציה זו.";
+            return;
+        }
+
         await VersionRepository.DeactivateAsync(versionId);
 
-        var platformUserId = await CurrentPlatformUserIdAsync();
-        await Audit.RecordAsync(platformUserId, "AppVersion", versionId.ToString(), "Deactivate", $"Deactivated version {versionId} in application {ApplicationId}");
+        await Audit.RecordAsync(_currentPlatformUserId, "AppVersion", versionId.ToString(), "Deactivate", $"Deactivated version {versionId} in application {ApplicationId}");
 
         _versions = (await VersionRepository.GetByApplicationIdAsync(ApplicationId)).ToList();
     }

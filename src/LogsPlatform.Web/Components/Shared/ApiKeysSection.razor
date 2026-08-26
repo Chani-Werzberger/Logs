@@ -6,6 +6,7 @@
 @using System.Security.Claims
 @inject IApiKeyRepository ApiKeyRepository
 @inject AuditLogger Audit
+@inject ApplicationAccessService Access
 
 <h4>מפתחות API</h4>
 @if (_newRawKey is not null)
@@ -46,6 +47,10 @@
         </div>
     </div>
 </EditForm>
+@if (_error is not null)
+{
+    <div class="alert alert-danger mt-3">@_error</div>
+}
 
 @code {
     [Parameter] public int ApplicationId { get; set; }
@@ -53,14 +58,19 @@
     private List<ApiKey> _apiKeys = new();
     private readonly NewApiKeyModel _newApiKey = new();
     private string? _newRawKey;
+    private string? _error;
     private int? _lastLoadedApplicationId;
+
+    private bool _isSuperAdmin;
+    private int _currentPlatformUserId;
 
     [CascadingParameter] private Task<AuthenticationState>? AuthenticationStateTask { get; set; }
 
-    private async Task<int> CurrentPlatformUserIdAsync()
+    private async Task LoadAccessAsync()
     {
         var authState = await AuthenticationStateTask!;
-        return int.Parse(authState.User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        _isSuperAdmin = authState.User.FindFirstValue("IsAdmin") == "true";
+        _currentPlatformUserId = int.Parse(authState.User.FindFirstValue(ClaimTypes.NameIdentifier)!);
     }
 
     protected override async Task OnParametersSetAsync()
@@ -70,17 +80,25 @@
             return;
         }
 
+        await LoadAccessAsync();
         _lastLoadedApplicationId = ApplicationId;
         _newRawKey = null;
+        _error = null;
         _apiKeys = (await ApiKeyRepository.GetByApplicationIdAsync(ApplicationId)).ToList();
     }
 
     private async Task CreateApiKeyAsync()
     {
+        _error = null;
+        if (!await Access.CanManageApplicationAsync(_isSuperAdmin, _currentPlatformUserId, ApplicationId))
+        {
+            _error = "אין לך הרשאת ניהול לאפליקציה זו.";
+            return;
+        }
+
         var (apiKey, rawKey) = await ApiKeyRepository.AddAsync(ApplicationId, _newApiKey.Label);
 
-        var platformUserId = await CurrentPlatformUserIdAsync();
-        await Audit.RecordAsync(platformUserId, "ApiKey", apiKey.Id.ToString(), "Create", $"Created API key '{apiKey.Label}' in application {ApplicationId}");
+        await Audit.RecordAsync(_currentPlatformUserId, "ApiKey", apiKey.Id.ToString(), "Create", $"Created API key '{apiKey.Label}' in application {ApplicationId}");
 
         _newRawKey = rawKey;
         _newApiKey.Label = string.Empty;
@@ -89,10 +107,16 @@
 
     private async Task RevokeAsync(int apiKeyId)
     {
+        _error = null;
+        if (!await Access.CanManageApplicationAsync(_isSuperAdmin, _currentPlatformUserId, ApplicationId))
+        {
+            _error = "אין לך הרשאת ניהול לאפליקציה זו.";
+            return;
+        }
+
         await ApiKeyRepository.RevokeAsync(apiKeyId);
 
-        var platformUserId = await CurrentPlatformUserIdAsync();
-        await Audit.RecordAsync(platformUserId, "ApiKey", apiKeyId.ToString(), "Revoke", $"Revoked API key {apiKeyId} in application {ApplicationId}");
+        await Audit.RecordAsync(_currentPlatformUserId, "ApiKey", apiKeyId.ToString(), "Revoke", $"Revoked API key {apiKeyId} in application {ApplicationId}");
 
         _apiKeys = (await ApiKeyRepository.GetByApplicationIdAsync(ApplicationId)).ToList();
     }

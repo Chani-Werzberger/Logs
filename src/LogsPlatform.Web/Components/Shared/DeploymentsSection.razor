@@ -8,6 +8,7 @@
 @inject IAppEnvironmentRepository EnvironmentRepository
 @inject IAppVersionRepository VersionRepository
 @inject AuditLogger Audit
+@inject ApplicationAccessService Access
 
 <h4>פריסות</h4>
 <table class="table table-sm table-striped align-middle">
@@ -112,13 +113,10 @@
     private EditDeploymentModel? _editModel;
     private int? _lastLoadedApplicationId;
 
-    [CascadingParameter] private Task<AuthenticationState>? AuthenticationStateTask { get; set; }
+    private bool _isSuperAdmin;
+    private int _currentPlatformUserId;
 
-    private async Task<int> CurrentPlatformUserIdAsync()
-    {
-        var authState = await AuthenticationStateTask!;
-        return int.Parse(authState.User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-    }
+    [CascadingParameter] private Task<AuthenticationState>? AuthenticationStateTask { get; set; }
 
     protected override async Task OnParametersSetAsync()
     {
@@ -126,6 +124,10 @@
         {
             return;
         }
+
+        var authState = await AuthenticationStateTask!;
+        _isSuperAdmin = authState.User.FindFirstValue("IsAdmin") == "true";
+        _currentPlatformUserId = int.Parse(authState.User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
         _lastLoadedApplicationId = ApplicationId;
         _createError = null;
@@ -157,6 +159,12 @@
             return;
         }
 
+        if (!await Access.CanManageApplicationAsync(_isSuperAdmin, _currentPlatformUserId, ApplicationId))
+        {
+            _createError = "אין לך הרשאת ניהול לאפליקציה זו.";
+            return;
+        }
+
         var deployment = await DeploymentRepository.AddAsync(new Deployment
         {
             ApplicationId = ApplicationId,
@@ -166,8 +174,7 @@
             Notes = _newDeployment.Notes
         });
 
-        var platformUserId = await CurrentPlatformUserIdAsync();
-        await Audit.RecordAsync(platformUserId, "Deployment", deployment.Id.ToString(), "Create", $"Created deployment {deployment.Id} (environment {_newDeployment.EnvironmentId}, version {_newDeployment.VersionId}) in application {ApplicationId}");
+        await Audit.RecordAsync(_currentPlatformUserId, "Deployment", deployment.Id.ToString(), "Create", $"Created deployment {deployment.Id} (environment {_newDeployment.EnvironmentId}, version {_newDeployment.VersionId}) in application {ApplicationId}");
 
         _newDeployment.EnvironmentId = 0;
         _newDeployment.VersionId = 0;
@@ -189,10 +196,16 @@
 
     private async Task SaveRenameAsync(int deploymentId)
     {
+        _createError = null;
+        if (!await Access.CanManageApplicationAsync(_isSuperAdmin, _currentPlatformUserId, ApplicationId))
+        {
+            _createError = "אין לך הרשאת ניהול לאפליקציה זו.";
+            return;
+        }
+
         await DeploymentRepository.RenameAsync(deploymentId, _editModel!.Notes);
 
-        var platformUserId = await CurrentPlatformUserIdAsync();
-        await Audit.RecordAsync(platformUserId, "Deployment", deploymentId.ToString(), "Update", $"Updated deployment {deploymentId} notes in application {ApplicationId}");
+        await Audit.RecordAsync(_currentPlatformUserId, "Deployment", deploymentId.ToString(), "Update", $"Updated deployment {deploymentId} notes in application {ApplicationId}");
 
         _editingId = null;
         _editModel = null;
@@ -201,10 +214,16 @@
 
     private async Task DeactivateAsync(int deploymentId)
     {
+        _createError = null;
+        if (!await Access.CanManageApplicationAsync(_isSuperAdmin, _currentPlatformUserId, ApplicationId))
+        {
+            _createError = "אין לך הרשאת ניהול לאפליקציה זו.";
+            return;
+        }
+
         await DeploymentRepository.DeactivateAsync(deploymentId);
 
-        var platformUserId = await CurrentPlatformUserIdAsync();
-        await Audit.RecordAsync(platformUserId, "Deployment", deploymentId.ToString(), "Deactivate", $"Deactivated deployment {deploymentId} in application {ApplicationId}");
+        await Audit.RecordAsync(_currentPlatformUserId, "Deployment", deploymentId.ToString(), "Deactivate", $"Deactivated deployment {deploymentId} in application {ApplicationId}");
 
         _deployments = (await DeploymentRepository.GetByApplicationIdAsync(ApplicationId)).ToList();
     }

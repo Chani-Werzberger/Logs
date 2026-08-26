@@ -8,6 +8,7 @@
 @using System.Security.Claims
 @inject ICustomerRepository CustomerRepository
 @inject AuditLogger Audit
+@inject ApplicationAccessService Access
 
 <h4>לקוחות</h4>
 <table class="table table-sm table-striped align-middle">
@@ -85,22 +86,29 @@
     private int? _editingId;
     private EditCustomerModel? _editModel;
 
-    [CascadingParameter] private Task<AuthenticationState>? AuthenticationStateTask { get; set; }
+    private bool _isSuperAdmin;
+    private int _currentPlatformUserId;
 
-    private async Task<int> CurrentPlatformUserIdAsync()
-    {
-        var authState = await AuthenticationStateTask!;
-        return int.Parse(authState.User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-    }
+    [CascadingParameter] private Task<AuthenticationState>? AuthenticationStateTask { get; set; }
 
     protected override async Task OnInitializedAsync()
     {
+        var authState = await AuthenticationStateTask!;
+        _isSuperAdmin = authState.User.FindFirstValue("IsAdmin") == "true";
+        _currentPlatformUserId = int.Parse(authState.User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+
         _customers = (await CustomerRepository.GetByApplicationIdAsync(ApplicationId)).ToList();
     }
 
     private async Task CreateCustomerAsync()
     {
         _createError = null;
+        if (!await Access.CanManageApplicationAsync(_isSuperAdmin, _currentPlatformUserId, ApplicationId))
+        {
+            _createError = "אין לך הרשאת ניהול לאפליקציה זו.";
+            return;
+        }
+
         try
         {
             var customer = await CustomerRepository.AddAsync(new Customer
@@ -110,8 +118,7 @@
                 Name = _newCustomer.Name
             });
 
-            var platformUserId = await CurrentPlatformUserIdAsync();
-            await Audit.RecordAsync(platformUserId, "Customer", customer.Id.ToString(), "Create", $"Created customer '{customer.Name}' (external id '{customer.ExternalCustomerId}') in application {ApplicationId}");
+            await Audit.RecordAsync(_currentPlatformUserId, "Customer", customer.Id.ToString(), "Create", $"Created customer '{customer.Name}' (external id '{customer.ExternalCustomerId}') in application {ApplicationId}");
 
             _newCustomer.ExternalCustomerId = string.Empty;
             _newCustomer.Name = string.Empty;
@@ -137,10 +144,16 @@
 
     private async Task SaveRenameAsync(int customerId)
     {
+        _createError = null;
+        if (!await Access.CanManageApplicationAsync(_isSuperAdmin, _currentPlatformUserId, ApplicationId))
+        {
+            _createError = "אין לך הרשאת ניהול לאפליקציה זו.";
+            return;
+        }
+
         await CustomerRepository.RenameAsync(customerId, _editModel!.Name);
 
-        var platformUserId = await CurrentPlatformUserIdAsync();
-        await Audit.RecordAsync(platformUserId, "Customer", customerId.ToString(), "Update", $"Renamed customer {customerId} to '{_editModel!.Name}' in application {ApplicationId}");
+        await Audit.RecordAsync(_currentPlatformUserId, "Customer", customerId.ToString(), "Update", $"Renamed customer {customerId} to '{_editModel!.Name}' in application {ApplicationId}");
 
         _editingId = null;
         _editModel = null;
@@ -149,10 +162,16 @@
 
     private async Task DeactivateAsync(int customerId)
     {
+        _createError = null;
+        if (!await Access.CanManageApplicationAsync(_isSuperAdmin, _currentPlatformUserId, ApplicationId))
+        {
+            _createError = "אין לך הרשאת ניהול לאפליקציה זו.";
+            return;
+        }
+
         await CustomerRepository.DeactivateAsync(customerId);
 
-        var platformUserId = await CurrentPlatformUserIdAsync();
-        await Audit.RecordAsync(platformUserId, "Customer", customerId.ToString(), "Deactivate", $"Deactivated customer {customerId} in application {ApplicationId}");
+        await Audit.RecordAsync(_currentPlatformUserId, "Customer", customerId.ToString(), "Deactivate", $"Deactivated customer {customerId} in application {ApplicationId}");
 
         _customers = (await CustomerRepository.GetByApplicationIdAsync(ApplicationId)).ToList();
     }

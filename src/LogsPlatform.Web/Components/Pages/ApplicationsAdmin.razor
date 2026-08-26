@@ -1,6 +1,5 @@
 @* src/LogsPlatform.Web/Components/Pages/ApplicationsAdmin.razor *@
 @page "/admin/applications"
-@attribute [Microsoft.AspNetCore.Authorization.Authorize(Policy = "RequireAdmin")]
 @using LogsPlatform.Domain.Entities
 @using LogsPlatform.Domain.Repositories
 @using LogsPlatform.Web.Components.Shared
@@ -12,34 +11,38 @@
 @inject IApplicationRepository ApplicationRepository
 @inject IAppEnvironmentRepository EnvironmentRepository
 @inject AuditLogger Audit
+@inject ApplicationAccessService Access
 @rendermode InteractiveServer
 
 <h1>אפליקציות</h1>
 
-<div class="card mb-4">
-    <div class="card-header">הוספת אפליקציה</div>
-    <div class="card-body">
-        <EditForm Model="_newApplication" OnValidSubmit="CreateApplicationAsync">
-            <div class="row g-3 align-items-end">
-                <div class="col-auto">
-                    <label class="form-label">שם</label>
-                    <InputText @bind-Value="_newApplication.Name" required class="form-control" aria-label="שם" />
+@if (_isSuperAdmin)
+{
+    <div class="card mb-4">
+        <div class="card-header">הוספת אפליקציה</div>
+        <div class="card-body">
+            <EditForm Model="_newApplication" OnValidSubmit="CreateApplicationAsync">
+                <div class="row g-3 align-items-end">
+                    <div class="col-auto">
+                        <label class="form-label">שם</label>
+                        <InputText @bind-Value="_newApplication.Name" required class="form-control" aria-label="שם" />
+                    </div>
+                    <div class="col-auto">
+                        <label class="form-label">תיאור</label>
+                        <InputText @bind-Value="_newApplication.Description" class="form-control" aria-label="תיאור" />
+                    </div>
+                    <div class="col-auto">
+                        <button type="submit" class="btn btn-primary">צור</button>
+                    </div>
                 </div>
-                <div class="col-auto">
-                    <label class="form-label">תיאור</label>
-                    <InputText @bind-Value="_newApplication.Description" class="form-control" aria-label="תיאור" />
-                </div>
-                <div class="col-auto">
-                    <button type="submit" class="btn btn-primary">צור</button>
-                </div>
-            </div>
-        </EditForm>
-        @if (_createError is not null)
-        {
-            <div class="alert alert-danger mt-3 mb-0">@_createError</div>
-        }
+            </EditForm>
+            @if (_createError is not null)
+            {
+                <div class="alert alert-danger mt-3 mb-0">@_createError</div>
+            }
+        </div>
     </div>
-</div>
+}
 
 <table class="table table-striped table-hover align-middle">
     <thead>
@@ -110,6 +113,10 @@
                                             </div>
                                         </div>
                                     </EditForm>
+                                    @if (_environmentErrors.TryGetValue(application.Id, out var environmentError) && environmentError is not null)
+                                    {
+                                        <div class="alert alert-danger mt-2 mb-0 py-1">@environmentError</div>
+                                    }
                                 }
                             </div>
 
@@ -135,17 +142,19 @@
     private readonly HashSet<int> _expandedAppIds = new();
     private readonly Dictionary<int, List<AppEnvironment>> _environmentsByAppId = new();
     private readonly Dictionary<int, NewEnvironmentModel> _newEnvironmentModels = new();
+    private readonly Dictionary<int, string?> _environmentErrors = new();
+
+    private bool _isSuperAdmin;
+    private int _currentPlatformUserId;
 
     [CascadingParameter] private Task<AuthenticationState>? AuthenticationStateTask { get; set; }
 
-    private async Task<int> CurrentPlatformUserIdAsync()
-    {
-        var authState = await AuthenticationStateTask!;
-        return int.Parse(authState.User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-    }
-
     protected override async Task OnInitializedAsync()
     {
+        var authState = await AuthenticationStateTask!;
+        _isSuperAdmin = authState.User.FindFirstValue("IsAdmin") == "true";
+        _currentPlatformUserId = int.Parse(authState.User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+
         _applications = (await ApplicationRepository.GetAllAsync()).ToList();
     }
 
@@ -161,8 +170,7 @@
                 CreatedAt = DateTime.UtcNow
             });
 
-            var platformUserId = await CurrentPlatformUserIdAsync();
-            await Audit.RecordAsync(platformUserId, "Application", application.Id.ToString(), "Create", $"Created application '{application.Name}'");
+            await Audit.RecordAsync(_currentPlatformUserId, "Application", application.Id.ToString(), "Create", $"Created application '{application.Name}'");
 
             _newApplication.Name = string.Empty;
             _newApplication.Description = null;
@@ -198,6 +206,14 @@
 
     private async Task CreateEnvironmentAsync(int applicationId)
     {
+        _environmentErrors[applicationId] = null;
+
+        if (!await Access.CanManageApplicationAsync(_isSuperAdmin, _currentPlatformUserId, applicationId))
+        {
+            _environmentErrors[applicationId] = "אין לך הרשאת ניהול לאפליקציה זו.";
+            return;
+        }
+
         var model = _newEnvironmentModels[applicationId];
 
         var environment = await EnvironmentRepository.AddAsync(new AppEnvironment
@@ -207,8 +223,7 @@
             IsProduction = model.IsProduction
         });
 
-        var platformUserId = await CurrentPlatformUserIdAsync();
-        await Audit.RecordAsync(platformUserId, "AppEnvironment", environment.Id.ToString(), "Create", $"Created environment '{environment.Name}' in application {applicationId}");
+        await Audit.RecordAsync(_currentPlatformUserId, "AppEnvironment", environment.Id.ToString(), "Create", $"Created environment '{environment.Name}' in application {applicationId}");
 
         _newEnvironmentModels[applicationId] = new NewEnvironmentModel();
         _environmentsByAppId[applicationId] =

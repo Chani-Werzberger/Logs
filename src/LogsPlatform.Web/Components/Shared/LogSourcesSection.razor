@@ -8,6 +8,7 @@
 @using System.Security.Claims
 @inject ILogSourceRepository LogSourceRepository
 @inject AuditLogger Audit
+@inject ApplicationAccessService Access
 
 <h4>מקורות לוגים</h4>
 <table class="table table-sm table-striped align-middle">
@@ -93,22 +94,29 @@
     private EditLogSourceModel? _editModel;
     private string? _editError;
 
-    [CascadingParameter] private Task<AuthenticationState>? AuthenticationStateTask { get; set; }
+    private bool _isSuperAdmin;
+    private int _currentPlatformUserId;
 
-    private async Task<int> CurrentPlatformUserIdAsync()
-    {
-        var authState = await AuthenticationStateTask!;
-        return int.Parse(authState.User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-    }
+    [CascadingParameter] private Task<AuthenticationState>? AuthenticationStateTask { get; set; }
 
     protected override async Task OnInitializedAsync()
     {
+        var authState = await AuthenticationStateTask!;
+        _isSuperAdmin = authState.User.FindFirstValue("IsAdmin") == "true";
+        _currentPlatformUserId = int.Parse(authState.User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+
         _logSources = (await LogSourceRepository.GetByApplicationIdAsync(ApplicationId)).ToList();
     }
 
     private async Task CreateLogSourceAsync()
     {
         _createError = null;
+        if (!await Access.CanManageApplicationAsync(_isSuperAdmin, _currentPlatformUserId, ApplicationId))
+        {
+            _createError = "אין לך הרשאת ניהול לאפליקציה זו.";
+            return;
+        }
+
         try
         {
             var logSource = await LogSourceRepository.AddAsync(new LogSource
@@ -118,8 +126,7 @@
                 Description = _newLogSource.Description
             });
 
-            var platformUserId = await CurrentPlatformUserIdAsync();
-            await Audit.RecordAsync(platformUserId, "LogSource", logSource.Id.ToString(), "Create", $"Created log source '{logSource.Name}' in application {ApplicationId}");
+            await Audit.RecordAsync(_currentPlatformUserId, "LogSource", logSource.Id.ToString(), "Create", $"Created log source '{logSource.Name}' in application {ApplicationId}");
 
             _newLogSource.Name = string.Empty;
             _newLogSource.Description = null;
@@ -148,12 +155,17 @@
     private async Task SaveRenameAsync(int logSourceId)
     {
         _editError = null;
+        if (!await Access.CanManageApplicationAsync(_isSuperAdmin, _currentPlatformUserId, ApplicationId))
+        {
+            _editError = "אין לך הרשאת ניהול לאפליקציה זו.";
+            return;
+        }
+
         try
         {
             await LogSourceRepository.RenameAsync(logSourceId, _editModel!.Name, _editModel!.Description);
 
-            var platformUserId = await CurrentPlatformUserIdAsync();
-            await Audit.RecordAsync(platformUserId, "LogSource", logSourceId.ToString(), "Update", $"Renamed log source {logSourceId} to '{_editModel!.Name}' in application {ApplicationId}");
+            await Audit.RecordAsync(_currentPlatformUserId, "LogSource", logSourceId.ToString(), "Update", $"Renamed log source {logSourceId} to '{_editModel!.Name}' in application {ApplicationId}");
 
             _editingId = null;
             _editModel = null;
@@ -167,10 +179,16 @@
 
     private async Task DeactivateAsync(int logSourceId)
     {
+        _editError = null;
+        if (!await Access.CanManageApplicationAsync(_isSuperAdmin, _currentPlatformUserId, ApplicationId))
+        {
+            _editError = "אין לך הרשאת ניהול לאפליקציה זו.";
+            return;
+        }
+
         await LogSourceRepository.DeactivateAsync(logSourceId);
 
-        var platformUserId = await CurrentPlatformUserIdAsync();
-        await Audit.RecordAsync(platformUserId, "LogSource", logSourceId.ToString(), "Deactivate", $"Deactivated log source {logSourceId} in application {ApplicationId}");
+        await Audit.RecordAsync(_currentPlatformUserId, "LogSource", logSourceId.ToString(), "Deactivate", $"Deactivated log source {logSourceId} in application {ApplicationId}");
 
         _logSources = (await LogSourceRepository.GetByApplicationIdAsync(ApplicationId)).ToList();
     }
