@@ -7,11 +7,14 @@
 @using Microsoft.EntityFrameworkCore
 @using System.Security.Claims
 @inject IPlatformUserRepository PlatformUserRepository
+@inject IApplicationRepository ApplicationRepository
+@inject IApplicationAccessGrantRepository AccessGrants
 @inject AuditLogger Audit
 
 <table class="table table-sm table-striped align-middle">
     <thead>
         <tr>
+            <th></th>
             <th>שם משתמש</th>
             <th>מנהל/ת מערכת</th>
             <th>פעיל/ה</th>
@@ -21,7 +24,12 @@
     <tbody>
         @foreach (var user in _users)
         {
-            <tr>
+            <tr @key="user.Id">
+                <td>
+                    <button class="btn btn-sm btn-outline-secondary" @onclick="() => ToggleExpandAsync(user.Id)">
+                        @(_expandedUserIds.Contains(user.Id) ? "-" : "+")
+                    </button>
+                </td>
                 <td>@user.Username</td>
                 <td>@(user.IsAdmin ? "כן" : "לא")</td>
                 <td>@(user.IsActive ? "כן" : "לא")</td>
@@ -32,6 +40,30 @@
                     }
                 </td>
             </tr>
+            @if (_expandedUserIds.Contains(user.Id))
+            {
+                <tr>
+                    <td colspan="5">
+                        <h5>אפליקציות מוענקות</h5>
+                        @if (user.IsAdmin)
+                        {
+                            <p class="text-muted">משתמש/ת זו הוא/היא מנהל/ת-על ורואה/ה את כל האפליקציות ללא צורך בהענקה.</p>
+                        }
+                        @if (_grantedAppIdsByUserId.TryGetValue(user.Id, out var grantedAppIds))
+                        {
+                            @foreach (var application in _applications)
+                            {
+                                <div class="form-check">
+                                    <input type="checkbox" class="form-check-input" id="@($"grant-{user.Id}-{application.Id}")"
+                                           checked="@grantedAppIds.Contains(application.Id)"
+                                           @onchange="@(e => ToggleGrantAsync(user.Id, application.Id, (bool)e.Value!))" />
+                                    <label class="form-check-label" for="@($"grant-{user.Id}-{application.Id}")">@application.Name</label>
+                                </div>
+                            }
+                        }
+                    </td>
+                </tr>
+            }
         }
     </tbody>
 </table>
@@ -62,8 +94,12 @@
 
 @code {
     private List<PlatformUser> _users = new();
+    private List<Application> _applications = new();
     private readonly NewUserModel _newUser = new();
     private string? _createError;
+
+    private readonly HashSet<int> _expandedUserIds = new();
+    private readonly Dictionary<int, HashSet<int>> _grantedAppIdsByUserId = new();
 
     [CascadingParameter] private Task<AuthenticationState>? AuthenticationStateTask { get; set; }
 
@@ -76,6 +112,46 @@
     protected override async Task OnInitializedAsync()
     {
         _users = (await PlatformUserRepository.GetAllAsync()).ToList();
+        _applications = (await ApplicationRepository.GetAllAsync()).ToList();
+    }
+
+    private async Task ToggleExpandAsync(int userId)
+    {
+        if (_expandedUserIds.Contains(userId))
+        {
+            _expandedUserIds.Remove(userId);
+            return;
+        }
+
+        _expandedUserIds.Add(userId);
+
+        if (!_grantedAppIdsByUserId.ContainsKey(userId))
+        {
+            var grantedIds = await AccessGrants.GetGrantedApplicationIdsAsync(userId);
+            _grantedAppIdsByUserId[userId] = new HashSet<int>(grantedIds);
+        }
+    }
+
+    private async Task ToggleGrantAsync(int userId, int applicationId, bool isGranted)
+    {
+        if (isGranted)
+        {
+            await AccessGrants.GrantAsync(userId, applicationId);
+            _grantedAppIdsByUserId[userId].Add(applicationId);
+
+            var currentPlatformUserId = await CurrentPlatformUserIdAsync();
+            var application = _applications.First(a => a.Id == applicationId);
+            await Audit.RecordAsync(currentPlatformUserId, "PlatformUserApplicationGrant", $"{userId}:{applicationId}", "Create", $"Granted platform user {userId} management access to application '{application.Name}' ({applicationId})");
+        }
+        else
+        {
+            await AccessGrants.RevokeAsync(userId, applicationId);
+            _grantedAppIdsByUserId[userId].Remove(applicationId);
+
+            var currentPlatformUserId = await CurrentPlatformUserIdAsync();
+            var application = _applications.First(a => a.Id == applicationId);
+            await Audit.RecordAsync(currentPlatformUserId, "PlatformUserApplicationGrant", $"{userId}:{applicationId}", "Deactivate", $"Revoked platform user {userId}'s management access to application '{application.Name}' ({applicationId})");
+        }
     }
 
     private async Task CreateUserAsync()

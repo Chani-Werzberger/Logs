@@ -1,5 +1,8 @@
 @* src/LogsPlatform.Web/Components/Layout/NavMenu.razor *@
+@using LogsPlatform.Domain.Repositories
 @using Microsoft.AspNetCore.Components.Authorization
+@using System.Security.Claims
+@inject IApplicationAccessGrantRepository AccessGrants
 <nav class="navbar navbar-expand navbar-dark bg-dark mb-4">
     <div class="container-fluid">
         <a class="navbar-brand" href="/">LogsPlatform</a>
@@ -19,13 +22,16 @@
                     חריגות
                 </NavLink>
             </li>
+            @if (_canSeeManagement)
+            {
+                <li class="nav-item">
+                    <NavLink class="nav-link" href="/admin/applications" Match="NavLinkMatch.Prefix">
+                        ניהול
+                    </NavLink>
+                </li>
+            }
             <AuthorizeView Policy="RequireAdmin">
                 <Authorized>
-                    <li class="nav-item">
-                        <NavLink class="nav-link" href="/admin/applications" Match="NavLinkMatch.Prefix">
-                            ניהול
-                        </NavLink>
-                    </li>
                     <li class="nav-item">
                         <NavLink class="nav-link" href="/admin/platform-users" Match="NavLinkMatch.Prefix">
                             משתמשי מערכת
@@ -49,3 +55,27 @@
         </AuthorizeView>
     </div>
 </nav>
+
+@code {
+    private bool _canSeeManagement;
+
+    [CascadingParameter] private Task<AuthenticationState>? AuthenticationStateTask { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (AuthenticationStateTask is null) return;
+
+        var authState = await AuthenticationStateTask;
+        var user = authState.User;
+        if (user.Identity?.IsAuthenticated != true) return;
+
+        if (user.FindFirstValue("IsAdmin") == "true")
+        {
+            _canSeeManagement = true;
+            return;
+        }
+
+        var platformUserId = int.Parse(user.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        _canSeeManagement = await AccessGrants.HasAnyGrantAsync(platformUserId);
+    }
+}
