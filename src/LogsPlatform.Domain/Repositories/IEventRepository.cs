@@ -40,4 +40,5 @@ public interface IEventRepository
     Task<(IReadOnlyList<Event> Items, int TotalCount)> QueryAsync(EventQueryParameters parameters);
     Task<Event?> GetByIdAsync(int applicationId, long id);
     Task<IReadOnlyList<Event>> GetTimelineAsync(TimelineQuery query);
+    Task<int> DeleteOlderThanAsync(int applicationId, DateTime cutoffUtc);
 }

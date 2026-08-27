@@ -7,4 +7,5 @@ public interface IApplicationRepository
     Task<Application?> GetByIdAsync(int id);
     Task<IReadOnlyList<Application>> GetAllAsync();
     Task<Application> AddAsync(Application application);
+    Task<Application?> UpdateRetentionAsync(int id, int? retentionDays);
 }

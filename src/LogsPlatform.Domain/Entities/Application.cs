@@ -6,6 +6,7 @@ public class Application
     public string Name { get; set; } = string.Empty;
     public string? Description { get; set; }
     public DateTime CreatedAt { get; set; }
+    public int? RetentionDays { get; set; }
 
     public ICollection<AppEnvironment> Environments { get; set; } = new List<AppEnvironment>();
     public ICollection<AppModule> Modules { get; set; } = new List<AppModule>();

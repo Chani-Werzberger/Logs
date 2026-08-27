@@ -195,4 +195,9 @@ public class EventRepository : IEventRepository
             .Include(e => e.Operation)
             .ToListAsync();
     }
+
+    public async Task<int> DeleteOlderThanAsync(int applicationId, DateTime cutoffUtc) =>
+        await _context.Events
+            .Where(e => e.ApplicationId == applicationId && e.Timestamp < cutoffUtc)
+            .ExecuteDeleteAsync();
 }

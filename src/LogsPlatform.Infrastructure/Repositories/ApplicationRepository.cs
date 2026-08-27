@@ -40,4 +40,18 @@ public class ApplicationRepository : IApplicationRepository
         }
         return application;
     }
+
+    public async Task<Application?> UpdateRetentionAsync(int id, int? retentionDays)
+    {
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        var application = await context.Applications.FindAsync(id);
+        if (application is null)
+        {
+            return null;
+        }
+
+        application.RetentionDays = retentionDays;
+        await context.SaveChangesAsync();
+        return application;
+    }
 }

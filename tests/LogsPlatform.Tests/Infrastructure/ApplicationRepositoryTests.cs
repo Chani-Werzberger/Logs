@@ -65,4 +65,30 @@ public class ApplicationRepositoryTests
         var all = await repository.GetAllAsync();
         Assert.Contains(all, a => a.Name == "CircuitTest2");
     }
+
+    [Fact]
+    public async Task UpdateRetentionAsync_ExistingApplication_UpdatesAndReturnsIt()
+    {
+        using var context = TestDatabase.CreateContext();
+        var repository = new ApplicationRepository(TestDatabase.CreateFactory());
+        var created = await repository.AddAsync(new Application { Name = "RetentionUpdateTestApp", CreatedAt = DateTime.UtcNow });
+
+        var updated = await repository.UpdateRetentionAsync(created.Id, 30);
+
+        Assert.NotNull(updated);
+        Assert.Equal(30, updated!.RetentionDays);
+
+        var reloaded = await repository.GetByIdAsync(created.Id);
+        Assert.Equal(30, reloaded!.RetentionDays);
+    }
+
+    [Fact]
+    public async Task UpdateRetentionAsync_NoSuchApplication_ReturnsNull()
+    {
+        var repository = new ApplicationRepository(TestDatabase.CreateFactory());
+
+        var updated = await repository.UpdateRetentionAsync(999999, 30);
+
+        Assert.Null(updated);
+    }
 }
