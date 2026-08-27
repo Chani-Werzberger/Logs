@@ -100,6 +100,7 @@ builder.Services.AddScoped<LogsPlatform.Web.Services.Analysis.UpstreamCauseCorre
 builder.Services.AddScoped<LogsPlatform.Web.Services.Analysis.AnalysisEngineTickRunner>();
 builder.Services.AddSingleton<LogsPlatform.Web.Services.Analysis.AnalysisEngineHealthStatus>();
 builder.Services.AddHostedService<LogsPlatform.Web.Services.Analysis.AnalysisEngineBackgroundService>();
+builder.Services.AddHostedService<LogsPlatform.Web.Services.Retention.RetentionCleanupService>();
 
 var app = builder.Build();
 
