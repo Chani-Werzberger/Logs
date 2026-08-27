@@ -64,4 +64,55 @@ public class ApplicationsControllerTests : IClassFixture<TestWebApplicationFacto
 
         Assert.Equal(DateTimeKind.Utc, fetched!.CreatedAt.Kind);
     }
+
+    [Fact]
+    public async Task UpdateRetention_ValidRequest_UpdatesAndReturnsIt()
+    {
+        var client = await AuthenticatedTestClientHelper.CreateAuthenticatedClientAsync(_factory);
+        var createResponse = await client.PostAsJsonAsync(
+            "/api/v1/admin/applications",
+            new CreateApplicationRequest("RetentionUpdateEndpointTestApp", null));
+        var created = await createResponse.Content.ReadFromJsonAsync<ApplicationResponse>();
+
+        var updateResponse = await client.PutAsJsonAsync(
+            $"/api/v1/admin/applications/{created!.Id}",
+            new UpdateApplicationRetentionRequest(60));
+
+        Assert.Equal(HttpStatusCode.OK, updateResponse.StatusCode);
+        var updated = await updateResponse.Content.ReadFromJsonAsync<ApplicationResponse>();
+        Assert.Equal(60, updated!.RetentionDays);
+
+        var getResponse = await client.GetAsync($"/api/v1/admin/applications/{created.Id}");
+        var fetched = await getResponse.Content.ReadFromJsonAsync<ApplicationResponse>();
+        Assert.Equal(60, fetched!.RetentionDays);
+    }
+
+    [Fact]
+    public async Task UpdateRetention_NoSuchApplication_Returns404()
+    {
+        var client = await AuthenticatedTestClientHelper.CreateAuthenticatedClientAsync(_factory);
+
+        var response = await client.PutAsJsonAsync(
+            "/api/v1/admin/applications/999999",
+            new UpdateApplicationRetentionRequest(30));
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task UpdateRetention_NonAdminUser_Returns403()
+    {
+        var (client, _) = await AuthenticatedTestClientHelper.CreateNonAdminAuthenticatedClientAsync(_factory, "RetentionUpdateNonAdminTestUser");
+        var adminClient = await AuthenticatedTestClientHelper.CreateAuthenticatedClientAsync(_factory);
+        var createResponse = await adminClient.PostAsJsonAsync(
+            "/api/v1/admin/applications",
+            new CreateApplicationRequest("RetentionUpdateNonAdminTestApp", null));
+        var created = await createResponse.Content.ReadFromJsonAsync<ApplicationResponse>();
+
+        var response = await client.PutAsJsonAsync(
+            $"/api/v1/admin/applications/{created!.Id}",
+            new UpdateApplicationRetentionRequest(30));
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
 }

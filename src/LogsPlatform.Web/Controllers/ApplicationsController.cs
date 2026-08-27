@@ -39,7 +39,7 @@ public class ApplicationsController : ControllerBase
             var platformUserId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
             await _audit.RecordAsync(platformUserId, "Application", application.Id.ToString(), "Create", $"Created application '{application.Name}'");
 
-            var response = new ApplicationResponse(application.Id, application.Name, application.Description, application.CreatedAt);
+            var response = new ApplicationResponse(application.Id, application.Name, application.Description, application.CreatedAt, application.RetentionDays);
             return CreatedAtAction(nameof(GetById), new { id = application.Id }, response);
         }
         catch (DbUpdateException ex) when (ex.InnerException is SqlException { Number: 2601 or 2627 })
@@ -53,7 +53,7 @@ public class ApplicationsController : ControllerBase
     {
         var application = await _applications.GetByIdAsync(id);
         if (application is null) return NotFound();
-        return new ApplicationResponse(application.Id, application.Name, application.Description, application.CreatedAt);
+        return new ApplicationResponse(application.Id, application.Name, application.Description, application.CreatedAt, application.RetentionDays);
     }
 
     [HttpGet]
@@ -61,7 +61,19 @@ public class ApplicationsController : ControllerBase
     {
         var applications = await _applications.GetAllAsync();
         return applications
-            .Select(a => new ApplicationResponse(a.Id, a.Name, a.Description, a.CreatedAt))
+            .Select(a => new ApplicationResponse(a.Id, a.Name, a.Description, a.CreatedAt, a.RetentionDays))
             .ToList();
+    }
+
+    [HttpPut("{id:int}")]
+    public async Task<ActionResult<ApplicationResponse>> UpdateRetention(int id, UpdateApplicationRetentionRequest request)
+    {
+        var updated = await _applications.UpdateRetentionAsync(id, request.RetentionDays);
+        if (updated is null) return NotFound();
+
+        var platformUserId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        await _audit.RecordAsync(platformUserId, "Application", id.ToString(), "Update", $"Set RetentionDays to {(request.RetentionDays.HasValue ? request.RetentionDays.Value.ToString() : "null (keep forever)")} for application {id}");
+
+        return new ApplicationResponse(updated.Id, updated.Name, updated.Description, updated.CreatedAt, updated.RetentionDays);
     }
 }

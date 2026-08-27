@@ -52,6 +52,7 @@
             <th>שם</th>
             <th>תיאור</th>
             <th>נוצר בתאריך</th>
+            <th>שמירת Events (ימים)</th>
         </tr>
     </thead>
     <tbody>
@@ -67,6 +68,25 @@
                 <td>@application.Name</td>
                 <td>@application.Description</td>
                 <td>@application.CreatedAt</td>
+                <td>
+                    @if (_isSuperAdmin)
+                    {
+                        <div class="input-group input-group-sm" style="width: 10rem;">
+                            <input type="number" min="1" class="form-control form-control-sm"
+                                   value="@application.RetentionDays"
+                                   placeholder="לנצח"
+                                   @onchange="@(e => UpdateRetentionAsync(application.Id, e.Value as string))" />
+                        </div>
+                    }
+                    else
+                    {
+                        @(application.RetentionDays?.ToString() ?? "לנצח")
+                    }
+                    @if (_retentionErrors.TryGetValue(application.Id, out var retentionError) && retentionError is not null)
+                    {
+                        <div class="text-danger small">@retentionError</div>
+                    }
+                </td>
             </tr>
             @if (_expandedAppIds.Contains(application.Id))
             {
@@ -143,6 +163,7 @@
     private readonly Dictionary<int, List<AppEnvironment>> _environmentsByAppId = new();
     private readonly Dictionary<int, NewEnvironmentModel> _newEnvironmentModels = new();
     private readonly Dictionary<int, string?> _environmentErrors = new();
+    private readonly Dictionary<int, string?> _retentionErrors = new();
 
     private bool _isSuperAdmin;
     private int _currentPlatformUserId;
@@ -228,6 +249,37 @@
         _newEnvironmentModels[applicationId] = new NewEnvironmentModel();
         _environmentsByAppId[applicationId] =
             (await EnvironmentRepository.GetByApplicationIdAsync(applicationId)).ToList();
+    }
+
+    private async Task UpdateRetentionAsync(int applicationId, string? rawValue)
+    {
+        _retentionErrors[applicationId] = null;
+
+        int? retentionDays;
+        if (string.IsNullOrWhiteSpace(rawValue))
+        {
+            retentionDays = null;
+        }
+        else if (int.TryParse(rawValue, out var parsed) && parsed > 0)
+        {
+            retentionDays = parsed;
+        }
+        else
+        {
+            _retentionErrors[applicationId] = "יש להזין מספר ימים חיובי, או להשאיר ריק לשמירה לנצח.";
+            return;
+        }
+
+        var updated = await ApplicationRepository.UpdateRetentionAsync(applicationId, retentionDays);
+        if (updated is null)
+        {
+            _retentionErrors[applicationId] = "האפליקציה לא נמצאה.";
+            return;
+        }
+
+        await Audit.RecordAsync(_currentPlatformUserId, "Application", applicationId.ToString(), "Update", $"Set RetentionDays to {(retentionDays.HasValue ? retentionDays.Value.ToString() : "null (keep forever)")} for application {applicationId}");
+
+        _applications = (await ApplicationRepository.GetAllAsync()).ToList();
     }
 
     private class NewApplicationModel
